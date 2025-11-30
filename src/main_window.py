@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QMainWindow,
     QVBoxLayout,
     QCompleter,
+    QWidget,
 )
 from PySide6.QtCore import QTimer, Qt  # pylint: disable=no-name-in-module
 from src.device_manager import DeviceManager
@@ -119,13 +120,14 @@ class MainWindow(QMainWindow):
 
         # Histogram plot
         self.histogram = HistogramWidget(xlabel=CONFIG["plot"]["x_label"])
-        QVBoxLayout(self.ui.histogramm).addWidget(self.histogram)
+        QVBoxLayout(self.ui.histWidget).addWidget(self.histogram)
 
     def _setup_data_controller(self):
         """Initialise the data controller."""
         self.data_controller = DataController(
             plot_widget=self.plot,
             display_widget=self.ui.currentCount,
+            histogram_widget=self.histogram,
             table_widget=self.ui.tableView,
             max_history=CONFIG["data_controller"]["max_history_size"],
         )
@@ -379,9 +381,6 @@ class MainWindow(QMainWindow):
         if not self.is_measuring:
             self.ui.buttonSave.setEnabled(True)
 
-        # Statistics are now updated every 2s using their own timer
-        # No manual update necessary - better performance
-
     def _update_statistics(self):
         """Update statistics shown in the user interface."""
         try:
@@ -389,24 +388,12 @@ class MainWindow(QMainWindow):
             stats = self.data_controller.get_statistics()
 
             # Only update when data points are available
-            if stats["count"] > 0:
-                stats_text = (
-                    f"Datenpunkte: {int(stats['count'])} | "
-                    f"Min: {stats['min']:.0f} µs | "
-                    f"Max: {stats['max']:.0f} µs | "
-                    f"Mittelwert: {stats['avg']:.0f} µs"
-                )
-
-                # Add standard deviation when enough data points are present
-                if stats["count"] > 1:
-                    stats_text += f" | σ: {stats['stdev']:.0f} µs"
-
-                # Temporarily update status bar while a measurement is running
-                if self.is_measuring:
-                    self.statusbar.temp_message(
-                        CONFIG["messages"]["measurement_running"] + "\t" + stats_text,
-                        CONFIG["colors"]["orange"],
-                    )
+            if stats["count"] > 1:
+                self.ui.cStatPoints.setText(f"{stats['count']:.0f}")
+                self.ui.cStatMin.setText(f"{stats['min']:.0f}")
+                self.ui.cStatMax.setText(f"{stats['max']:.0f}")
+                self.ui.cStatAvg.setText(f"{stats['avg']:.0f}")
+                self.ui.cStatSD.setText(f"{stats['stdev']:.0f}")
 
         except Exception as e:
             Debug.error(
@@ -520,6 +507,20 @@ class MainWindow(QMainWindow):
                     self.device_manager.device.close()
             except Exception as e:
                 Debug.error(f"Fehler beim Herunterfahren des DeviceManagers: {e}")
+
+        # Check if unsaved data is present
+        if hasattr(self, "save_manager"):
+            try:
+                Debug.info("SaveManager Cleanup...")
+                if self.save_manager.has_unsaved():
+                    if not MessageHelper.question(
+                        self,
+                        CONFIG["messages"]["unsaved_data_end"],
+                        "Warnung",
+                    ):
+                        return
+            except Exception as e:
+                Debug.error(f"Fehler beim SaveManager Cleanup: {e}")
 
         # Stop all timers
         for timer_attr in ["control_update_timer", "stats_timer"]:

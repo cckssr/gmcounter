@@ -11,10 +11,11 @@ import inspect
 
 class Debug:
     """
-    Debug utility class for the Fringe Counter program.
-
+    Debug utility class originally for fringe counter program.
     This class provides central debug and logging functions,
     to systematically log errors and program flow.
+    The logger will log messages to both the console and a file if debugging is enabled.
+    It also provides a method to handle unhandled exceptions globally.
 
     Attribute:
         logger: The logger used for debug output
@@ -34,9 +35,10 @@ class Debug:
     logger = None
 
     @classmethod
-    def init(cls, debug_level=DEBUG_OFF, log_dir=None, app_name="fringe_counter"):
+    def init(cls, debug_level=DEBUG_OFF, log_dir=None, app_name="Application"):
         """
-        Initialisiert den Logger mit dem angegebenen Debug-Level und Log-Verzeichnis.
+        Initialise the logger with the specified debug level and log directory.
+        If no log directory is specified, a "logs" folder in the project directory is used.
 
         Args:
             debug_level: Debug level (0-3)
@@ -66,37 +68,44 @@ class Debug:
 
         cls.logger.addHandler(console_handler)
 
-        # Set up log file
-         # Use provided directory if given,
-        # otherwise use a "logs" folder in the project directory
-        if log_dir:
-            log_directory = log_dir
+        # Only set up log file if debugging is enabled
+        if debug_level != cls.DEBUG_OFF:
+            # Use provided directory if given,
+            # otherwise use a "logs" folder in the project directory
+            if log_dir:
+                log_directory = log_dir
+            else:
+                # Determine the project directory (one level above the src directory)
+                project_dir = os.path.dirname(
+                    os.path.dirname(os.path.abspath(__file__))
+                )
+                log_directory = os.path.join(project_dir, "logs")
+
+            if not os.path.exists(log_directory):
+                try:
+                    os.makedirs(log_directory)
+                    print(f"Log directory created: {log_directory}")
+                except Exception as e:
+                    print(f"Error creating log directory: {e}")
+                    return
+
+            # Always create a log.txt in the specified directory
+            cls.LOG_FILE = os.path.join(
+                log_directory,
+                f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{app_name}.txt",
+            )
+
+            file_handler = logging.FileHandler(cls.LOG_FILE, encoding="utf-8")
+            file_formatter = logging.Formatter(
+                "%(asctime)s - %(levelname)s: %(message)s"
+            )
+            file_handler.setFormatter(file_formatter)
+            file_handler.setLevel(logging.DEBUG)  # In Datei immer alles loggen
+            cls.logger.addHandler(file_handler)
+
+            cls.info(f"Log file created: {cls.LOG_FILE}")
         else:
-            # Determine the project directory (one level above the src directory)
-            project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            log_directory = os.path.join(project_dir, "logs")
-
-        if not os.path.exists(log_directory):
-            try:
-                os.makedirs(log_directory)
-                print(f"Log directory created: {log_directory}")
-            except Exception as e:
-                print(f"Error creating log directory: {e}")
-                return
-
-        # Always create a log.txt in the specified directory
-        cls.LOG_FILE = os.path.join(
-            log_directory,
-            f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_fringecounter_log.txt",
-        )
-
-        file_handler = logging.FileHandler(cls.LOG_FILE, encoding="utf-8")
-        file_formatter = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s")
-        file_handler.setFormatter(file_formatter)
-        file_handler.setLevel(logging.DEBUG)  # In Datei immer alles loggen
-        cls.logger.addHandler(file_handler)
-
-        cls.info(f"Log file created: {cls.LOG_FILE}")
+            cls.LOG_FILE = None
 
     @classmethod
     def error(cls, message, exc_info=None):
@@ -113,7 +122,7 @@ class Debug:
             message = f"{prefix} {message}"
 
         if not cls.logger:
-            print(f"FEHLER: {message}")
+            print(f"ERROR: {message}")
             return
 
         if exc_info:
@@ -175,7 +184,7 @@ class Debug:
             message = f"{prefix} {message}"
 
         if not cls.logger:
-            print(f"KRITISCH: {message}")
+            print(f"CRITICAL: {message}")
             return
 
         cls.logger.critical(message)
@@ -194,7 +203,7 @@ class Debug:
         error_msg = "".join(
             traceback.format_exception(exc_type, exc_value, exc_traceback)
         )
-        cls.critical(f"Unbehandelte Ausnahme: {error_msg}")
+        cls.critical(f"UNEXPECTED: {error_msg}")
 
         # Standardbehandlung von Ausnahmen
         sys.__excepthook__(exc_type, exc_value, exc_traceback)

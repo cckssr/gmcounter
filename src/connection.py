@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 
 import os
-from typing import Union
-from PySide6.QtWidgets import QWidget  # pylint: disable=no-name-in-module
+from typing import Optional
+from tempfile import gettempdir
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QWidget,
     QApplication,
     QDialog,
     QDialogButtonBox,
 )
-from tempfile import gettempdir
+from PySide6.QtCore import Qt  # Add Qt import for alignment
 from serial.tools import list_ports
 from pyqt.ui_connection import Ui_Dialog as Ui_Connection
 from src.helper_classes import AlertWindow
@@ -19,9 +19,33 @@ from src.device_manager import DeviceManager
 
 
 class ConnectionWindow(QDialog):
+    """
+    A dialog window for managing device connections.
+
+    This window allows the user to select and connect to available devices
+    or a mock device (in demo mode).
+    It provides a user interface for listing serial ports, refreshing the list,
+    and displaying port descriptions.
+    The window supports a demo mode for demonstration purposes,
+    which uses a mock virtual port if available.
+
+    Attributes:
+        device_manager (DeviceManager): Manages device connections and statuses.
+        connection_successful (bool): Indicates if a connection was successfully established.
+        default_device (str): The default device to connect to.
+        ports (list): List of available ports, including mock port if in demo mode.
+        demo_mode (bool): Whether the window is operating in demo mode.
+        ui (Ui_Connection): The UI object for the connection window.
+        combo (QComboBox): The combo box widget for selecting serial ports.
+
+    Methods:
+        __init__: Initializes the connection window and sets up the UI.
+        check_mock_port: Checks if a mock virtual port is available for demo mode.
+    """
+
     def __init__(
         self,
-        parent: QWidget = None,
+        parent: Optional[QWidget] = None,
         demo_mode: bool = False,
         default_device: str = "None",
     ):
@@ -58,7 +82,10 @@ class ConnectionWindow(QDialog):
         self.ui.buttonRefreshSerial.clicked.connect(self._update_ports)
         self.combo.currentIndexChanged.connect(self._update_port_description)
 
-    def check_mock_port(self) -> Union[str, None]:
+        # Initialize status message to show that the widget is ready
+        self.status_message("Ready to connect...", "white")
+
+    def check_mock_port(self) -> str | None:
         """
         Checks if the mock virtual port is available.
         Returns:
@@ -77,10 +104,25 @@ class ConnectionWindow(QDialog):
         """
         Updates the status message in the connection dialog.
         """
-        self.ui.status_msg.setText(message)
-        self.ui.status_msg.setStyleSheet(f"color: {color};")
-        QApplication.processEvents()  # Process events to update UI immediately
-        self.ui.status_msg.repaint()  # Force repaint to ensure message is shown
+        try:
+            # Debug: Print to console to verify the method is called
+            Debug.debug(f"Status message: {message} (color: {color})")
+
+            # Check if the UI element exists
+            if hasattr(self.ui, "status_msg") and self.ui.status_msg is not None:
+                self.ui.status_msg.setText(message)
+                self.ui.status_msg.setStyleSheet(f"color: {color};")
+
+                # Force UI update
+                QApplication.processEvents()  # Process events to update UI immediately
+                self.ui.status_msg.repaint()  # Force repaint to ensure message is shown
+
+                Debug.debug(f"Status message set successfully: '{message}'")
+            else:
+                Debug.error("Status message widget (status_msg) not found in UI")
+
+        except Exception as e:
+            Debug.error(f"Failed to set status message: {e}")
 
     def _update_ports(self):
         """
@@ -150,8 +192,13 @@ class ConnectionWindow(QDialog):
         """
         port = self.combo.currentText()
         baudrate = int(self.ui.comboBox.currentText())
-        self.status_message(f"Connecting to {port}...", "white")
-        Debug.info(f"ConnectionWindow: Attempting to connect to port: {port}")
+
+        # Show connecting message and give UI time to update
+        self.status_message(f"Connecting to {port}...", "yellow")
+        Debug.info(f"Attempting to connect to port: {port}")
+
+        # Give UI time to show the message
+        QApplication.processEvents()
 
         # Check if connected
         success = self.device_manager.connect(port, baudrate)
@@ -162,7 +209,10 @@ class ConnectionWindow(QDialog):
             self.connection_successful = True
             return True, self.device_manager
         else:
+            self.status_message(f"Failed to connect to {port}", "red")
             Debug.error(f"Failed to connect to port: {port}")
+            # Give time to show error message
+            QApplication.processEvents()
             self.connection_successful = False
             return False, None
 
@@ -174,47 +224,40 @@ class ConnectionWindow(QDialog):
 
         if success:
             return super().accept()
-        else:
-            Debug.error(
-                f"Connection attempt failed for port: {self.combo.currentText()}"
-            )
+        Debug.error(f"Connection attempt failed for port: {self.combo.currentText()}")
 
-            # Show error dialog with retry options
-            error_msg = f"Failed to connect to {self.combo.currentText()}"
-            alert = AlertWindow(
-                self,
-                message=f"{error_msg}\n\nPlease check if the device is connected properly and try again.",
-                title="Connection Error",
-                buttons=[
-                    ("Retry", QDialogButtonBox.ButtonRole.ResetRole),
-                    ("Select Another Port", QDialogButtonBox.ButtonRole.ActionRole),
-                    ("Cancel", QDialogButtonBox.ButtonRole.RejectRole),
-                ],
-            )
+        # Show error dialog with retry options
+        error_msg = f"Failed to connect to {self.combo.currentText()}"
+        alert = AlertWindow(
+            self,
+            message=f"{error_msg}\n\nPlease check if the device is connected properly and try again.",
+            title="Connection Error",
+            buttons=[
+                ("Retry", QDialogButtonBox.ButtonRole.ResetRole),
+                ("Select Another Port", QDialogButtonBox.ButtonRole.ActionRole),
+                ("Cancel", QDialogButtonBox.ButtonRole.RejectRole),
+            ],
+        )
 
-            # Dialog anzeigen und auf Benutzeraktion warten
-            result = alert.exec()
+        result = alert.exec()
 
-            # Benutzerentscheidung verarbeiten
-            role = alert.get_clicked_role()
+        role = alert.get_clicked_role()
+        Debug.debug(f"Alert dialog result: {result}, role: {role}")
+        if (
+            role == QDialogButtonBox.ButtonRole.RejectRole
+            or result == QDialog.DialogCode.Rejected
+        ):
+            Debug.info("User canceled connection attempt")
+            return super().reject()
 
-            if (
-                role == QDialogButtonBox.ButtonRole.RejectRole
-                or result == QDialog.Rejected
-            ):
-                # Benutzer hat "Abbrechen" gewählt oder Dialog abgebrochen
-                Debug.info("User canceled connection attempt")
-                return super().reject()
+        if role == QDialogButtonBox.ButtonRole.ActionRole:
+            Debug.info("User chose to select another port")
+            return False  # Dialog remains open for port selection
 
-            elif role == QDialogButtonBox.ButtonRole.ActionRole:
-                # Benutzer möchte einen anderen Port auswählen
-                Debug.info("User chose to select another port")
-                return False  # Dialog offen lassen
+        if role == QDialogButtonBox.ButtonRole.ResetRole:
+            Debug.info(f"Retrying connection with port: {self.combo.currentText()}")
+            return self.accept()  # Recursive call
 
-            elif role == QDialogButtonBox.ButtonRole.ResetRole:
-                # Erneut mit demselben Port versuchen
-                Debug.info(f"Retrying connection with port: {self.combo.currentText()}")
-                return self.accept()  # Rekursiver Aufruf
-
-            # Fallback, wenn kein Button erfasst wurde
-            return False
+        # Fallback, if no role matched
+        Debug.error("No valid role selected, rejecting dialog")
+        return False

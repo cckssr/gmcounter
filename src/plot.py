@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Iterable, Optional, Tuple, List
 import numpy as np
 
+from src.debug_utils import Debug
+
 try:  # pragma: no cover - optional dependency during headless tests
     import pyqtgraph as pg
 except Exception:  # pragma: no cover - fallback stubs
@@ -72,10 +74,7 @@ class PlotWidget(pg.PlotWidget):
         # Store config for potential future use
         self._plot_config = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
 
-
         # Redraw the canvas
-        self.fig.canvas.draw()  # Use draw() instead of draw_idle() for immediate update
-        self.fig.canvas.flush_events()
         self.update()  # Triggers an explicit QWidget repaint
 
     def _on_view_changed(self):
@@ -90,6 +89,7 @@ class PlotWidget(pg.PlotWidget):
             data_points: List of (index_num, value_num, timestamp) tuples
         """
         if not data_points:
+            Debug.error("No datapoint to add to plot.")
             return
 
         # Plot ALL data points for complete history
@@ -107,6 +107,7 @@ class PlotWidget(pg.PlotWidget):
             symbolBrush="r",
             symbolPen="r",
         )
+        Debug.debug(f"Changed plot data to show {len(all_indices)} datapoints.")
 
         # AutoRange calculation based only on LAST max_plot_points for consistent view
         display_data_for_range = (
@@ -123,6 +124,7 @@ class PlotWidget(pg.PlotWidget):
             # Calculate proper ranges with minimal padding
             x_min, x_max = range_indices.min(), range_indices.max()
             y_min, y_max = range_values_us.min(), range_values_us.max()
+            Debug.debug(f"Range values are: {x_min}, {x_max}, {y_min}, {y_max}.")
 
             # Ensure minimum range for single-point plots
             if x_max == x_min:
@@ -145,6 +147,17 @@ class PlotWidget(pg.PlotWidget):
             viewbox = self.plotItem.getViewBox()
             viewbox.enableAutoRange(enable=False)  # Disable PyQtGraph's autoRange
             viewbox.setRange(xRange=final_x_range, yRange=final_y_range, padding=0)
+            Debug.debug(f"Set manual range: {final_x_range}, {final_y_range}")
+
+    def update_plot_batch(self, data_points: List[Tuple[int, float, str]]):
+        """
+        Batch update method for efficient plot updates with multiple data points.
+        This is the same as update_plot but with a clearer name for batch operations.
+
+        Args:
+            data_points: List of (index_num, value_num, timestamp) tuples
+        """
+        self.update_plot(data_points)
 
     def get_data_in_range(self, max_points: int) -> Tuple[np.ndarray, np.ndarray]:
         """
