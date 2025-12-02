@@ -64,12 +64,11 @@ class DummyPlot:
 class DataControllerTests(unittest.TestCase):
     def setUp(self):
         self.lcd = DummyLCD()
-        self.history = DummyHistory()
         self.plot = DummyPlot()
         self.ctrl = DataController(
             plot_widget=self.plot,
             display_widget=self.lcd,
-            history_widget=self.history,
+            histogram_widget=None,
             table_widget=None,
             max_history=3,
         )

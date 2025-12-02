@@ -132,9 +132,8 @@ def test_data_controller_batch_processing():
         controller = DataController(
             plot_widget=plot,
             display_widget=display,
-            history_widget=history,
-            max_history=150,  # Increased to accommodate all test points
-            gui_update_interval=50,  # 50ms for faster testing
+            histogram_widget=None,
+            table_widget=None,
         )
 
         # Simulate high-frequency data points
