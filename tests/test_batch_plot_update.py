@@ -25,8 +25,8 @@ try:
 except:
     app = None
 
-from src.plot import PlotWidget
-from src.data_controller import DataController
+from gmcounter.plot import PlotWidget
+from gmcounter.data_controller import DataController
 
 
 class MockDisplay:

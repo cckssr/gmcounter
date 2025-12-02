@@ -3,7 +3,7 @@
 
 """
 Entry point for running the package as a module:
-    python -m hrnggui
+    python -m gmcounter
 """
 
 from .main import main

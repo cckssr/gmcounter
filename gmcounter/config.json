@@ -1,6 +1,6 @@
 {
   "de": {
-    "description": "Zentrale Konfigurationsdatei für die HRNGGUI-Anwendung. Stellt Konstanten und Standardwerte für die gesamte Anwendung bereit.",
+    "description": "Zentrale Konfigurationsdatei für die GMCounter-Anwendung. Stellt Konstanten und Standardwerte für die gesamte Anwendung bereit.",
 
     "application": {
       "name": "Geiger-Müller Zähler GUI",

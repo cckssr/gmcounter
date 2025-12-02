@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-HRNGGUI - Hauptprogramm für die Geiger-Müller Counter GUI-Anwendung.
+GMCounter - Hauptprogramm für die Geiger-Müller Counter GUI-Anwendung.
 """
 
 

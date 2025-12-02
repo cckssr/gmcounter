@@ -77,8 +77,8 @@ class Debug:
                 log_directory = log_dir
             else:
                 # Use platform-independent temp directory
-                # Creates: /tmp/hrnggui_logs (Linux/Mac) or %TEMP%\hrnggui_logs (Windows)
-                log_directory = os.path.join(tempfile.gettempdir(), "hrnggui_logs")
+                # Creates: /tmp/gmcounter_logs (Linux/Mac) or %TEMP%\gmcounter_logs (Windows)
+                log_directory = os.path.join(tempfile.gettempdir(), "gmcounter_logs")
 
             if not os.path.exists(log_directory):
                 try:
