@@ -197,8 +197,8 @@ class DeviceManager:
             if self.status_callback:
                 self.status_callback(f"Connected to {port}", "green")
 
-            # Retrieve and report device information
-            # self._fetch_device_info()
+            # Retrieve and report device information (version, openbis, etc.)
+            self._fetch_device_info()
 
             self.start_acquisition()
             return True
