@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "HRNGGUI"
-version = "1.0.0"
+version = "1.1.0"
 description = "Hardware Random Number Generator GUI"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
-    {name = "Cedric Kessler", email = "cedric.kessler@tu-berlin.de"}
+    {name = "Cedric Kessler", email = "c.kessler@tu-berlin.de"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -56,11 +56,19 @@ Documentation = "https://hrnggui.readthedocs.io"
 Repository = "https://github.com/cedric-kessler/HRNGGUI"
 Issues = "https://github.com/cedric-kessler/HRNGGUI/issues"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.scripts]
+hrnggui = "src.main:main"
 
-[tool.setuptools.package-dir]
-"" = "src"
+[project.gui-scripts]
+hrnggui-gui = "src.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src", "src.*"]
+
+[tool.setuptools.package-data]
+"src" = ["pyqt/*.ui"]
+"*" = ["config.json"]
 
 [tool.black]
 line-length = 88

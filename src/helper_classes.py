@@ -467,15 +467,38 @@ def import_config(language: str = "de") -> dict:
     Returns:
         dict: The configuration dictionary.
     """
+    import sys
+    from pathlib import Path
+
+    # Mögliche Pfade für config.json (in Prioritätsreihenfolge)
+    possible_paths = [
+        Path("config.json"),  # Aktuelles Verzeichnis
+        Path(__file__).parent.parent
+        / "config.json",  # Projektroot (src/../config.json)
+        Path(sys.prefix) / "config.json",  # Installation prefix
+    ]
+
+    # Falls als Package installiert, nutze importlib.resources (Python 3.9+)
     try:
-        with open("config.json", "r", encoding="utf-8") as f:
-            config = json.load(f)
-            return config[language]
-    except FileNotFoundError:
-        Debug.error(
-            "config.json not found. Please ensure it exists in the project root."
-        )
-        return {}
-    except json.JSONDecodeError as e:
-        Debug.error(f"Error decoding JSON from config.json: {e}")
-        return {}
+        if sys.version_info >= (3, 9):
+            from importlib.resources import files
+
+            package_config = files("src").joinpath("../config.json")
+            if hasattr(package_config, "read_text"):
+                config = json.loads(package_config.read_text(encoding="utf-8"))
+                return config.get(language, config.get("de", {}))
+    except Exception:
+        pass  # Fallback zu Dateipfaden
+
+    for config_path in possible_paths:
+        try:
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    Debug.debug(f"Config loaded from: {config_path}")
+                    return config.get(language, config.get("de", {}))
+        except (FileNotFoundError, json.JSONDecodeError):
+            continue
+
+    Debug.error("config.json not found. Please ensure it exists in the project root.")
+    return {}
