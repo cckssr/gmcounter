@@ -5,7 +5,7 @@ HRNGGUI Package
 A GUI application for GM-counter control and data acquisition.
 """
 
-__version__ = "1.1.4"
+__version__ = "1.1.5"
 __author__ = "C. Kessler"
 
 # Import main entry point for convenience
