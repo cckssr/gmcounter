@@ -25,8 +25,8 @@ try:
 except:
     app = None
 
-from src.plot import PlotWidget
-from src.data_controller import DataController
+from hrnggui.plot import PlotWidget
+from hrnggui.data_controller import DataController
 
 
 class MockDisplay:

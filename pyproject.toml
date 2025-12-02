@@ -56,11 +56,15 @@ Documentation = "https://hrnggui.readthedocs.io"
 Repository = "https://github.com/cedric-kessler/HRNGGUI"
 Issues = "https://github.com/cedric-kessler/HRNGGUI/issues"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.scripts]
+hrnggui = "hrnggui.main:main"
 
-[tool.setuptools.package-dir]
-"" = "src"
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = {find = {where = ["src"]}}
+
+[tool.setuptools.package-data]
+hrnggui = ["config.json", "pyqt/*.ui"]
 
 [tool.black]
 line-length = 88

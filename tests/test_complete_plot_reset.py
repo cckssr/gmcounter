@@ -6,8 +6,8 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-from src.data_controller import DataController
-from src.device_manager import DataAcquisitionThread
+from hrnggui.data_controller import DataController
+from hrnggui.device_manager import DataAcquisitionThread
 from unittest.mock import Mock
 
 

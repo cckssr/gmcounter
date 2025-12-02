@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.data_controller import DataController
+from hrnggui.data_controller import DataController
 
 
 class DummyLCD:

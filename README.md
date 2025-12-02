@@ -38,19 +38,19 @@ HRNGGUI/
 
 ## Installation
 
-1. Abhängigkeiten installieren:
+1. Paket installieren (lokal oder nach Veröffentlichung via PyPI):
 
    ```bash
-   pip install -r requirements.txt
+   pip install .
    ```
 
 2. Anwendung starten:
    ```bash
-   ./start_app.py
+   hrnggui
    ```
    oder
    ```bash
-   python start_app.py
+   python -m hrnggui
    ```
 
 ## Verwendung

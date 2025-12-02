@@ -19,7 +19,7 @@ Usage example:
 from typing import Optional, Union, Dict, Any
 from time import sleep
 import serial
-from src.debug_utils import Debug
+from hrnggui.debug_utils import Debug
 
 
 class Arduino:

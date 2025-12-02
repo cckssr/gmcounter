@@ -6,8 +6,8 @@ from threading import Event
 
 from PySide6.QtCore import QThread, Signal  # pylint: disable=no-name-in-module
 
-from src.arduino import GMCounter
-from src.debug_utils import Debug
+from hrnggui.arduino import GMCounter
+from hrnggui.debug_utils import Debug
 
 
 class DataAcquisitionThread(QThread):

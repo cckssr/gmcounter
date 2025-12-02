@@ -6,18 +6,18 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QWidget,
 )
 from PySide6.QtCore import QTimer, Qt  # pylint: disable=no-name-in-module
-from src.device_manager import DeviceManager
-from src.control import ControlWidget
-from src.plot import PlotWidget, HistogramWidget
-from src.debug_utils import Debug
-from src.helper_classes import (
+from hrnggui.device_manager import DeviceManager
+from hrnggui.control import ControlWidget
+from hrnggui.plot import PlotWidget, HistogramWidget
+from hrnggui.debug_utils import Debug
+from hrnggui.helper_classes import (
     import_config,
     Statusbar,
     SaveManager,
     MessageHelper,
 )
-from src.data_controller import DataController
-from pyqt.ui_mainwindow import Ui_MainWindow
+from hrnggui.data_controller import DataController
+from hrnggui.pyqt.ui_mainwindow import Ui_MainWindow
 from datetime import datetime
 
 

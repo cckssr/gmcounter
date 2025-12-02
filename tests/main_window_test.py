@@ -19,8 +19,8 @@ pytest.importorskip("PySide6.QtWidgets")
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
 
-from src.main_window import MainWindow
-from src.data_controller import DataController
+from hrnggui.main_window import MainWindow
+from hrnggui.data_controller import DataController
 
 
 class TestMainWindow(unittest.TestCase):
@@ -37,9 +37,9 @@ class TestMainWindow(unittest.TestCase):
     def setUp(self):
         """Testumgebung für jeden Test einrichten."""
         # Mock für Arduino-Verbindungen und andere externe Abhängigkeiten
-        self.arduino_patcher = patch("src.main_window.Arduino")
-        self.gm_counter_patcher = patch("src.main_window.GMCounter")
-        self.debug_patcher = patch("src.main_window.Debug")
+        self.arduino_patcher = patch("hrnggui.main_window.Arduino")
+        self.gm_counter_patcher = patch("hrnggui.main_window.GMCounter")
+        self.debug_patcher = patch("hrnggui.main_window.Debug")
 
         self.mock_arduino = self.arduino_patcher.start()
         self.mock_gm_counter = self.gm_counter_patcher.start()
@@ -73,7 +73,7 @@ class TestMainWindow(unittest.TestCase):
         self.assertIsNotNone(self.main_window.data_controller)
         self.assertFalse(self.main_window.counting)
 
-    @patch("src.main_window.QFileDialog.getSaveFileName")
+    @patch("hrnggui.main_window.QFileDialog.getSaveFileName")
     def test_save_csv(self, mock_file_dialog):
         """Testet die Speicherfunktion für CSV-Dateien."""
         # Temporäre Datei erstellen
@@ -110,7 +110,7 @@ class TestMainWindow(unittest.TestCase):
         # Überprüfen, ob DataController.reset aufgerufen wurde
         self.main_window.data_controller.reset.assert_called_once()
 
-    @patch("src.main_window.QMessageBox")
+    @patch("hrnggui.main_window.QMessageBox")
     def test_show_error(self, mock_message_box):
         """Testet die Fehleranzeige."""
         # Mock für QMessageBox.critical einrichten
@@ -127,7 +127,7 @@ class TestMainWindow(unittest.TestCase):
         self.assertEqual(args[1], "Testtitel")  # title
         self.assertEqual(args[2], "Testmeldung")  # message
 
-    @patch("src.main_window.QMessageBox")
+    @patch("hrnggui.main_window.QMessageBox")
     def test_show_info(self, mock_message_box):
         """Testet die Infoanzeige."""
         # Mock für QMessageBox.information einrichten

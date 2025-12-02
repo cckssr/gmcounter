@@ -89,9 +89,9 @@ except Exception:  # ImportError or missing Qt libraries
 
     Qt = _Qt()
 
-from src.plot import PlotWidget, HistogramWidget
-from src.debug_utils import Debug
-from src.helper_classes import import_config
+from hrnggui.plot import PlotWidget, HistogramWidget
+from hrnggui.debug_utils import Debug
+from hrnggui.helper_classes import import_config
 
 # Configuration constants
 CONFIG = import_config()

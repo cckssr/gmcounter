@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 # Add the project root to Python path
 sys.path.insert(0, "/Users/cedric.kessler/TU_Berlin_offline/TutorGP/HRNGGUI")
 
-from src.device_manager import DataAcquisitionThread, DeviceManager
+from hrnggui.device_manager import DataAcquisitionThread, DeviceManager
 
 
 def create_test_packet(value: int, valid: bool = True) -> bytes:

@@ -16,7 +16,7 @@ def test_optimized_performance():
     print("=== Performance-Test nach Optimierungen ===")
 
     # Importiere die optimierten Module
-    from src.data_controller import DataController
+    from hrnggui.data_controller import DataController
     from unittest.mock import Mock
 
     # Mock PlotWidget mit Performance-Tracking

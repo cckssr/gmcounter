@@ -1,8 +1,8 @@
 import time
 from typing import Union
-from src.debug_utils import Debug
-from src.device_manager import DeviceManager
-from src.helper_classes import import_config
+from hrnggui.debug_utils import Debug
+from hrnggui.device_manager import DeviceManager
+from hrnggui.helper_classes import import_config
 
 CONFIG = import_config()
 

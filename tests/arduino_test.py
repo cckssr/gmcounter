@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 serial = pytest.importorskip("serial")
 from serial import SerialException
 
-from src.arduino import Arduino, GMCounter
+from hrnggui.arduino import Arduino, GMCounter
 
 pytest.skip("Arduino tests disabled in headless environment", allow_module_level=True)
 

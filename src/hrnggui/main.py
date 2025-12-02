@@ -10,10 +10,10 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QApplication,
     QMessageBox,
 )
-from src.debug_utils import Debug
-from src.connection import ConnectionWindow
-from src.main_window import MainWindow
-from src.helper_classes import import_config
+from hrnggui.debug_utils import Debug
+from hrnggui.connection import ConnectionWindow
+from hrnggui.main_window import MainWindow
+from hrnggui.helper_classes import import_config
 
 # Konfigurationsdatei laden
 CONFIG = import_config()

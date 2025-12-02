@@ -5,7 +5,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 pytest.importorskip("PySide6.QtWidgets")
-from src.helper_classes import SaveManager
+from hrnggui.helper_classes import SaveManager
 
 
 def test_filename_auto_basic():
@@ -37,6 +37,6 @@ def test_filename_auto_with_suffix_dash():
 def test_filename_auto_empty_sample(monkeypatch):
     manager = SaveManager()
     # Patch Debug.error to avoid unwanted output
-    monkeypatch.setattr("src.helper_classes.Debug.error", lambda msg: None)
+    monkeypatch.setattr("hrnggui.helper_classes.Debug.error", lambda msg: None)
     result = manager.filename_auto("")
     assert result == ""

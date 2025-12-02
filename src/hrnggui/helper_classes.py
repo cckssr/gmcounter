@@ -14,7 +14,8 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QFileDialog,
 )
 from PySide6.QtCore import QTimer  # pylint: disable=no-name-in-module
-from src.debug_utils import Debug
+from importlib import resources
+from hrnggui.debug_utils import Debug
 
 
 class Statusbar:
@@ -116,7 +117,7 @@ class AlertWindow(QDialog):
     ) -> None:
         super().__init__(parent)
         try:
-            from pyqt.ui_alert import (
+            from hrnggui.pyqt.ui_alert import (
                 Ui_Dialog,
             )  # local import to avoid Qt dependency when unused
         except Exception:  # pragma: no cover - fallback
@@ -462,18 +463,22 @@ class SaveManager:
 def import_config(language: str = "de") -> dict:
     """
     Imports the language-specific configuration from config.json.
+
     Args:
         language (str): The language code to load the configuration for (default is "de").
+
     Returns:
         dict: The configuration dictionary.
     """
     try:
-        with open("config.json", "r", encoding="utf-8") as f:
+        with resources.files("hrnggui").joinpath("config.json").open(
+            "r", encoding="utf-8"
+        ) as f:
             config = json.load(f)
             return config[language]
     except FileNotFoundError:
         Debug.error(
-            "config.json not found. Please ensure it exists in the project root."
+            "config.json not found. Please ensure it exists in the installed package."
         )
         return {}
     except json.JSONDecodeError as e:
