@@ -426,6 +426,9 @@ class GMCounter(Arduino):
         sleep(0.5)
         self.reconnect()
         Debug.info("Initializing GMCounter...")
+
+        # Stop any ongoing measurement immediately after connection
+        self.set_counting(False)  # Send "s0" to stop measurement
         self.set_stream(0)  # Stop any streaming by default
         self.clear_register()
         sleep(1)  # Allow time for the Arduino to reset

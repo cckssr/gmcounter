@@ -1,11 +1,11 @@
 #include <Arduino.h>
 #include "serial_com.h"
 
-bool DEBUG = false;                                          // Global debug flag
-const char *O_CODE = "TEST";                                 // OpenBIS code for the device
-const char *VERSION = "1.0.0";                               // Version string for the device
-const char *COPYRIGHT = "GMCounter (c) 2024-2025 TU Berlin"; // Copyright string
-int MAX_LENGTH = 64;                                         // Maximum allowed length of a message line
+bool DEBUG = false;           // Global debug flag
+const char *O_CODE = nullptr; // OpenBIS code for the device
+const char *VERSION_STR = nullptr;   // Version string for the device
+const char *COPYRIGHT_STR = nullptr; // Copyright string
+int MAX_LENGTH = 64;          // Maximum allowed length of a message line
 
 /**
  * @brief Initializes the serial communication and sets the debug mode
@@ -20,8 +20,8 @@ void init(bool debug_on, const char *openbiscode, const char *version, const cha
 {
     DEBUG = debug_on;
     O_CODE = openbiscode;
-    VERSION = version;
-    COPYRIGHT = copyright;
+    VERSION_STR = version;
+    COPYRIGHT_STR = copyright;
     MAX_LENGTH = max_length;
 }
 
@@ -255,7 +255,7 @@ void sendMessage(String command, volatile bool &measurementInProgress)
         {
             Serial.println("Copyright command received.");
         }
-        Serial.println(COPYRIGHT); // Send copyright information
+        Serial.println(COPYRIGHT_STR); // Send copyright information
     }
     else if (command == "v")
     {
@@ -264,6 +264,6 @@ void sendMessage(String command, volatile bool &measurementInProgress)
         {
             Serial.println("Version command received.");
         }
-        Serial.println(VERSION); // Send version information
+        Serial.println(VERSION_STR); // Send version information
     }
 }

@@ -14,12 +14,12 @@
 // OPENBIS_CODE wird über platformio.ini build_flags gesetzt
 // Falls nicht gesetzt, wird "UNKNOWN" als Fallback verwendet
 #ifndef OPENBIS_CODE
-#define OPENBIS_CODE "UNKNOWN"
+    #define OPENBIS_CODE* "UNKNOWN"
 #endif
 
 // VERSION wird über platformio.ini build_flags gesetzt
 #ifndef VERSION
-#define VERSION "1.1.0"
+    #define VERSION* "1.1.0"
 #endif
 
 // COPYRIGHT Information
