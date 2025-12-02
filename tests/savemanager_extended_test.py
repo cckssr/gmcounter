@@ -5,7 +5,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.helper_classes import SaveManager
+from gmcounter.helper_classes import SaveManager
 
 pytest.importorskip("PySide6.QtWidgets")
 
@@ -58,7 +58,7 @@ def test_manual_save_measurement(monkeypatch, tmp_path):
 
     save_file = tmp_path / "man.csv"
     monkeypatch.setattr(
-        "src.helper_classes.QFileDialog.getSaveFileName",
+        "gmcounter.helper_classes.QFileDialog.getSaveFileName",
         lambda *a, **k: (str(save_file), "CSV"),
     )
 

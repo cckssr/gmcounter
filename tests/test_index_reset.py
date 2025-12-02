@@ -6,7 +6,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-from src.device_manager import DataAcquisitionThread, DeviceManager
+from gmcounter.device_manager import DataAcquisitionThread, DeviceManager
 from unittest.mock import Mock
 
 

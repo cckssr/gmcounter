@@ -11,9 +11,9 @@ from pathlib import Path
 # Add project root to Python path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from src.data_controller import DataController
-from src.plot import PlotWidget
-from src.debug_utils import Debug
+from gmcounter.data_controller import DataController
+from gmcounter.plot import PlotWidget
+from gmcounter.debug_utils import Debug
 
 
 def test_fast_data_processing():

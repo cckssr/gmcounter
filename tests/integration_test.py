@@ -23,8 +23,8 @@ pytest.importorskip("PySide6.QtWidgets")
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QTimer
 
-from src.main_window import MainWindow
-from src.device_manager import DeviceManager
+from gmcounter.main_window import MainWindow
+from gmcounter.device_manager import DeviceManager
 
 
 class IntegrationTest(unittest.TestCase):

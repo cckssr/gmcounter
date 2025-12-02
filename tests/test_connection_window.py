@@ -26,9 +26,9 @@ pytest.importorskip("PySide6.QtWidgets")
 from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox
 from PySide6.QtCore import Qt, QTimer
 
-from src.connection import ConnectionWindow
-from src.device_manager import DeviceManager
-from src.helper_classes import AlertWindow
+from gmcounter.connection import ConnectionWindow
+from gmcounter.device_manager import DeviceManager
+from gmcounter.helper_classes import AlertWindow
 
 
 class TestConnectionWindow(unittest.TestCase):
@@ -44,10 +44,10 @@ class TestConnectionWindow(unittest.TestCase):
     def setUp(self):
         """Testumgebung für jeden Test einrichten."""
         # Mock für externe Abhängigkeiten
-        self.list_ports_patcher = patch("src.connection.list_ports")
-        self.debug_patcher = patch("src.connection.Debug")
-        self.device_manager_patcher = patch("src.connection.DeviceManager")
-        self.alert_window_patcher = patch("src.connection.AlertWindow")
+        self.list_ports_patcher = patch("gmcounter.connection.list_ports")
+        self.debug_patcher = patch("gmcounter.connection.Debug")
+        self.device_manager_patcher = patch("gmcounter.connection.DeviceManager")
+        self.alert_window_patcher = patch("gmcounter.connection.AlertWindow")
 
         self.mock_list_ports = self.list_ports_patcher.start()
         self.mock_debug = self.debug_patcher.start()
@@ -133,7 +133,7 @@ class TestConnectionWindow(unittest.TestCase):
             temp_file_path = temp_file.name
 
         try:
-            with patch("src.connection.os.path.join", return_value=temp_file_path):
+            with patch("gmcounter.connection.os.path.join", return_value=temp_file_path):
                 connection_window = ConnectionWindow()
                 result = connection_window.check_mock_port()
                 self.assertEqual(result, mock_port_content)
@@ -143,7 +143,7 @@ class TestConnectionWindow(unittest.TestCase):
 
     def test_check_mock_port_not_exists(self):
         """Test für check_mock_port wenn der Mock-Port nicht existiert."""
-        with patch("src.connection.os.path.exists", return_value=False):
+        with patch("gmcounter.connection.os.path.exists", return_value=False):
             connection_window = ConnectionWindow()
             result = connection_window.check_mock_port()
             self.assertIsNone(result)
@@ -401,8 +401,8 @@ class TestConnectionWindowIntegration(unittest.TestCase):
 
     def test_window_creation_and_closure(self):
         """Integration Test: Fenster erstellen und schließen."""
-        with patch("src.connection.list_ports.comports", return_value=[]):
-            with patch("src.connection.DeviceManager"):
+        with patch("gmcounter.connection.list_ports.comports", return_value=[]):
+            with patch("gmcounter.connection.DeviceManager"):
                 connection_window = ConnectionWindow()
 
                 # Fenster sollte erstellt werden
@@ -421,10 +421,10 @@ class TestConnectionWindowIntegration(unittest.TestCase):
             temp_file_path = temp_file.name
 
         try:
-            with patch("src.connection.list_ports.comports", return_value=[]):
-                with patch("src.connection.DeviceManager"):
+            with patch("gmcounter.connection.list_ports.comports", return_value=[]):
+                with patch("gmcounter.connection.DeviceManager"):
                     with patch(
-                        "src.connection.os.path.join", return_value=temp_file_path
+                        "gmcounter.connection.os.path.join", return_value=temp_file_path
                     ):
                         connection_window = ConnectionWindow(demo_mode=True)
 
