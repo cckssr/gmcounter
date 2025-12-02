@@ -572,7 +572,8 @@ def create_dropbox_foldername(
         str: The created folder name.
     """
 
-    day = datetime.now().strftime("%a")[:2]
+    # Ensure German weekday abbreviation independent of system locale
+    day = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][datetime.now().weekday()]
     if not group_letter or not re.match(r"^[A-Z]$", group_letter):
         Debug.error(f"Invalid group letter: {group_letter}")
         return ""
