@@ -531,7 +531,8 @@ class GMCounter(Arduino):
         info = {"copyright": "", "version": "", "openbis": ""}
 
         Debug.info("Requesting copyright information...")
-        self.send_command("c")
+        # Change to "oc" for own copyright command
+        self.send_command("oc")
         # Use the more lenient string response reader
         response = self.read_string_response(timeout=1.0)
         if response:
@@ -541,7 +542,7 @@ class GMCounter(Arduino):
             Debug.info("No copyright information received")
 
         Debug.info("Requesting version information...")
-        self.send_command("v")
+        self.send_command("sv")
         # Use the more lenient string response reader
         response = self.read_string_response(timeout=1.0)
         if response:
