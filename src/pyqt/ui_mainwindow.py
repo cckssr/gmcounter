@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'mainwindow.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.0
+## Created by: Qt User Interface Compiler version 6.10.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -15,20 +15,21 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractItemView, QAbstractSpinBox, QApplication, QButtonGroup,
-    QCheckBox, QComboBox, QDial, QFormLayout,
-    QFrame, QGridLayout, QGroupBox, QHBoxLayout,
-    QHeaderView, QLCDNumber, QLabel, QLayout,
-    QLineEdit, QMainWindow, QMenuBar, QProgressBar,
-    QPushButton, QRadioButton, QSizePolicy, QSpacerItem,
-    QSpinBox, QStatusBar, QTabWidget, QTableView,
-    QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QAbstractScrollArea, QAbstractSpinBox, QApplication,
+    QButtonGroup, QCheckBox, QComboBox, QDial,
+    QFormLayout, QFrame, QGridLayout, QGroupBox,
+    QHBoxLayout, QHeaderView, QLCDNumber, QLabel,
+    QLayout, QLineEdit, QMainWindow, QMenuBar,
+    QProgressBar, QPushButton, QRadioButton, QSizePolicy,
+    QSpacerItem, QSpinBox, QStatusBar, QTabWidget,
+    QTableView, QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1143, 903)
+        MainWindow.resize(1143, 1015)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.horizontalLayout_3 = QHBoxLayout(self.centralwidget)
@@ -138,20 +139,25 @@ class Ui_MainWindow(object):
 
         self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.cVersion)
 
+        self.label_11 = QLabel(self.settings)
+        self.label_11.setObjectName(u"label_11")
+
+        self.formLayout.setWidget(5, QFormLayout.ItemRole.LabelRole, self.label_11)
+
         self.line_3 = QFrame(self.settings)
         self.line_3.setObjectName(u"line_3")
         self.line_3.setFrameShadow(QFrame.Shadow.Plain)
         self.line_3.setLineWidth(1)
         self.line_3.setFrameShape(QFrame.Shape.HLine)
 
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.SpanningRole, self.line_3)
+        self.formLayout.setWidget(6, QFormLayout.ItemRole.SpanningRole, self.line_3)
 
         self.mode_label = QLabel(self.settings)
         self.mode_label.setObjectName(u"mode_label")
         sizePolicy2.setHeightForWidth(self.mode_label.sizePolicy().hasHeightForWidth())
         self.mode_label.setSizePolicy(sizePolicy2)
 
-        self.formLayout.setWidget(6, QFormLayout.ItemRole.LabelRole, self.mode_label)
+        self.formLayout.setWidget(7, QFormLayout.ItemRole.LabelRole, self.mode_label)
 
         self.sMode = QHBoxLayout()
         self.sMode.setObjectName(u"sMode")
@@ -183,7 +189,7 @@ class Ui_MainWindow(object):
         self.sMode.addWidget(self.sModeMulti)
 
 
-        self.formLayout.setLayout(6, QFormLayout.ItemRole.FieldRole, self.sMode)
+        self.formLayout.setLayout(7, QFormLayout.ItemRole.FieldRole, self.sMode)
 
         self.label_10 = QLabel(self.settings)
         self.label_10.setObjectName(u"label_10")
@@ -192,7 +198,7 @@ class Ui_MainWindow(object):
         self.label_10.setMinimumSize(QSize(0, 20))
         self.label_10.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.formLayout.setWidget(7, QFormLayout.ItemRole.LabelRole, self.label_10)
+        self.formLayout.setWidget(8, QFormLayout.ItemRole.LabelRole, self.label_10)
 
         self.sQueryMode = QHBoxLayout()
         self.sQueryMode.setObjectName(u"sQueryMode")
@@ -220,7 +226,7 @@ class Ui_MainWindow(object):
         self.sQueryMode.addWidget(self.sQModeAuto)
 
 
-        self.formLayout.setLayout(7, QFormLayout.ItemRole.FieldRole, self.sQueryMode)
+        self.formLayout.setLayout(8, QFormLayout.ItemRole.FieldRole, self.sQueryMode)
 
         self.duration_label = QLabel(self.settings)
         self.duration_label.setObjectName(u"duration_label")
@@ -230,7 +236,7 @@ class Ui_MainWindow(object):
         sizePolicy5.setHeightForWidth(self.duration_label.sizePolicy().hasHeightForWidth())
         self.duration_label.setSizePolicy(sizePolicy5)
 
-        self.formLayout.setWidget(8, QFormLayout.ItemRole.LabelRole, self.duration_label)
+        self.formLayout.setWidget(9, QFormLayout.ItemRole.LabelRole, self.duration_label)
 
         self.sDuration = QComboBox(self.settings)
         self.sDuration.addItem("")
@@ -246,7 +252,7 @@ class Ui_MainWindow(object):
         sizePolicy6.setHeightForWidth(self.sDuration.sizePolicy().hasHeightForWidth())
         self.sDuration.setSizePolicy(sizePolicy6)
 
-        self.formLayout.setWidget(8, QFormLayout.ItemRole.FieldRole, self.sDuration)
+        self.formLayout.setWidget(9, QFormLayout.ItemRole.FieldRole, self.sDuration)
 
         self.volt_label = QLabel(self.settings)
         self.volt_label.setObjectName(u"volt_label")
@@ -258,7 +264,7 @@ class Ui_MainWindow(object):
         self.volt_label.setMinimumSize(QSize(0, 100))
         self.volt_label.setMaximumSize(QSize(16777215, 100))
 
-        self.formLayout.setWidget(9, QFormLayout.ItemRole.LabelRole, self.volt_label)
+        self.formLayout.setWidget(10, QFormLayout.ItemRole.LabelRole, self.volt_label)
 
         self.sVolt = QHBoxLayout()
         self.sVolt.setObjectName(u"sVolt")
@@ -296,14 +302,19 @@ class Ui_MainWindow(object):
         self.sVolt.addWidget(self.voltDial)
 
 
-        self.formLayout.setLayout(9, QFormLayout.ItemRole.FieldRole, self.sVolt)
+        self.formLayout.setLayout(10, QFormLayout.ItemRole.FieldRole, self.sVolt)
 
         self.buttonSetting = QPushButton(self.settings)
         self.buttonSetting.setObjectName(u"buttonSetting")
         self.buttonSetting.setEnabled(True)
         self.buttonSetting.setAutoDefault(False)
 
-        self.formLayout.setWidget(10, QFormLayout.ItemRole.SpanningRole, self.buttonSetting)
+        self.formLayout.setWidget(11, QFormLayout.ItemRole.SpanningRole, self.buttonSetting)
+
+        self.cOpenbis = QLabel(self.settings)
+        self.cOpenbis.setObjectName(u"cOpenbis")
+
+        self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.cOpenbis)
 
         self.label_10.raise_()
         self.label_8.raise_()
@@ -322,6 +333,8 @@ class Ui_MainWindow(object):
         self.sDuration.raise_()
         self.volt_label.raise_()
         self.buttonSetting.raise_()
+        self.label_11.raise_()
+        self.cOpenbis.raise_()
 
         self.verticalLayout_2.addWidget(self.settings)
 
@@ -437,6 +450,27 @@ class Ui_MainWindow(object):
 
         self.verticalLayout.addLayout(self.formLayout_2)
 
+        self.tableWidget = QTableWidget(self.groupBox)
+        if (self.tableWidget.columnCount() < 2):
+            self.tableWidget.setColumnCount(2)
+        __qtablewidgetitem = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(0, __qtablewidgetitem)
+        __qtablewidgetitem1 = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(1, __qtablewidgetitem1)
+        self.tableWidget.setObjectName(u"tableWidget")
+        self.tableWidget.setLineWidth(1)
+        self.tableWidget.setMidLineWidth(0)
+        self.tableWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.tableWidget.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustIgnored)
+        self.tableWidget.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerItem)
+        self.tableWidget.setShowGrid(True)
+        self.tableWidget.setColumnCount(2)
+        self.tableWidget.horizontalHeader().setMinimumSectionSize(40)
+        self.tableWidget.horizontalHeader().setStretchLastSection(True)
+        self.tableWidget.verticalHeader().setVisible(False)
+
+        self.verticalLayout.addWidget(self.tableWidget)
+
         self.buttonSave = QPushButton(self.groupBox)
         self.buttonSave.setObjectName(u"buttonSave")
         self.buttonSave.setEnabled(False)
@@ -528,24 +562,105 @@ class Ui_MainWindow(object):
 
         self.tabWidget = QTabWidget(self.gridGroupBox)
         self.tabWidget.setObjectName(u"tabWidget")
-        sizePolicy11 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy11.setHorizontalStretch(0)
-        sizePolicy11.setVerticalStretch(10)
-        sizePolicy11.setHeightForWidth(self.tabWidget.sizePolicy().hasHeightForWidth())
-        self.tabWidget.setSizePolicy(sizePolicy11)
+        sizePolicy12 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy12.setHorizontalStretch(0)
+        sizePolicy12.setVerticalStretch(10)
+        sizePolicy12.setHeightForWidth(self.tabWidget.sizePolicy().hasHeightForWidth())
+        self.tabWidget.setSizePolicy(sizePolicy12)
         self.timePlot = QWidget()
         self.timePlot.setObjectName(u"timePlot")
         self.tabWidget.addTab(self.timePlot, "")
         self.histogramm = QWidget()
         self.histogramm.setObjectName(u"histogramm")
+        sizePolicy13 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy13.setHorizontalStretch(0)
+        sizePolicy13.setVerticalStretch(0)
+        sizePolicy13.setHeightForWidth(self.histogramm.sizePolicy().hasHeightForWidth())
+        self.histogramm.setSizePolicy(sizePolicy13)
+        self.gridLayout_4 = QGridLayout(self.histogramm)
+        self.gridLayout_4.setObjectName(u"gridLayout_4")
+        self.gridLayout_4.setContentsMargins(10, -1, 10, 5)
+        self.histWidget = QWidget(self.histogramm)
+        self.histWidget.setObjectName(u"histWidget")
+
+        self.gridLayout_4.addWidget(self.histWidget, 1, 0, 1, 1)
+
+        self.horizontalLayout_6 = QHBoxLayout()
+        self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
+        self.label_13 = QLabel(self.histogramm)
+        self.label_13.setObjectName(u"label_13")
+
+        self.horizontalLayout_6.addWidget(self.label_13)
+
+        self.cStatPoints = QLineEdit(self.histogramm)
+        self.cStatPoints.setObjectName(u"cStatPoints")
+        self.cStatPoints.setEnabled(True)
+        self.cStatPoints.setText(u"")
+        self.cStatPoints.setReadOnly(True)
+
+        self.horizontalLayout_6.addWidget(self.cStatPoints)
+
+        self.label_14 = QLabel(self.histogramm)
+        self.label_14.setObjectName(u"label_14")
+
+        self.horizontalLayout_6.addWidget(self.label_14)
+
+        self.cStatMin = QLineEdit(self.histogramm)
+        self.cStatMin.setObjectName(u"cStatMin")
+        self.cStatMin.setEnabled(True)
+        self.cStatMin.setText(u"")
+        self.cStatMin.setReadOnly(True)
+
+        self.horizontalLayout_6.addWidget(self.cStatMin)
+
+        self.label_15 = QLabel(self.histogramm)
+        self.label_15.setObjectName(u"label_15")
+
+        self.horizontalLayout_6.addWidget(self.label_15)
+
+        self.cStatMax = QLineEdit(self.histogramm)
+        self.cStatMax.setObjectName(u"cStatMax")
+        self.cStatMax.setEnabled(True)
+        self.cStatMax.setText(u"")
+        self.cStatMax.setReadOnly(True)
+
+        self.horizontalLayout_6.addWidget(self.cStatMax)
+
+        self.label_16 = QLabel(self.histogramm)
+        self.label_16.setObjectName(u"label_16")
+
+        self.horizontalLayout_6.addWidget(self.label_16)
+
+        self.cStatAvg = QLineEdit(self.histogramm)
+        self.cStatAvg.setObjectName(u"cStatAvg")
+        self.cStatAvg.setEnabled(True)
+        self.cStatAvg.setText(u"")
+        self.cStatAvg.setReadOnly(True)
+
+        self.horizontalLayout_6.addWidget(self.cStatAvg)
+
+        self.label_17 = QLabel(self.histogramm)
+        self.label_17.setObjectName(u"label_17")
+
+        self.horizontalLayout_6.addWidget(self.label_17)
+
+        self.cStatSD = QLineEdit(self.histogramm)
+        self.cStatSD.setObjectName(u"cStatSD")
+        self.cStatSD.setEnabled(True)
+        self.cStatSD.setText(u"")
+        self.cStatSD.setReadOnly(True)
+
+        self.horizontalLayout_6.addWidget(self.cStatSD)
+
+
+        self.gridLayout_4.addLayout(self.horizontalLayout_6, 0, 0, 1, 1)
+
+        self.gridLayout_4.setRowStretch(1, 1)
         self.tabWidget.addTab(self.histogramm, "")
         self.list = QWidget()
         self.list.setObjectName(u"list")
-        sizePolicy12 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy12.setHorizontalStretch(0)
-        sizePolicy12.setVerticalStretch(0)
-        sizePolicy12.setHeightForWidth(self.list.sizePolicy().hasHeightForWidth())
-        self.list.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.list.sizePolicy().hasHeightForWidth())
+        self.list.setSizePolicy(sizePolicy13)
         self.gridLayout = QGridLayout(self.list)
         self.gridLayout.setObjectName(u"gridLayout")
         self.tableView = QTableView(self.list)
@@ -594,11 +709,11 @@ class Ui_MainWindow(object):
         self.horizontalLayout_4.setContentsMargins(-1, -1, -1, 0)
         self.progressBar = QProgressBar(self.gridGroupBox)
         self.progressBar.setObjectName(u"progressBar")
-        sizePolicy13 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-        sizePolicy13.setHorizontalStretch(0)
-        sizePolicy13.setVerticalStretch(0)
-        sizePolicy13.setHeightForWidth(self.progressBar.sizePolicy().hasHeightForWidth())
-        self.progressBar.setSizePolicy(sizePolicy13)
+        sizePolicy14 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        sizePolicy14.setHorizontalStretch(0)
+        sizePolicy14.setVerticalStretch(0)
+        sizePolicy14.setHeightForWidth(self.progressBar.sizePolicy().hasHeightForWidth())
+        self.progressBar.setSizePolicy(sizePolicy14)
         self.progressBar.setValue(0)
 
         self.horizontalLayout_4.addWidget(self.progressBar)
@@ -716,6 +831,7 @@ class Ui_MainWindow(object):
         self.cVersion.setToolTip(QCoreApplication.translate("MainWindow", u"GM-Z\u00e4hler Firmware", None))
 #endif // QT_CONFIG(tooltip)
         self.cVersion.setText(QCoreApplication.translate("MainWindow", u"unknown", None))
+        self.label_11.setText(QCoreApplication.translate("MainWindow", u"OpenBIS Code", None))
         self.mode_label.setText(QCoreApplication.translate("MainWindow", u"Z\u00e4hl-Modus", None))
 #if QT_CONFIG(tooltip)
         self.sModeSingle.setToolTip(QCoreApplication.translate("MainWindow", u"<html><head/><body><p>Stoppt die Messung nach Ablauf Z\u00e4hldauer</p></body></html>", None))
@@ -745,6 +861,7 @@ class Ui_MainWindow(object):
         self.volt_label.setText(QCoreApplication.translate("MainWindow", u"GM-Spannung", None))
         self.sVoltage.setSuffix(QCoreApplication.translate("MainWindow", u" V", None))
         self.buttonSetting.setText(QCoreApplication.translate("MainWindow", u"Einstellungen \u00e4ndern", None))
+        self.cOpenbis.setText(QCoreApplication.translate("MainWindow", u"unknown", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Speicherung", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"Radioaktive Probe*", None))
         self.radSample.setItemText(0, QCoreApplication.translate("MainWindow", u"E00200", None))
@@ -805,6 +922,10 @@ class Ui_MainWindow(object):
 #if QT_CONFIG(tooltip)
         self.suffix.setToolTip(QCoreApplication.translate("MainWindow", u"Ein benutzerdefiniertes Suffix mit maximal 20 Zeichen", None))
 #endif // QT_CONFIG(tooltip)
+        ___qtablewidgetitem = self.tableWidget.horizontalHeaderItem(0)
+        ___qtablewidgetitem.setText(QCoreApplication.translate("MainWindow", u"Schl\u00fcssel", None));
+        ___qtablewidgetitem1 = self.tableWidget.horizontalHeaderItem(1)
+        ___qtablewidgetitem1.setText(QCoreApplication.translate("MainWindow", u"Wert", None));
 #if QT_CONFIG(tooltip)
         self.buttonSave.setToolTip(QCoreApplication.translate("MainWindow", u"Messung speichern (Dateidialog)", None))
 #endif // QT_CONFIG(tooltip)
@@ -823,6 +944,11 @@ class Ui_MainWindow(object):
         self.buttonStop.setText(QCoreApplication.translate("MainWindow", u"Stop", None))
         self.gridGroupBox.setTitle(QCoreApplication.translate("MainWindow", u"Live-Metriken", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.timePlot), QCoreApplication.translate("MainWindow", u"Zeitverlauf", None))
+        self.label_13.setText(QCoreApplication.translate("MainWindow", u"Anzahl:", None))
+        self.label_14.setText(QCoreApplication.translate("MainWindow", u"Min / \u00b5s:", None))
+        self.label_15.setText(QCoreApplication.translate("MainWindow", u"Max / \u00b5s:", None))
+        self.label_16.setText(QCoreApplication.translate("MainWindow", u"Mittelwert / \u00b5s:", None))
+        self.label_17.setText(QCoreApplication.translate("MainWindow", u"Standardabw. / \u00b5s:", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.histogramm), QCoreApplication.translate("MainWindow", u"Histogramm", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.list), QCoreApplication.translate("MainWindow", u"Liste", None))
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"Voriger Wert", None))

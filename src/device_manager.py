@@ -6,8 +6,8 @@ from threading import Event
 
 from PySide6.QtCore import QThread, Signal  # pylint: disable=no-name-in-module
 
-from src.arduino import GMCounter
-from src.debug_utils import Debug
+from .arduino import GMCounter
+from .debug_utils import Debug
 
 
 class DataAcquisitionThread(QThread):
@@ -20,9 +20,11 @@ class DataAcquisitionThread(QThread):
         self.manager = manager
         self._running = False
         self._index = 0  # Index-Zähler für Datenpunkte
+        self._first_measurement_discarded = False  # Flag um erste Messung zu verwerfen
 
     def run(self) -> None:
         self._running = True
+        self._first_measurement_discarded = False  # Zurücksetzen bei jedem Start
         Debug.info(
             "Acquisition thread started with binary data acquisition mode (0xAA + 4 bytes + 0x55)"
         )
@@ -87,6 +89,14 @@ class DataAcquisitionThread(QThread):
 
                             # Validiere Start-Byte und End-Byte
                             if packet[0] == START_BYTE and packet[5] == END_BYTE:
+                                # Erste Messung verwerfen (Delta-Zeit oft ungültig)
+                                if not self._first_measurement_discarded:
+                                    self._first_measurement_discarded = True
+                                    Debug.info(
+                                        f"Discarding first measurement: 0x{packet.hex()}"
+                                    )
+                                    continue
+
                                 try:
                                     # Konvertiere 4 Daten-Bytes zu 32-bit unsigned integer (little-endian)
                                     value_bytes = packet[1:5]

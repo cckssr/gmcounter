@@ -2,3 +2,5 @@ PySide6
 matplotlib
 pyserial
 pyqtgraph
+numpy
+pyqtgraph

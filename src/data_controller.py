@@ -10,13 +10,16 @@ from time import time
 from datetime import datetime
 
 try:  # pragma: no cover - optional dependency for headless testing
-    from PySide6.QtWidgets import (
+    from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
         QLCDNumber,
-        QListWidget,
         QTableView,
+        QLineEdit,
     )  # type: ignore
-    from PySide6.QtGui import QStandardItemModel, QStandardItem  # type: ignore
-    from PySide6.QtCore import Qt  # type: ignore
+    from PySide6.QtGui import (  # pylint: disable=no-name-in-module
+        QStandardItemModel,
+        QStandardItem,
+    )
+    from PySide6.QtCore import Qt, QTimer  # pylint: disable=no-name-in-module
 
 
 except Exception:  # ImportError or missing Qt libraries
@@ -87,11 +90,14 @@ except Exception:  # ImportError or missing Qt libraries
 
     Qt = _Qt()
 
-from src.plot import PlotWidget
-from src.debug_utils import Debug
+from .plot import PlotWidget, HistogramWidget
+from .debug_utils import Debug
+from .helper_classes import import_config
 
-# Konfigurationswerte direkt definieren, um Import-Probleme zu umgehen
-MAX_HISTORY_SIZE = 100
+# Configuration constants
+CONFIG = import_config()
+MAX_HISTORY_SIZE = CONFIG["data_controller"]["max_history_size"]
+UPDATE_INTERVAL = CONFIG["timers"]["gui_update_interval"]
 
 
 class DataController:
@@ -101,31 +107,36 @@ class DataController:
         self,
         plot_widget: PlotWidget,
         display_widget: Optional[QLCDNumber] = None,
-        history_widget: Optional[QListWidget] = None,
+        histogram_widget: Optional[HistogramWidget] = None,
+        stat_display: Optional[List[QLineEdit]] = None,
         table_widget: Optional[QTableView] = None,
         max_history: int = MAX_HISTORY_SIZE,
-        gui_update_interval: int = 200,  # ms (optimised for performance)
+        gui_update_interval: int = UPDATE_INTERVAL,
     ):
         """Initialise the data controller.
 
         Args:
             plot_widget: Plotting widget used for visualisation.
             display_widget: Optional LCD display for the current value.
-            history_widget: Optional list widget for history display.
+            histogram_widget: Optional histogram widget for data distribution.
+            stat_display: Optional list of QLineEdit widgets for statistics display.
+                [count, min, max, avg, standardDeviation]
+            table_widget: Optional table widget for data display.
             max_history: Maximum number of data points for GUI display (not file storage).
         """
         self.plot = plot_widget
         self.display = display_widget
-        self.history = history_widget
+        self.histogram = histogram_widget
+        self.stat_display = stat_display
         self.table = table_widget
         self.table_model: Optional[QStandardItemModel] = None
         self.max_history = max_history
 
         # Full data storage (for CSV export, etc.)
-        self.data_points: List[Tuple[int, float]] = []
+        self.data_points: List[Tuple[int, float, str]] = []
 
-        # GUI-limited data (for plot and history widget)
-        self.gui_data_points: List[Tuple[int, float]] = []
+        # GUI-limited data (for plot and histogram widget)
+        self.gui_data_points: List[Tuple[int, float, str]] = []
         self.max_history = max_history
 
         # Queue for high-frequency data acquisition
@@ -133,7 +144,7 @@ class DataController:
         self._queue_lock = threading.Lock()
         self._last_update_time = time()
 
-        # Timer for GUI updates every 100ms
+        # Timer for GUI updates
         try:
             self.gui_update_timer = QTimer()
             if hasattr(self.gui_update_timer.timeout, "connect"):
@@ -141,10 +152,10 @@ class DataController:
                 self.gui_update_timer.start(gui_update_interval)
             else:
                 self.gui_update_timer = None
-        except Exception:
+        except Exception as e:
             # Fallback for headless testing
             self.gui_update_timer = None
-            Debug.info("GUI update timer not available (headless mode)")
+            Debug.error("GUI update timer not available", e)
 
         # Performance counters
         self._total_points_received = 0
@@ -209,12 +220,12 @@ class DataController:
             self._points_processed_in_last_update = len(new_points)
 
             # Add all new points to the full data set (for CSV export)
-            for index_num, value_num in new_points:
-                self.data_points.append((index_num, value_num))
+            for index_num, value_num, timestamp in new_points:
+                self.data_points.append((index_num, value_num, timestamp))
 
             # Add all new points to GUI data as well (with limit)
-            for index_num, value_num in new_points:
-                self.gui_data_points.append((index_num, value_num))
+            for index_num, value_num, timestamp in new_points:
+                self.gui_data_points.append((index_num, value_num, timestamp))
 
             # Only limit GUI data; full data remain unlimited
             while len(self.gui_data_points) > self.max_history:
@@ -239,41 +250,37 @@ class DataController:
         except Exception as e:
             Debug.error(f"Error processing queued data: {e}", exc_info=True)
 
-    def _update_gui_widgets(self, index: int, value: float) -> None:
+    def _update_gui_widgets(
+        self, index: int, value: float, timestamp: Optional[str] = None
+    ) -> None:
         """Update plot, LCD and history list with a single data point."""
         try:
-            # Update plot widget - add all new points in one batch
-            if self.plot and self._points_processed_in_last_update > 0:
-                # Retrieve all new points for the plot update (from GUI limited data)
-                new_plot_points = self.gui_data_points[
-                    -self._points_processed_in_last_update :
-                ]
-
+            # Update plot widget with all current data points
+            if self.plot and len(self.gui_data_points) > 0:
                 # Use the efficient batch update method when available
                 if hasattr(self.plot, "update_plot_batch"):
                     self.plot.update_plot_batch(self.gui_data_points)
                 else:
-                    # Fallback for older PlotWidget versions
-                    for point in new_plot_points:
-                        self.plot.update_plot(point)
+                    # Fallback - use the standard update_plot method with all data
+                    self.plot.update_plot(self.gui_data_points)
 
             # Update current value display with the last value
             if self.display:
                 self.display.display(value)
 
-            # Update history list widget with the last value
-            if self.history:
-                # Insert new item at the top
-                self.history.insertItem(0, f"{value} µs : {index}")
-                # Right align text for readability
-                self.history.item(0).setTextAlignment(Qt.AlignmentFlag.AlignRight)
-
-                while self.history.count() > self.max_history:
-                    self.history.takeItem(self.history.count() - 1)
+            # Update histogram with current data distribution
+            if self.histogram and len(self.gui_data_points) > 1:
+                # Extract values for histogram (only the measurement values)
+                values = [point[1] for point in self.gui_data_points]
+                self.histogram.update_histogram(values)
 
             # Update table model with new data
             if self.table_model is not None:
                 try:
+                    # Use timestamp if provided, otherwise create current timestamp
+                    if timestamp is None:
+                        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+
                     row = [
                         QStandardItem(str(index)),
                         QStandardItem(str(value)),
@@ -319,7 +326,6 @@ class DataController:
             Debug.error(f"Failed to convert values: {e}", exc_info=True)
         except (AttributeError, RuntimeError) as e:
             Debug.error(f"Failed to update UI elements: {e}", exc_info=True)
-
 
     def stop_gui_updates(self) -> None:
         """Stop the GUI update timer."""
@@ -367,9 +373,13 @@ class DataController:
             if self.display:
                 self.display.display(0)
 
-            # Clear the history list
-            if self.history:
-                self.history.clear()
+            # Clear the histogram
+            if self.histogram:
+                self.histogram.clear()
+
+            if self.stat_display:
+                for display in self.stat_display:
+                    display.clear()
 
             # Clear the table model
             if self.table_model is not None:
@@ -410,6 +420,7 @@ class DataController:
                     mean = stats["avg"]
                     variance = sum((x - mean) ** 2 for x in values) / len(values)
                     stats["stdev"] = variance**0.5
+
             except (ValueError, TypeError) as e:
                 Debug.error(f"Value conversion error: {e}", exc_info=True)
             except (ZeroDivisionError, OverflowError) as e:
@@ -417,6 +428,9 @@ class DataController:
                     f"Statistical calculation error: {e}",
                     exc_info=True,
                 )
+        if self.stat_display:
+            for i, number in enumerate(stats.values()):
+                self.stat_display[i].setText(f"{number:,.0f}")
 
         return stats
 
@@ -455,10 +469,10 @@ class DataController:
             "gui_points_for_display": self.gui_data_points,  # Limited data for GUI
         }
 
-    def get_all_data_for_export(self) -> List[Tuple[int, float]]:
+    def get_all_data_for_export(self) -> List[Tuple[int, float, str]]:
         """Return all collected data points without cropping.
-        
+
         Return:
           List[Tuple[int, float]]: All datapoints with timestamp
-         """
+        """
         return self.data_points.copy()

@@ -36,7 +36,7 @@ def debug_data_controller():
     controller = DataController(
         plot_widget=plot,
         display_widget=None,
-        history_widget=None,
+        histogram_widget=None,
         max_history=50,
         gui_update_interval=100,
     )

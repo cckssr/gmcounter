@@ -108,7 +108,7 @@ def demonstrate_batch_optimization():
     controller = DataController(
         plot_widget=plot_controller,
         display_widget=None,
-        history_widget=None,
+        histogram_widget=None,
         max_history=300,
         gui_update_interval=100,  # 100ms GUI updates
     )

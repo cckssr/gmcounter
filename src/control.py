@@ -1,8 +1,8 @@
 import time
 from typing import Union
-from src.debug_utils import Debug
-from src.device_manager import DeviceManager
-from src.helper_classes import import_config
+from .debug_utils import Debug
+from .device_manager import DeviceManager
+from .helper_classes import import_config
 
 CONFIG = import_config()
 

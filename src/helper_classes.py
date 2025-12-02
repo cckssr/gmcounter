@@ -3,7 +3,7 @@ import csv
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Union
+from typing import Optional
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QStatusBar,
     QLabel,
@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QFileDialog,
 )
 from PySide6.QtCore import QTimer  # pylint: disable=no-name-in-module
-from src.debug_utils import Debug
+from .debug_utils import Debug
 
 
 class Statusbar:
@@ -116,7 +116,7 @@ class AlertWindow(QDialog):
     ) -> None:
         super().__init__(parent)
         try:
-            from pyqt.ui_alert import (
+            from .pyqt.ui_alert import (
                 Ui_Dialog,
             )  # local import to avoid Qt dependency when unused
         except Exception:  # pragma: no cover - fallback
@@ -189,7 +189,15 @@ class AlertWindow(QDialog):
             self.accept()
         elif role == QDialogButtonBox.ButtonRole.RejectRole:
             self.reject()
-        # Bei anderen Rollen (ActionRole, ResetRole, etc.) lassen wir den Dialog offen
+        elif role == QDialogButtonBox.ButtonRole.ActionRole:
+            # For ActionRole, accept the dialog so exec() returns and caller can handle it
+            self.accept()
+        elif role == QDialogButtonBox.ButtonRole.ResetRole:
+            # For ResetRole, accept the dialog so exec() returns and caller can handle it
+            self.accept()
+        else:
+            # For any other roles, also accept to close the dialog
+            self.accept()
 
     def get_clicked_button(self):
         """Return the clicked button if available."""
@@ -266,7 +274,9 @@ class MessageHelper:
 class SaveManager:
     """Utility class for storing measurement data and metadata."""
 
-    def __init__(self, base_dir: Path = None, auto_save: bool = False) -> None:
+    def __init__(
+        self, base_dir: Optional[Path] = None, auto_save: bool = False
+    ) -> None:
         self.base_dir = Path(base_dir or Path.home() / "Documents" / "GMCounter")
         try:
             self.base_dir.mkdir(parents=True, exist_ok=True)
@@ -285,16 +295,11 @@ class SaveManager:
     ) -> str:
         """Generate a standard file name.
 
-        Parameters
-        ----------
-        rad_sample:
-            Sample identifier to include in the file name.
-        group_letter:
-            Group letter to include in the file name.
-        suffix:
-            Optional suffix (``-run1`` etc.).
-        extension:
-            File extension including leading dot.
+        Args:
+            rad_sample (str): Sample identifier to include in the file name.
+            group_letter (str): Group letter to include in the file name.
+            suffix (str, optional): Optional suffix (``-run1`` etc.).
+            extension (str, optional): File extension including leading dot.
         """
 
         if not rad_sample:
@@ -326,7 +331,7 @@ class SaveManager:
         end: datetime,
         group: str,
         sample: str,
-        extra: Union[dict, None] = None,
+        extra: dict | None = None,
     ) -> dict:
         """Create metadata dictionary following basic Dublin Core fields."""
 
@@ -334,7 +339,7 @@ class SaveManager:
             group if group and len(str(group)) > 1 else self._create_group_name(group)
         )
         metadata = {
-            "dc:date": start.strftime("%Y-%m-%d"),
+            "dc:date": start.isoformat(timespec="seconds"),
             "dc:creator": group_name,
             "dc:title": sample,
             "start_time": start.isoformat(),
@@ -352,11 +357,16 @@ class SaveManager:
 
         ``file_name`` may be an absolute path or a simple file name. Relative
         names are stored below ``base_dir``.
+
+        Args:
         """
 
         csv_path = Path(file_name)
         if not csv_path.is_absolute():
             csv_path = self.base_dir / csv_path
+        if csv_path.exists():
+            Debug.error(f"File {csv_path} is already in use or exists.")
+            raise FileExistsError(f"File {csv_path} already exists.")
         try:
             with open(csv_path, "w", newline="", encoding="utf-8") as csv_f:
                 writer = csv.writer(csv_f)
@@ -377,8 +387,11 @@ class SaveManager:
         start: datetime,
         end: datetime,
         suffix: str = "",
-    ) -> Path:
-        """Automatically save data using a generated file name."""
+    ) -> Optional[Path]:
+        """Automatically save data using a generated file name.
+
+        Args:
+        """
 
         if not data:
             Debug.error("No data provided for auto save")
@@ -396,7 +409,7 @@ class SaveManager:
         data: list[list[str]],
         start: datetime,
         end: datetime,
-    ) -> Path:
+    ) -> Optional[Path]:
         """Open a save dialog and store the measurement."""
 
         if not data:
@@ -454,15 +467,38 @@ def import_config(language: str = "de") -> dict:
     Returns:
         dict: The configuration dictionary.
     """
+    import sys
+    from pathlib import Path
+
+    # Mögliche Pfade für config.json (in Prioritätsreihenfolge)
+    possible_paths = [
+        Path("config.json"),  # Aktuelles Verzeichnis
+        Path(__file__).parent.parent
+        / "config.json",  # Projektroot (src/../config.json)
+        Path(sys.prefix) / "config.json",  # Installation prefix
+    ]
+
+    # Falls als Package installiert, nutze importlib.resources (Python 3.9+)
     try:
-        with open("config.json", "r", encoding="utf-8") as f:
-            config = json.load(f)
-            return config[language]
-    except FileNotFoundError:
-        Debug.error(
-            "config.json not found. Please ensure it exists in the project root."
-        )
-        return {}
-    except json.JSONDecodeError as e:
-        Debug.error(f"Error decoding JSON from config.json: {e}")
-        return {}
+        if sys.version_info >= (3, 9):
+            from importlib.resources import files
+
+            package_config = files("src").joinpath("../config.json")
+            if hasattr(package_config, "read_text"):
+                config = json.loads(package_config.read_text(encoding="utf-8"))
+                return config.get(language, config.get("de", {}))
+    except Exception:
+        pass  # Fallback zu Dateipfaden
+
+    for config_path in possible_paths:
+        try:
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    Debug.debug(f"Config loaded from: {config_path}")
+                    return config.get(language, config.get("de", {}))
+        except (FileNotFoundError, json.JSONDecodeError):
+            continue
+
+    Debug.error("config.json not found. Please ensure it exists in the project root.")
+    return {}

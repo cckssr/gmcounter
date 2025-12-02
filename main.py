@@ -2,82 +2,76 @@
 # -*- coding: utf-8 -*-
 
 """
-HRNGGUI - Hauptprogramm für die Geiger-Müller Counter GUI-Anwendung.
+Robust launcher for the application. When executed as a script from the
+repository root or from an installed package folder the module `src.main`
+should be executed as a module so that its intra-package relative imports work
+correctly. On Windows executing a script inside a package folder often fails
+with "attempted relative import with no known parent" if the module is simply
+imported; to avoid this we prefer runpy.run_module and fall back to sensible
+import attempts.
+
+This file is intentionally small and defensive so users can run the repository
+entrypoint (``python main.py``) or the installed entrypoint that points here.
 """
 
+from __future__ import annotations
+import runpy
 import sys
-from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
-    QApplication,
-    QMessageBox,
-)
-from src.debug_utils import Debug
-from src.connection import ConnectionWindow
-from src.main_window import MainWindow
-from src.helper_classes import import_config
-
-# Konfigurationsdatei laden
-CONFIG = import_config()
+from importlib import import_module
 
 
-def main():
+def _run_module_by_name(module_names: list[str]) -> None:
+    """Try to run one of the given module names as __main__.
+
+    The list is tried in order; the function raises the last exception if
+    none succeeded.
     """
-    Haupteinstiegspunkt der Anwendung.
-    Initialisiert das Debug-System, startet die Verbindungsdialog
-    und erstellt das Hauptfenster.
-    """
-    # Debug-System initialisieren
-    debug_level = (
-        Debug.DEBUG_VERBOSE
-        if CONFIG["debug"]["level_default"] == "verbose"
-        else Debug.DEBUG_OFF
-    )
-    Debug.init(debug_level=debug_level, app_name=CONFIG["application"]["name"])
+    last_exc: Exception | None = None
+    for mod in module_names:
+        try:
+            # run_module executes the module in the module context, so
+            # relative imports inside the module work as expected.
+            runpy.run_module(mod, run_name="__main__", alter_sys=True)
+            return
+        except ModuleNotFoundError as exc:
+            last_exc = exc
+        except Exception as exc:  # pragma: no cover - surface other errors
+            last_exc = exc
+    if last_exc:
+        raise last_exc
 
-    # Globalen Exception-Handler registrieren
-    sys.excepthook = Debug.exception_hook
 
-    Debug.info("Starte Anwendung...")
-
-    # QApplication erstellen
-    app = QApplication(sys.argv)
-    app.setQuitOnLastWindowClosed(True)
-
-    # Verbindungsdialog anzeigen
-    connection_dialog = ConnectionWindow(
-        demo_mode=CONFIG["gm_counter"]["demo_mode"],
-        default_device=CONFIG["gm_counter"]["default_arduino"],
-    )
-
-    # Wenn der Dialog bestätigt wurde, Verbindung herstellen
-    if connection_dialog.exec():
-        success = connection_dialog.connection_successful
-        device_manager = connection_dialog.device_manager
-
-        if success and device_manager is not None:
-            # Hauptfenster erstellen und anzeigen, wenn Verbindung erfolgreich
-            main_window = MainWindow(device_manager)
-            main_window.show()
-
-            # Timer starten, wenn vorhanden
-            if hasattr(main_window, "timer"):
-                main_window.timer.start()
-
-            # Anwendung ausführen
-            sys.exit(app.exec())
-        else:
-            # Fehlerfall: Verbindung fehlgeschlagen
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Icon.Critical)
-            msg_box.setText(CONFIG["messages"]["connection_failed"])
-            msg_box.setWindowTitle("Verbindungsfehler")
-            msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-            msg_box.exec()
-            sys.exit(1)
-    else:
-        # Benutzer hat den Dialog abgebrochen
-        Debug.info("Verbindung vom Benutzer abgebrochen")
-        sys.exit(0)
+def _import_and_call_main(module_names: list[str]) -> None:
+    """Fallback: import module and call its `main()` function if present."""
+    last_exc: Exception | None = None
+    for mod in module_names:
+        try:
+            m = import_module(mod)
+            if hasattr(m, "main") and callable(getattr(m, "main")):
+                m.main()
+                return
+        except Exception as exc:
+            last_exc = exc
+    if last_exc:
+        raise last_exc
 
 
 if __name__ == "__main__":
-    main()
+    # Typical names we try: local package `src` (repo layout) and installed
+    # package `gyroscope_ui` (distribution layout). Try running the module
+    # first (preserves package context), fall back to import+call.
+    module_candidates = ["src.main"]
+
+    try:
+        _run_module_by_name(module_candidates)
+    except Exception:
+        # Last resort: try import and call main()
+        try:
+            _import_and_call_main(module_candidates)
+        except Exception as exc:  # pragma: no cover - report to user
+            print(
+                "Failed to start application; attempted modules:",
+                module_candidates,
+                file=sys.stderr,
+            )
+            raise
