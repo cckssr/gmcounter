@@ -28,7 +28,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1200, 942)
+        MainWindow.resize(1174, 942)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.horizontalLayout_3 = QHBoxLayout(self.centralwidget)
@@ -654,6 +654,7 @@ class Ui_MainWindow(object):
         self.formLayout_3 = QFormLayout()
         self.formLayout_3.setObjectName(u"formLayout_3")
         self.formLayout_3.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+        self.formLayout_3.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
         self.label_8 = QLabel(self.gridGroupBox)
         self.label_8.setObjectName(u"label_8")
 
@@ -758,6 +759,7 @@ class Ui_MainWindow(object):
 
         self.gridLayout_3.addWidget(self.label_18, 0, 0, 1, 1)
 
+        self.gridLayout_3.setColumnStretch(1, 1)
         self.gridLayout_3.setColumnStretch(2, 2)
         self.gridLayout_3.setColumnStretch(3, 2)
 
@@ -774,7 +776,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1200, 24))
+        self.menubar.setGeometry(QRect(0, 0, 1174, 24))
         MainWindow.setMenuBar(self.menubar)
         self.statusBar = QStatusBar(MainWindow)
         self.statusBar.setObjectName(u"statusBar")

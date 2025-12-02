@@ -53,7 +53,10 @@ class MainWindow(QMainWindow):
         # Measurement status
         self.is_measuring = False
         self.data_saved = True
-        self.save_manager = SaveManager()
+        self.save_manager = SaveManager(
+            base_dir=CONFIG.get("save", {}).get("base_folder", "GMCounter"),
+            tk_designation=CONFIG.get("save", {}).get("tk_designation", "TK47"),
+        )
         self.measurement_start = None
         self.measurement_end = None
         self._elapsed_seconds = 0
@@ -345,6 +348,7 @@ class MainWindow(QMainWindow):
             data = self.data_controller.get_csv_data()
             rad_sample = self.ui.radSample.currentText()
             group_letter = self.ui.groupLetter.currentText()
+            subterm = self.ui.suffix.text().strip()
 
             saved_path = self.save_manager.manual_save_measurement(
                 self,
@@ -353,6 +357,7 @@ class MainWindow(QMainWindow):
                 data,
                 self.measurement_start or datetime.now(),
                 self.measurement_end or datetime.now(),
+                subterm,
             )
 
             if saved_path and saved_path.exists():
