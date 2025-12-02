@@ -96,11 +96,34 @@ class MainWindow(QMainWindow):
         self.device_manager = device_manager
         self.device_manager.data_callback = self.handle_data
         self.device_manager.status_callback = self.statusbar.temp_message
+        self.device_manager.info_callback = self._update_device_info
 
         # Ensure the acquisition thread forwards data to this window. When the
         # connection dialog created the DeviceManager the acquisition thread may
         # already be running without our callback connected.
         self.device_manager.start_acquisition()
+
+        # Fetch device info if already connected (in case info_callback wasn't
+        # set during initial connection)
+        if self.device_manager.connected and self.device_manager.device:
+            self.device_manager._fetch_device_info()
+
+    def _update_device_info(self, info: dict):
+        """Update the UI with device information.
+
+        Args:
+            info: Dictionary containing 'version', 'copyright', and 'openbis' keys.
+        """
+        Debug.info(f"Updating device info in UI: {info}")
+
+        version = info.get("version", "unknown")
+        openbis = info.get("openbis", "unknown")
+
+        # Update UI labels
+        if hasattr(self.ui, "cVersion"):
+            self.ui.cVersion.setText(version if version else "unknown")
+        if hasattr(self.ui, "cOpenbis"):
+            self.ui.cOpenbis.setText(openbis if openbis else "unknown")
 
     def _setup_controls(self):
         self.control = ControlWidget(

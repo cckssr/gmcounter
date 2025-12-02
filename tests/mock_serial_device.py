@@ -42,6 +42,7 @@ class MockGMCounter:
         self._last_pulse_time = 0.0
         self.next_pulse_time = 0
         self._next_pulse_interval = 0.0  # Das nächste zufällige Intervall
+        self._stream_mode = 0  # Stream-Modus (0=aus, 1=bei Messung, etc.)
         Debug.info(f"MockGMCounter für Port {port} initialisiert")
         print(
             f"Baudrate: {self.baudrate}, timeout: {self.timeout:2f}, max_tick: {self.max_tick:6f}"
@@ -79,7 +80,14 @@ class MockGMCounter:
         return int(delta_micros)
 
     def get_information(self) -> Dict[str, str]:
-        return {"copyright": "(C) Mock-Gerät", "version": "MockVersion 1.0.0"}
+        return {
+            "copyright": "(C) 2024 TU Berlin - Mock GM Counter",
+            "version": "Mock v1.0.0 (HRNGGUI Test Device)",
+            "openbis": "MOCK-001",
+        }
+
+    def get_openbis_code(self) -> str:
+        return "MOCK-001"
 
     def set_voltage(self, value: int = 500):
         if 300 <= value <= 700:
@@ -118,38 +126,79 @@ class MockGMCounter:
 
     def handle_command(self, command: str) -> Optional[str]:
         """Verarbeitet einen Befehl und gibt eine Antwortzeichenfolge zurück."""
+        command = command.strip()
+
+        # Stream-Befehle (b0-b8) sind immer erlaubt
+        if command.startswith("b"):
+            try:
+                mode = int(command[1:])
+                self._stream_mode = mode
+                Debug.info(f"MockGMCounter: Stream-Modus auf {mode} gesetzt.")
+                if mode == 0:
+                    # Stream stoppen - keine Antwort
+                    return None
+                elif mode == 2:
+                    # Daten jetzt senden
+                    data_dict = self.get_data()
+                    if data_dict:
+                        return (
+                            f"{data_dict['count']},"
+                            f"{data_dict['last_count']},"
+                            f"{data_dict['counting_time']},"
+                            f"{int(data_dict['repeat'])},"
+                            f"{data_dict['progress']},"
+                            f"{data_dict['voltage']},"
+                        )
+            except ValueError:
+                pass
+            return None
+
+        # Copyright und Version sind immer erlaubt
+        if command == "c":
+            return self.get_information()["copyright"]
+        elif command == "v":
+            return self.get_information()["version"]
+        elif command == "info":
+            # OpenBIS code request - format matching Arduino
+            return f"OpenBIS code: {self.get_openbis_code()}"
+
         # Während der Zählung nur 's0' (Stopp) erlauben
         if self._counting and command != "s0":
             return None
 
         response = None
-        if command == "b2":
-            data_dict = self.get_data()
-            if data_dict:
-                response = (
-                    f"{data_dict['count']},"
-                    f"{data_dict['last_count']},"
-                    f"{data_dict['counting_time']},"
-                    f"{int(data_dict['repeat'])},"
-                    f"{data_dict['progress']},"
-                    f"{data_dict['voltage']},"
-                )
-        elif command == "c":
-            response = self.get_information()["copyright"]
-        elif command == "v":
-            response = self.get_information()["version"]
-        elif command.startswith("j"):
-            self.set_voltage(int(command[1:]))
+        if command.startswith("j"):
+            try:
+                self.set_voltage(int(command[1:]))
+            except ValueError:
+                pass
         elif command.startswith("o"):
-            self.set_repeat(bool(int(command[1:])))
+            try:
+                self.set_repeat(bool(int(command[1:])))
+            except ValueError:
+                pass
         elif command.startswith("s"):
-            is_counting = bool(int(command[1:]))
-            self.set_counting(is_counting)
+            try:
+                is_counting = bool(int(command[1:]))
+                self.set_counting(is_counting)
+            except ValueError:
+                pass
         elif command.startswith("U"):
-            val = int(command[1:])
-            self.set_speaker(gm=bool(val & 1), ready=bool(val & 2))
+            try:
+                val = int(command[1:])
+                self.set_speaker(gm=bool(val & 1), ready=bool(val & 2))
+            except ValueError:
+                pass
         elif command.startswith("f"):
-            self.set_counting_time(int(command[1:]))
+            try:
+                self.set_counting_time(int(command[1:]))
+            except ValueError:
+                pass
+        elif command == "r":
+            # Register löschen
+            self._count = 0
+            self._last_count = 0
+            Debug.info("MockGMCounter: Register gelöscht.")
         return response
 
     def tick(self) -> Optional[int]:
@@ -217,20 +266,28 @@ def main(device_class=MockGMCounter):
 
     try:
         while True:
-            r, _, _ = select.select([master], [], [], 0.1)
+            r, _, _ = select.select(
+                [master], [], [], 0.01
+            )  # Kürzeres Timeout für schnellere Reaktion
 
             if r:
                 try:
-                    data = os.read(master, 1024).decode(errors="ignore").strip()
-                    if not data:
+                    raw_data = os.read(master, 1024)
+                    if not raw_data:
                         print("Verbindung geschlossen.")
                         break
 
-                    print(f"Empfangen: {data}")
-                    response = mock_device.handle_command(data)
+                    # Verarbeite jede Zeile separat (Befehle enden mit \n)
+                    data = raw_data.decode(errors="ignore")
+                    commands = [cmd.strip() for cmd in data.split("\n") if cmd.strip()]
 
-                    if response:
-                        os.write(master, (response + "\n").encode("utf-8"))
+                    for cmd in commands:
+                        print(f"Empfangen: '{cmd}'")
+                        response = mock_device.handle_command(cmd)
+
+                        if response:
+                            print(f"Sende Antwort: '{response}'")
+                            os.write(master, (response + "\n").encode("utf-8"))
 
                 except (OSError, ValueError) as e:
                     print(f"Fehler: {e}")

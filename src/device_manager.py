@@ -175,9 +175,11 @@ class DeviceManager:
         self,
         status_callback: Optional[Callable[[str, str], None]] = None,
         data_callback: Optional[Callable[[int, int], None]] = None,
+        info_callback: Optional[Callable[[dict], None]] = None,
     ) -> None:
         self.status_callback = status_callback
         self.data_callback = data_callback
+        self.info_callback = info_callback  # Called with device info after connection
         self.connected = False
         self.port = "None"
         self.device: Optional[GMCounter] = None
@@ -186,7 +188,7 @@ class DeviceManager:
         self.measurement_active = False
 
     def connect(self, port: str, baudrate: int) -> bool:
-        """Connect to the given serial port."""
+        """Connect to the given serial port and retrieve device information."""
         self.port = port
         self.disconnect()
         try:
@@ -194,6 +196,10 @@ class DeviceManager:
             self.connected = True
             if self.status_callback:
                 self.status_callback(f"Connected to {port}", "green")
+
+            # Retrieve and report device information
+            self._fetch_device_info()
+
             self.start_acquisition()
             return True
         except Exception as exc:
@@ -202,6 +208,19 @@ class DeviceManager:
             if self.status_callback:
                 self.status_callback(f"Connection failed: {exc}", "red")
             return False
+
+    def _fetch_device_info(self) -> None:
+        """Fetch device information and call the info callback."""
+        if not self.device:
+            return
+
+        try:
+            info = self.device.get_information()
+            Debug.info(f"Device info retrieved: {info}")
+            if self.info_callback:
+                self.info_callback(info)
+        except Exception as exc:
+            Debug.error(f"Failed to fetch device info: {exc}")
 
     def disconnect(self) -> None:
         """Close existing connection and stop acquisition."""

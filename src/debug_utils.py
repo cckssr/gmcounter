@@ -3,6 +3,7 @@
 
 import logging
 import os
+import tempfile
 from datetime import datetime
 import sys
 import traceback
@@ -38,7 +39,7 @@ class Debug:
     def init(cls, debug_level=DEBUG_OFF, log_dir=None, app_name="Application"):
         """
         Initialise the logger with the specified debug level and log directory.
-        If no log directory is specified, a "logs" folder in the project directory is used.
+        If no log directory is specified, a platform-specific temp directory is used.
 
         Args:
             debug_level: Debug level (0-3)
@@ -71,15 +72,13 @@ class Debug:
         # Only set up log file if debugging is enabled
         if debug_level != cls.DEBUG_OFF:
             # Use provided directory if given,
-            # otherwise use a "logs" folder in the project directory
+            # otherwise use platform-specific temp directory
             if log_dir:
                 log_directory = log_dir
             else:
-                # Determine the project directory (one level above the src directory)
-                project_dir = os.path.dirname(
-                    os.path.dirname(os.path.abspath(__file__))
-                )
-                log_directory = os.path.join(project_dir, "logs")
+                # Use platform-independent temp directory
+                # Creates: /tmp/hrnggui_logs (Linux/Mac) or %TEMP%\hrnggui_logs (Windows)
+                log_directory = os.path.join(tempfile.gettempdir(), "hrnggui_logs")
 
             if not os.path.exists(log_directory):
                 try:
