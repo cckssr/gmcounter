@@ -77,6 +77,12 @@ jobs:
             fi
           done
           
+          # Update config.json
+          if [ -f "config.json" ]; then
+            jq --arg version "$VERSION" '.version = $version' config.json > tmp.$$.json && mv tmp.$$.json config.json
+            echo "Updated config.json"
+          fi
+          
           echo "Version sync complete"
 
       - name: Check for changes
