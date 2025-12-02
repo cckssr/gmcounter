@@ -1,8 +1,6 @@
 {
     "files": [
         "../main.py",
-        "form.ui",
-        "toolbox.ui",
         "alert.ui",
         "control.ui",
         "connection.ui",
