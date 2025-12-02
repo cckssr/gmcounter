@@ -244,9 +244,18 @@ void sendMessage(String command, volatile bool &measurementInProgress)
         if (DEBUG)
         {
             Serial.println("Info command received.");
+            Serial.print("OpenBIS code: ");
         }
-        Serial.print("OpenBIS code: ");
         Serial.println(O_CODE); // Send OpenBIS code
+    }
+    else if (command == "oc")
+    {
+        // Handle copyright command
+        if (DEBUG)
+        {
+            Serial.println("Own Copyright command received.");
+        }
+        Serial.println(COPYRIGHT_STR); // Send copyright information
     }
     else if (command == "c")
     {
@@ -255,7 +264,15 @@ void sendMessage(String command, volatile bool &measurementInProgress)
         {
             Serial.println("Copyright command received.");
         }
-        Serial.println(COPYRIGHT_STR); // Send copyright information
+    }
+    else if (command == "sv")
+    {
+        // Handle version command
+        if (DEBUG)
+        {
+            Serial.println("Own Version command received.");
+        }
+        Serial.println(VERSION_STR); // Send version information
     }
     else if (command == "v")
     {
@@ -264,6 +281,5 @@ void sendMessage(String command, volatile bool &measurementInProgress)
         {
             Serial.println("Version command received.");
         }
-        Serial.println(VERSION_STR); // Send version information
     }
 }

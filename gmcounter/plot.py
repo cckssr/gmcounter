@@ -101,7 +101,7 @@ class PlotWidget(pg.PlotWidget):
         self._plot_item = self.plot(
             all_indices,
             all_values_us,
-            pen="w",  # White connecting line
+            pen="gray",  # Gray connecting line
             symbol="o",
             symbolSize=4,
             symbolBrush="r",
