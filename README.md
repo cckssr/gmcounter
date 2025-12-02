@@ -1,57 +1,82 @@
-# HRNGGUI - Geiger-Müller Counter GUI
+# GMCounter - Geiger-Müller Counter GUI
 
 Eine grafische Benutzeroberfläche zur Steuerung und Datenerfassung eines Geiger-Müller-Zählrohrs für Zufallszahlengenerierung.
 
 ## Projektstruktur
 
-Das Projekt verwendet eine modulare Struktur, um die verschiedenen Komponenten sauber zu trennen:
+Das Projekt verwendet eine modulare Struktur mit dem Paket `gmcounter`:
 
 ```
-HRNGGUI/
-├── main.py             # Hauptprogramm (Einstiegspunkt)
-├── start_app.py        # Einfaches Startskript
-├── run_tests.py        # Test-Runner für automatisierte Tests
-├── integration_test.py # Integrationstests für die Anwendung
-├── testplan.md         # Manueller Testplan
-├── requirements.txt    # Python Abhängigkeiten
+GMCounter/
+├── main.py                 # Einstiegspunkt (Alternative)
+├── pyproject.toml          # Projekt-Konfiguration und Abhängigkeiten
+├── requirements.txt        # Python Abhängigkeiten (Alternative)
 │
-├── src/                # Quellcode-Module
-│   ├── arduino.py      # GM-Counter Kommunikation
-│   ├── config.py       # Zentrale Konfiguration
-│   ├── connection.py   # Verbindungsverwaltung
-│   ├── data_controller.py # Datenverwaltung und -verarbeitung
-│   ├── debug_utils.py  # Debug-Hilfsfunktionen
-│   ├── helper_classes.py # Hilfsklassen
-│   ├── main_window.py  # Hauptfensterklasse
-│   └── plot.py         # Plotting-Funktionalität
+├── gmcounter/              # Hauptpaket
+│   ├── __init__.py         # Paket-Initialisierung
+│   ├── __main__.py         # Entry Point für `python -m gmcounter`
+│   ├── main.py             # Hauptprogramm
+│   ├── arduino.py          # GM-Counter Kommunikation
+│   ├── config.json         # Zentrale Konfiguration
+│   ├── connection.py       # Verbindungsverwaltung
+│   ├── data_controller.py  # Datenverwaltung und -verarbeitung
+│   ├── device_manager.py   # Geräte-Management
+│   ├── debug_utils.py      # Debug-Hilfsfunktionen
+│   ├── helper_classes.py   # Hilfsklassen (SaveManager, etc.)
+│   ├── main_window.py      # Hauptfensterklasse
+│   ├── control.py          # Steuerungs-Widget
+│   ├── plot.py             # Plotting-Funktionalität
+│   └── pyqt/               # Qt UI-Definitionen
+│       ├── ui_mainwindow.py
+│       └── ui_connection.py
 │
-├── pyqt/               # Qt UI-Definitionen
-│   ├── ui_mainwindow.py # Generierte UI-Klasse für das Hauptfenster
-│   └── ...             # Weitere UI-Dateien
-│
-├── logs/               # Logdateien
-└── tests/              # Testdateien
-    ├── arduino_test.py     # Tests für die Arduino-Klasse
-    ├── data_controller_test.py # Tests für den DataController
-    └── main_window_test.py # Tests für die MainWindow-Klasse
+├── tests/                  # Testdateien
+├── docs/                   # Dokumentation
+└── logs/                   # Logdateien (automatisch erstellt)
 ```
 
 ## Installation
 
-1. Abhängigkeiten installieren:
+### Option 1: Installation via pip (empfohlen)
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+# Aus dem Projektverzeichnis installieren
+pip install .
 
-2. Anwendung starten:
-   ```bash
-   ./start_app.py
-   ```
-   oder
-   ```bash
-   python start_app.py
-   ```
+# Oder im Entwicklungsmodus (für Entwicklung)
+pip install -e .
+```
+
+### Option 2: Direkte Installation der Abhängigkeiten
+
+```bash
+pip install -r requirements.txt
+```
+
+## Anwendung starten
+
+### Nach pip-Installation
+
+```bash
+# Als GUI-Anwendung (ohne Terminal-Fenster unter Windows)
+gmcounter
+```
+
+### Ohne Installation
+
+```bash
+# Als Python-Modul
+python -m gmcounter
+
+# Oder über main.py
+python main.py
+```
+
+### Windows ohne CMD-Fenster
+
+```bash
+pythonw -m gmcounter
+```
 
 ## Verwendung
 
@@ -69,42 +94,34 @@ HRNGGUI/
 Die Anwendung wurde mit einer sauberen Architektur entwickelt:
 
 - **Model**: `DataController` und andere Datenklassen verwalten die Daten
-- **View**: Qt-basierte Benutzeroberfläche
+- **View**: Qt-basierte Benutzeroberfläche (PySide6)
 - **Controller**: `MainWindow` und Hilfsklassen steuern den Ablauf
 
-Die `config.py` enthält zentrale Konfigurationsoptionen, die an einer Stelle geändert werden können.
+Die `config.json` enthält zentrale Konfigurationsoptionen.
 
 ## Tests
 
-Das Projekt enthält umfangreiche Tests, um die Korrektheit der Implementierung sicherzustellen:
+Das Projekt enthält umfangreiche Tests:
 
 ### Automatisierte Tests
 
-Die Tests können mit dem Test-Runner ausgeführt werden:
-
 ```bash
-python run_tests.py
+# Mit pytest
+pytest
+
+# Mit Coverage
+pytest --cov=gmcounter
 ```
-
-Verfügbare Tests:
-
-- **Unit-Tests**: Testen einzelne Komponenten isoliert
-
-  - `arduino_test.py`: Tests für die Arduino-Kommunikation
-  - `data_controller_test.py`: Tests für die Datenverwaltung
-  - `main_window_test.py`: Tests für das Hauptfenster
-
-- **Integrationstests**: Testen das Zusammenspiel mehrerer Komponenten
-  - `integration_test.py`: Überprüft das Zusammenspiel der Hauptkomponenten
 
 ### Manueller Testplan
 
-Der Datei `testplan.md` enthält einen strukturierten Plan für manuelle Tests mit verschiedenen Testszenarien und Checklisten. Dieser sollte nach größeren Änderungen durchlaufen werden, um sicherzustellen, dass alle Funktionen korrekt arbeiten.
+Der Datei `testplan.md` enthält einen strukturierten Plan für manuelle Tests.
 
-Zur komfortablen Durchführung dieser Checkliste kann das Skript `manual_checklist.py` verwendet werden:
+## Lizenz
 
-```bash
-python manual_checklist.py --file tests/testplan.md --output checklist_results.json
-```
+MIT License - siehe [LICENSE](LICENSE)
 
-Das Skript liest alle Aufgaben aus der Markdown-Datei, fragt sie nacheinander ab und speichert die Ergebnisse im angegebenen JSON-File.
+## Repository
+
+- **GitHub**: https://github.com/cckssr/gmcounter
+- **Dokumentation**: https://gmcounter.readthedocs.io

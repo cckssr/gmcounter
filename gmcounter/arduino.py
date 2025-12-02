@@ -83,7 +83,6 @@ class Arduino:
                     port=self.port,
                     baudrate=self.baudrate,
                     timeout=self.timeout,
-                    exclusive=False,
                 )
 
             sleep(2.0)  # Allow Arduino to reset after connection
