@@ -67,8 +67,7 @@ where = ["."]
 include = ["src", "src.*"]
 
 [tool.setuptools.package-data]
-"src" = ["pyqt/*.ui"]
-"*" = ["config.json"]
+"src" = ["pyqt/*.ui", "config.json"]
 
 [tool.black]
 line-length = 88
