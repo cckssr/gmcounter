@@ -19,7 +19,7 @@ Usage example:
 from typing import Optional, Union, Dict, Any
 from time import sleep
 import serial
-from src.debug_utils import Debug
+from .debug_utils import Debug
 
 
 class Arduino:
@@ -125,6 +125,8 @@ class Arduino:
             Debug.error("Error: Serial connection not open")
             return None
 
+        # temp = self.serial.readline()
+        # Debug.debug(f"Raw data read (bytes): {temp}")
         try:
             # Wait briefly to ensure data has arrived
             sleep(0.2)

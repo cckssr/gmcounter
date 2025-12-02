@@ -1,24 +1,23 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QMainWindow,
     QVBoxLayout,
     QCompleter,
-    QWidget,
 )
 from PySide6.QtCore import QTimer, Qt  # pylint: disable=no-name-in-module
-from src.device_manager import DeviceManager
-from src.control import ControlWidget
-from src.plot import PlotWidget, HistogramWidget
-from src.debug_utils import Debug
-from src.helper_classes import (
+from .device_manager import DeviceManager
+from .control import ControlWidget
+from .plot import PlotWidget, HistogramWidget
+from .debug_utils import Debug
+from .helper_classes import (
     import_config,
     Statusbar,
     SaveManager,
     MessageHelper,
 )
-from src.data_controller import DataController
-from pyqt.ui_mainwindow import Ui_MainWindow
-from datetime import datetime
+from .data_controller import DataController
+from .pyqt.ui_mainwindow import Ui_MainWindow
 
 
 # Import settings and messages

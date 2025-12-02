@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QFileDialog,
 )
 from PySide6.QtCore import QTimer  # pylint: disable=no-name-in-module
-from src.debug_utils import Debug
+from .debug_utils import Debug
 
 
 class Statusbar:
@@ -116,7 +116,7 @@ class AlertWindow(QDialog):
     ) -> None:
         super().__init__(parent)
         try:
-            from pyqt.ui_alert import (
+            from .pyqt.ui_alert import (
                 Ui_Dialog,
             )  # local import to avoid Qt dependency when unused
         except Exception:  # pragma: no cover - fallback

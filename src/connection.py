@@ -10,12 +10,11 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QDialog,
     QDialogButtonBox,
 )
-from PySide6.QtCore import Qt  # Add Qt import for alignment
 from serial.tools import list_ports
-from pyqt.ui_connection import Ui_Dialog as Ui_Connection
-from src.helper_classes import AlertWindow
-from src.debug_utils import Debug
-from src.device_manager import DeviceManager
+from .pyqt.ui_connection import Ui_Dialog as Ui_Connection
+from .helper_classes import AlertWindow
+from .debug_utils import Debug
+from .device_manager import DeviceManager
 
 
 class ConnectionWindow(QDialog):

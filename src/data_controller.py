@@ -9,16 +9,17 @@ import threading
 from time import time
 from datetime import datetime
 
-from matplotlib.sankey import UP
-
 try:  # pragma: no cover - optional dependency for headless testing
-    from PySide6.QtWidgets import (
+    from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
         QLCDNumber,
         QTableView,
         QLineEdit,
     )  # type: ignore
-    from PySide6.QtGui import QStandardItemModel, QStandardItem  # type: ignore
-    from PySide6.QtCore import Qt, QTimer  # type: ignore
+    from PySide6.QtGui import (  # pylint: disable=no-name-in-module
+        QStandardItemModel,
+        QStandardItem,
+    )
+    from PySide6.QtCore import Qt, QTimer  # pylint: disable=no-name-in-module
 
 
 except Exception:  # ImportError or missing Qt libraries
@@ -89,9 +90,9 @@ except Exception:  # ImportError or missing Qt libraries
 
     Qt = _Qt()
 
-from src.plot import PlotWidget, HistogramWidget
-from src.debug_utils import Debug
-from src.helper_classes import import_config
+from .plot import PlotWidget, HistogramWidget
+from .debug_utils import Debug
+from .helper_classes import import_config
 
 # Configuration constants
 CONFIG = import_config()

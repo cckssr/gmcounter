@@ -5,15 +5,30 @@
 HRNGGUI - Hauptprogramm für die Geiger-Müller Counter GUI-Anwendung.
 """
 
+
 import sys
+import os
+
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QApplication,
     QMessageBox,
 )
-from src.debug_utils import Debug
-from src.connection import ConnectionWindow
-from src.main_window import MainWindow
-from src.helper_classes import import_config
+from .debug_utils import Debug
+from .connection import ConnectionWindow
+from .main_window import MainWindow
+from .helper_classes import import_config
+
+# If executed as a script (package context missing), ensure the repo root is on
+# sys.path and set __package__ so relative imports below work correctly.
+if __package__ is None:
+    # src/ is the package directory; parent is repository root
+    package_dir = os.path.dirname(__file__)
+    repo_root = os.path.dirname(package_dir)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+    # define package name to allow relative imports
+    __package__ = "src"
+
 
 # Konfigurationsdatei laden
 CONFIG = import_config()
