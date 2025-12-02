@@ -11,7 +11,11 @@
  */
 
 // Device constants
-const char *OPENBIS_CODE = "TEST"; // OpenBIS code for the device
+// OPENBIS_CODE wird über platformio.ini build_flags gesetzt
+// Falls nicht gesetzt, wird "UNKNOWN" als Fallback verwendet
+#ifndef OPENBIS_CODE
+#define OPENBIS_CODE "UNKNOWN"
+#endif
 // Global constants
 const int INTERRUPT_PIN = 2;            // Pin number for the interrupt source
 const unsigned long DEBOUNCE_TIME = 10; // Debounce time in microseconds to filter noise
@@ -119,7 +123,7 @@ void sendByteValue(u_int32_t value)
     Serial.write((uint8_t)((value >> 8) & 0xFF));  // Byte 1
     Serial.write((uint8_t)((value >> 16) & 0xFF)); // Byte 2
     Serial.write((uint8_t)((value >> 24) & 0xFF)); // Byte 3 (MSB)
-    // Serial1.write(0x55);                            // End byte for packet validation
+    Serial.write(0x55);                            // End byte for packet validation
     if (DEBUG)
     {
         Serial.println("DEBUG - Sent value: " + String(value));
@@ -157,8 +161,8 @@ void setup()
 {
     init(DEBUG, OPENBIS_CODE, MAX_LENGTH); // Initialize serial communication and set debug mode
     Serial.begin(1000000);                 // Initialize serial communication at 115200 baud
-    // Serial1.begin(9600);           // Initialize second serial communication with GM-Counter
-    Serial1.begin(1000000);        // Initialize second serial communication with GM-Counter
+    Serial1.begin(9600);           // Initialize second serial communication with GM-Counter
+    // Serial1.begin(1000000);        // Initialize second serial communication with GM-Counter
     pinMode(INTERRUPT_PIN, INPUT); // Configure the interrupt pin as an input
     // Attach interrupt to the pin, using RISING edge detection
     attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), isr_handle, RISING);
