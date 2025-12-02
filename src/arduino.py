@@ -17,7 +17,7 @@ Usage example:
         print(arduino.read_value())
 """
 from typing import Optional, Union, Dict, Any
-from time import sleep
+from time import sleep, time
 import serial
 from .debug_utils import Debug
 
@@ -62,19 +62,46 @@ class Arduino:
 
         try:
             Debug.info(f"Attempting to connect to {self.port} at {self.baudrate} baud")
-            self.serial = serial.Serial(
-                port=self.port, baudrate=self.baudrate, timeout=self.timeout
+
+            # Check if this is a PTY (pseudo-terminal) - used by mock devices
+            # PTYs don't support baudrate setting via ioctl
+            is_pty = self.port.startswith("/dev/ttys") or self.port.startswith(
+                "/dev/pts"
             )
+
+            if is_pty:
+                # For PTYs, open without baudrate configuration
+                Debug.debug(f"Detected PTY device, using raw serial access")
+                self.serial = serial.Serial()
+                self.serial.port = self.port
+                self.serial.timeout = self.timeout
+                # Don't set baudrate for PTYs - it causes ioctl errors
+                self.serial.open()
+            else:
+                # Normal serial port with full configuration
+                self.serial = serial.Serial(
+                    port=self.port,
+                    baudrate=self.baudrate,
+                    timeout=self.timeout,
+                    exclusive=False,
+                )
+
             sleep(2.0)  # Allow Arduino to reset after connection
-            self.serial.read_all()  # Clear any existing data in the buffer
-            self.serial.flush()  # Clear the serial buffer
+            # Clear buffers - wrapped in try/except for compatibility with
+            # virtual ports and some USB-Serial adapters that don't support
+            # certain ioctl operations
+            try:
+                self.serial.reset_input_buffer()
+                self.serial.reset_output_buffer()
+            except OSError as e:
+                Debug.debug(f"Could not reset buffers (non-critical): {e}")
             self.connected = True
             Debug.info(f"Successfully connected to {self.port}")
             return True
-        except serial.SerialException as e:
+        except (serial.SerialException, OSError) as e:
             self.connected = False
             Debug.error(f"Failed to connect to {self.port}: {e}")
-            raise e
+            raise serial.SerialException(str(e)) from e
 
     def close(self) -> None:
         """
@@ -154,6 +181,77 @@ class Arduino:
         except (serial.SerialException, UnicodeDecodeError) as e:
             Debug.error(f"Error reading value: {e}", exc_info=True)
             return None
+
+    def read_string_response(self, timeout: float = 1.0) -> str:
+        """
+        Reads a string response from the Arduino, collecting all available data.
+
+        This method is more lenient than read_value() and is designed for
+        text responses like copyright and version information that may not
+        follow the standard newline-terminated format.
+
+        Args:
+            timeout (float): Maximum time to wait for response in seconds.
+
+        Returns:
+            str: The collected response string, or empty string if nothing received.
+        """
+        if not self.serial or not self.serial.is_open:
+            Debug.error("Error: Serial connection not open")
+            return ""
+
+        result_parts = []
+        start_time = time()
+
+        try:
+            # Clear any binary data that might be in the buffer first
+            # (skip bytes that look like binary packet data)
+            while self.serial.in_waiting > 0:
+                peek = self.serial.read(1)
+                if peek:
+                    # If it's a binary start byte (0xAA), skip until we find text
+                    if peek[0] == 0xAA:
+                        # Try to skip a full binary packet (6 bytes total)
+                        self.serial.read(5)  # Skip remaining 5 bytes
+                        continue
+                    # Put back readable character by including in result
+                    try:
+                        char = peek.decode("utf-8")
+                        if char.isprintable() or char in "\r\n\t":
+                            result_parts.append(char)
+                    except UnicodeDecodeError:
+                        continue  # Skip non-UTF8 bytes
+                    break
+
+            # Now read the actual response
+            while (time() - start_time) < timeout:
+                if self.serial.in_waiting > 0:
+                    try:
+                        line = self.serial.readline()
+                        decoded = line.decode("utf-8", errors="ignore").strip()
+                        if decoded and decoded.lower() != "invalid":
+                            result_parts.append(decoded)
+                            # If we got a complete line, we're probably done
+                            if line.endswith(b"\n") or line.endswith(b"\r"):
+                                break
+                    except UnicodeDecodeError:
+                        continue
+                else:
+                    # Small sleep to avoid busy-waiting
+                    sleep(0.05)
+                    # If we already have some data and no more is coming, we're done
+                    if result_parts and self.serial.in_waiting == 0:
+                        sleep(0.1)  # Extra wait to be sure
+                        if self.serial.in_waiting == 0:
+                            break
+
+            response = " ".join(result_parts).strip()
+            Debug.debug(f"String response received: '{response}'")
+            return response
+
+        except serial.SerialException as e:
+            Debug.error(f"Error reading string response: {e}", exc_info=True)
+            return ""
 
     def read_bytes_fast(
         self,
@@ -420,41 +518,49 @@ class GMCounter(Arduino):
         """
         Gets information from the GM counter.
 
+        This method uses read_string_response() which is more lenient
+        than read_value() and can handle text responses that don't
+        follow the standard newline-terminated format.
+
         Returns:
-            dict: A dictionary containing the GM counter information.
+            dict: A dictionary containing the GM counter information
+                  with keys: 'copyright', 'version', 'openbis'
         """
-        info = {"copyright": "", "version": ""}
+        info = {"copyright": "", "version": "", "openbis": ""}
 
         Debug.info("Requesting copyright information...")
         self.send_command("c")
-        # Give some time for the response
-        sleep(0.5)
-        line = self.read_value()
-        if line:
-            try:
-                info["copyright"] = str(line)
-                Debug.info(f"Copyright info: {info['copyright']}")
-            except ValueError as e:
-                Debug.error(f"Error parsing copyright line: {line}. {e}")
-                info["copyright"] = "Error"
+        # Use the more lenient string response reader
+        response = self.read_string_response(timeout=1.0)
+        if response:
+            info["copyright"] = response
+            Debug.info(f"Copyright info: {info['copyright']}")
         else:
             Debug.info("No copyright information received")
 
         Debug.info("Requesting version information...")
-
         self.send_command("v")
-        # Give some time for the response
-        sleep(0.5)
-        line = self.read_value()
-        if line:
-            try:
-                info["version"] = str(line)
-                Debug.info(f"Version info: {info['version']}")
-            except ValueError as e:
-                Debug.error(f"Error parsing version line: {line}. {e}", exc_info=True)
-                info["version"] = "Error"
+        # Use the more lenient string response reader
+        response = self.read_string_response(timeout=1.0)
+        if response:
+            info["version"] = response
+            Debug.info(f"Version info: {info['version']}")
         else:
             Debug.info("No version information received")
+
+        Debug.info("Requesting OpenBIS code...")
+        self.send_command("info")
+        # Use the more lenient string response reader
+        response = self.read_string_response(timeout=1.0)
+        if response:
+            # Response format: "OpenBIS code: XXXXX"
+            if ":" in response:
+                info["openbis"] = response.split(":", 1)[1].strip()
+            else:
+                info["openbis"] = response.strip()
+            Debug.info(f"OpenBIS code: {info['openbis']}")
+        else:
+            Debug.info("No OpenBIS code received")
 
         return info
 

@@ -123,6 +123,53 @@ class ConnectionWindow(QDialog):
         except Exception as e:
             Debug.error(f"Failed to set status message: {e}")
 
+    def _get_port_info(self, port) -> dict:
+        """
+        Extract detailed port information, with fallbacks for Windows.
+
+        On Windows, pyserial sometimes returns limited information.
+        This method tries multiple attributes to get the best available info.
+
+        Args:
+            port: A serial port object from list_ports.comports()
+
+        Returns:
+            dict: Dictionary with 'device', 'name', 'description', 'hwid', 'manufacturer'
+        """
+        info = {
+            "device": getattr(port, "device", ""),
+            "name": getattr(port, "name", ""),
+            "description": getattr(port, "description", "n/a"),
+            "hwid": getattr(port, "hwid", ""),
+            "manufacturer": getattr(port, "manufacturer", ""),
+            "product": getattr(port, "product", ""),
+            "vid": getattr(port, "vid", None),
+            "pid": getattr(port, "pid", None),
+        }
+
+        # Fallback: If description is empty or "n/a", try to build from other fields
+        if not info["description"] or info["description"] == "n/a":
+            # Try product name first
+            if info["product"]:
+                info["description"] = info["product"]
+            # Then manufacturer
+            elif info["manufacturer"]:
+                info["description"] = info["manufacturer"]
+            # Try VID:PID as last resort
+            elif info["vid"] is not None and info["pid"] is not None:
+                info["description"] = (
+                    f"USB Device (VID:{info['vid']:04X} PID:{info['pid']:04X})"
+                )
+            # Use HWID if available
+            elif info["hwid"]:
+                info["description"] = info["hwid"]
+
+        # If name is empty, use last part of device path
+        if not info["name"]:
+            info["name"] = info["device"].split("/")[-1].split("\\")[-1]
+
+        return info
+
     def _update_ports(self):
         """
         Initializes and updates the available serial ports.
@@ -143,12 +190,15 @@ class ConnectionWindow(QDialog):
         arduino_index = -1  # Index if the default device is found
 
         for i, port in enumerate(ports):
-            Debug.debug(f"Found port: {port.device} - {port.description}")
+            port_info = self._get_port_info(port)
+            Debug.debug(
+                f"Found port: {port_info['device']} - {port_info['description']}"
+            )
             self.ports.append(
-                [port.device, port.name, port.description]
-            )  # Store port object for later use
+                [port_info["device"], port_info["name"], port_info["description"]]
+            )  # Store port info for later use
             # Check if the port matches the default device
-            if self.default_device in port.description and arduino_index == -1:
+            if self.default_device in port_info["description"] and arduino_index == -1:
                 arduino_index = i + int(self.demo_mode)
 
         Debug.debug(f"Available ports updated: {self.ports}")

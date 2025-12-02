@@ -29,6 +29,11 @@
       "max_history_size": 1000
     },
 
+    "save": {
+      "tk_designation": "TK47",
+      "base_folder": "GMCounter"
+    },
+
     "gm_counter": {
       "demo_mode": true,
       "default_arduino": "UNO",

@@ -92,7 +92,13 @@ except Exception:  # ImportError or missing Qt libraries
 
 from .plot import PlotWidget, HistogramWidget
 from .debug_utils import Debug
-from .helper_classes import import_config
+from .helper_classes import (
+    import_config,
+    SaveManager,
+    create_dropbox_foldername,
+    sanitize_subterm_for_folder,
+    MessageHelper,
+)
 
 # Configuration constants
 CONFIG = import_config()
@@ -476,3 +482,148 @@ class DataController:
           List[Tuple[int, float]]: All datapoints with timestamp
         """
         return self.data_points.copy()
+
+    # ============= Integrated SaveManager Methods =============
+
+    def init_save_manager(self, base_dir: Optional[str] = None) -> None:
+        """Initialize the integrated SaveManager.
+
+        Args:
+            base_dir: Base directory for saving files. If None, uses default from CONFIG.
+        """
+        if base_dir is None:
+            base_dir = CONFIG.get("data_controller", {}).get(
+                "default_save_dir", "GMCounter"
+            )
+        self.save_manager = SaveManager(base_dir=base_dir)
+        self.measurement_start: Optional[datetime] = None
+        self.measurement_end: Optional[datetime] = None
+        Debug.info(f"SaveManager initialized with base_dir: {base_dir}")
+
+    def save_measurement_auto(
+        self,
+        rad_sample: str,
+        group_letter: str,
+        subterm: str = "",
+        suffix: str = "",
+    ) -> Optional[str]:
+        """Auto-save measurement with current data.
+
+        Args:
+            rad_sample: Radioactive sample name
+            group_letter: Group identifier
+            subterm: Subgroup term for folder structure
+            suffix: Optional suffix for filename
+
+        Returns:
+            Path to saved file or None if failed
+        """
+        if not hasattr(self, "save_manager"):
+            self.init_save_manager()
+
+        if not self.save_manager.auto_save or self.save_manager.last_saved:
+            return None
+
+        data = self.get_csv_data()
+
+        saved_path = self.save_manager.auto_save_measurement(
+            rad_sample,
+            group_letter,
+            data,
+            self.measurement_start or datetime.now(),
+            self.measurement_end or datetime.now(),
+            subterm,
+            suffix,
+        )
+
+        return str(saved_path) if saved_path else None
+
+    def save_measurement_manual(
+        self,
+        parent,
+        rad_sample: str,
+        group_letter: str,
+        subterm: str = "",
+    ) -> Optional[str]:
+        """Manually save measurement via file dialog.
+
+        Args:
+            parent: Parent widget for dialog
+            rad_sample: Radioactive sample name
+            group_letter: Group identifier
+            subterm: Subgroup term for folder structure
+
+        Returns:
+            Path to saved file or None if cancelled/failed
+        """
+        if not hasattr(self, "save_manager"):
+            self.init_save_manager()
+
+        data = self.get_csv_data()
+
+        if not data or len(data) <= 1:  # Only header row
+            MessageHelper.warning(
+                parent,
+                CONFIG.get("messages", {}).get(
+                    "no_data_to_save", "Keine Messdaten zum Speichern vorhanden."
+                ),
+                "Warnung",
+            )
+            return None
+
+        if not rad_sample or not group_letter:
+            MessageHelper.warning(
+                parent,
+                CONFIG.get("messages", {}).get(
+                    "select_sample_and_group",
+                    "Bitte wählen Sie eine radioaktive Probe und eine Gruppenzuordnung aus.",
+                ),
+                "Warnung",
+            )
+            return None
+
+        saved_path = self.save_manager.manual_save_measurement(
+            parent,
+            rad_sample,
+            group_letter,
+            data,
+            self.measurement_start or datetime.now(),
+            self.measurement_end or datetime.now(),
+            subterm,
+        )
+
+        return str(saved_path) if saved_path else None
+
+    def has_unsaved_data(self) -> bool:
+        """Check if there is unsaved measurement data."""
+        if not hasattr(self, "save_manager"):
+            return len(self.data_points) > 0
+        return self.save_manager.has_unsaved()
+
+    def mark_data_unsaved(self) -> None:
+        """Mark current data as unsaved."""
+        if not hasattr(self, "save_manager"):
+            self.init_save_manager()
+        self.save_manager.mark_unsaved()
+
+    def mark_data_saved(self) -> None:
+        """Mark current data as saved."""
+        if hasattr(self, "save_manager"):
+            self.save_manager.last_saved = True
+
+    def set_auto_save(self, enabled: bool) -> None:
+        """Enable or disable auto-save."""
+        if not hasattr(self, "save_manager"):
+            self.init_save_manager()
+        self.save_manager.auto_save = enabled
+
+    def is_auto_save_enabled(self) -> bool:
+        """Check if auto-save is enabled."""
+        if not hasattr(self, "save_manager"):
+            return False
+        return self.save_manager.auto_save
+
+    def set_measurement_times(self, start: datetime, end: datetime) -> None:
+        """Set measurement start and end times."""
+        self.measurement_start = start
+        self.measurement_end = end

@@ -3,7 +3,7 @@ import csv
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union, Optional
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QStatusBar,
     QLabel,
@@ -14,7 +14,12 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QFileDialog,
 )
 from PySide6.QtCore import QTimer  # pylint: disable=no-name-in-module
-from .debug_utils import Debug
+
+# Relative imports für installiertes Package, absolute für lokale Ausführung
+try:
+    from .debug_utils import Debug
+except ImportError:
+    from debug_utils import Debug
 
 
 class Statusbar:
@@ -116,9 +121,14 @@ class AlertWindow(QDialog):
     ) -> None:
         super().__init__(parent)
         try:
-            from .pyqt.ui_alert import (
-                Ui_Dialog,
-            )  # local import to avoid Qt dependency when unused
+            try:
+                from .pyqt.ui_alert import (
+                    Ui_Dialog,
+                )  # local import to avoid Qt dependency when unused
+            except ImportError:
+                from pyqt.ui_alert import (
+                    Ui_Dialog,
+                )  # local import to avoid Qt dependency when unused
         except Exception:  # pragma: no cover - fallback
             Ui_Dialog = object  # type: ignore
         self.ui = Ui_Dialog()
@@ -189,15 +199,7 @@ class AlertWindow(QDialog):
             self.accept()
         elif role == QDialogButtonBox.ButtonRole.RejectRole:
             self.reject()
-        elif role == QDialogButtonBox.ButtonRole.ActionRole:
-            # For ActionRole, accept the dialog so exec() returns and caller can handle it
-            self.accept()
-        elif role == QDialogButtonBox.ButtonRole.ResetRole:
-            # For ResetRole, accept the dialog so exec() returns and caller can handle it
-            self.accept()
-        else:
-            # For any other roles, also accept to close the dialog
-            self.accept()
+        # Bei anderen Rollen (ActionRole, ResetRole, etc.) lassen wir den Dialog offen
 
     def get_clicked_button(self):
         """Return the clicked button if available."""
@@ -275,17 +277,13 @@ class SaveManager:
     """Utility class for storing measurement data and metadata."""
 
     def __init__(
-        self,
-        base_dir: Optional[Path | str] = None,
-        auto_save: bool = False,
-        tk_designation: str = "TKXX",
+        self, base_dir: Optional[Path | str] = None, auto_save: bool = False
     ) -> None:
         if base_dir is None:
-            base_dir = Path.home() / "Documents" / "GMCounter"
+            base_dir = Path.home() / "Documents" / "Application"
         if isinstance(base_dir, str):
             base_dir = Path.home() / "Documents" / base_dir
         self.base_dir = Path(base_dir)
-        self.tk_designation = tk_designation
         Debug.info(f"Using base directory for saving: {self.base_dir}")
         try:
             self.base_dir.mkdir(parents=True, exist_ok=True)
@@ -297,19 +295,16 @@ class SaveManager:
 
     def filename_auto(
         self,
-        rad_sample: str,
+        measurement_name: str,
         group_letter: str,
         subterm: str = "",
         suffix: str = "",
         extension: str = ".csv",
     ) -> str:
-        """Generate a standard file name with Dropbox-compatible folder path.
-
-        The folder follows the Dropbox naming convention:
-        <Day><Group><TK>-<Subterm> (e.g., "MoATK08-Mueller")
+        """Generate a standard file name with subterm in folder path.
 
         Args:
-            rad_sample (str): Sample identifier to include in the file name.
+            measurement_name (str): Measurement identifier to include in the file name.
             group_letter (str): Group letter to include in the file name.
             subterm (str): Subgroup term to include in folder name.
             suffix (str): Optional suffix (``-run1`` etc.).
@@ -319,11 +314,13 @@ class SaveManager:
             str: Generated file name with folder path.
         """
 
-        if not rad_sample:
-            Debug.error("Radioactive sample name cannot be empty.")
+        if not measurement_name:
+            CONFIG = import_config()
+            Debug.error(CONFIG["messages"]["sample_name_empty"])
             return ""
         if not group_letter:
-            Debug.error("Group letter cannot be empty.")
+            CONFIG = import_config()
+            Debug.error(CONFIG["messages"]["group_letter_empty"])
             return ""
 
         timestamp = datetime.now().strftime("%Y_%m_%d")
@@ -331,15 +328,15 @@ class SaveManager:
             suffix = "-" + suffix
         self.index += 1
 
-        # Create Dropbox-compatible folder name
-        sanitized_subterm = ""
+        # Create folder name with sanitized subterm
+        folder_parts = [group_letter.upper()]
         if subterm:
             sanitized_subterm = sanitize_subterm_for_folder(subterm, max_length=20)
-        folder_name = create_dropbox_foldername(
-            group_letter, self.tk_designation, sanitized_subterm
-        )
+            if sanitized_subterm:
+                folder_parts.append(sanitized_subterm)
+        folder_name = "_".join(folder_parts)
 
-        filename = f"{timestamp}-{self.index:02d}-{rad_sample}{suffix}{extension}"
+        filename = f"{timestamp}-{self.index:02d}-{measurement_name}{suffix}{extension}"
         return f"{folder_name}/{filename}"
 
     def mark_unsaved(self) -> None:
@@ -359,7 +356,7 @@ class SaveManager:
         group: str,
         sample: str,
         subterm: str = "",
-        extra: dict | None = None,
+        extra: Union[dict, None] = None,
     ) -> dict:
         """Create metadata dictionary following basic Dublin Core fields."""
 
@@ -372,7 +369,7 @@ class SaveManager:
             "dc:title": sample,
             "start_time": start.isoformat(),
             "end_time": end.isoformat(),
-            "radioactive_sample": sample,
+            "measurement_name": sample,
             "subgroup": subterm if subterm else "",
         }
         if extra:
@@ -400,10 +397,10 @@ class SaveManager:
             with open(csv_path, "w", newline="", encoding="utf-8") as csv_f:
                 writer = csv.writer(csv_f)
                 writer.writerows(data)
-            # Metadata als JSON speichern
-            metadata_path = csv_path.parent / (csv_path.stem + "_MD.json")
-            with open(metadata_path, "w", encoding="utf-8") as js_f:
-                json.dump(metadata, js_f, indent=2)
+            # Metadata saving disabled - uncomment if needed in future
+            # metadata_path = csv_path.parent / (csv_path.stem + "_MD.json")
+            # with open(metadata_path, "w", encoding="utf-8") as js_f:
+            #     json.dump(metadata, js_f, indent=2)
             self.last_saved = True
             Debug.info(f"Saved measurement to {csv_path}")
         except Exception as exc:  # pragma: no cover - file system errors
@@ -412,7 +409,7 @@ class SaveManager:
 
     def auto_save_measurement(
         self,
-        rad_sample: str,
+        measurement_name: str,
         group_letter: str,
         data: list[list[str]],
         start: datetime,
@@ -426,14 +423,14 @@ class SaveManager:
             Debug.error("No data provided for auto save")
             return None
 
-        file_name = self.filename_auto(rad_sample, group_letter, subterm, suffix)
-        meta = self.create_metadata(start, end, group_letter, rad_sample, subterm)
+        file_name = self.filename_auto(measurement_name, group_letter, subterm, suffix)
+        meta = self.create_metadata(start, end, group_letter, measurement_name, subterm)
         return self.save_measurement(file_name, data, meta)
 
     def manual_save_measurement(
         self,
         parent: QWidget,
-        rad_sample: str,
+        measurement_name: str,
         group_letter: str,
         data: list[list[str]],
         start: datetime,
@@ -444,7 +441,7 @@ class SaveManager:
 
         Args:
             parent (QWidget): Parent widget for the dialog.
-            rad_sample (str): Radioactive sample identifier.
+            measurement_name (str): Measurement identifier.
             group_letter (str): Group letter.
             data (list[list[str]]): Measurement data to save.
             start (datetime): Start time of the measurement.
@@ -454,30 +451,12 @@ class SaveManager:
         Returns:
             Optional[Path]: Path to the saved file, or None if cancelled.
         """
-        if not data:
-            MessageHelper.warning(
-                parent,
-                "Keine Messdaten zum Speichern vorhanden.",
-                "Warnung",
-            )
-            return None
-
-        if not rad_sample or not group_letter:
-            MessageHelper.warning(
-                parent,
-                "Bitte wählen Sie eine radioaktive Probe und eine Gruppenzuordnung aus.",
-                "Warnung",
-            )
-            return None
-
         # Create suggested folder path in dropbox style
         if subterm:
             sanitized_subterm = sanitize_subterm_for_folder(subterm, max_length=20)
         else:
             sanitized_subterm = ""
-        folder_name = create_dropbox_foldername(
-            group_letter, self.tk_designation, sanitized_subterm
-        )
+        folder_name = create_dropbox_foldername(group_letter, "TK08", sanitized_subterm)
 
         suggested_folder = self.base_dir / folder_name
         suggested_folder.mkdir(parents=True, exist_ok=True)
@@ -495,7 +474,7 @@ class SaveManager:
         if not file_path.lower().endswith(".csv"):
             file_path += ".csv"
 
-        meta = self.create_metadata(start, end, group_letter, rad_sample, subterm)
+        meta = self.create_metadata(start, end, group_letter, measurement_name, subterm)
         return self.save_measurement(file_path, data, meta)
 
     def _create_group_name(self, letter: str) -> str:
@@ -593,40 +572,38 @@ def import_config(language: str = "de") -> dict:
     Returns:
         dict: The configuration dictionary.
     """
-    import sys
+    import os
     from pathlib import Path
 
-    # Mögliche Pfade für config.json (in Prioritätsreihenfolge)
-    possible_paths = [
-        Path(__file__).parent
-        / "config.json",  # Im src/ Verzeichnis (neben diesem File)
-        Path(__file__).parent.parent
-        / "config.json",  # Projektroot (src/../config.json)
-        Path("config.json"),  # Aktuelles Verzeichnis
-        Path(sys.prefix) / "config.json",  # Installation prefix
+    # Try multiple locations for config.json
+    config_locations = [
+        # Current working directory (for running from source)
+        Path("config.json"),
+        # Package directory (when installed)
+        Path(__file__).parent / "config.json",
+        # One level up (root directory when running from source)
+        Path(__file__).parent.parent / "config.json",
     ]
 
-    # Falls als Package installiert, nutze importlib.resources (Python 3.9+)
+    config_path = None
+    for location in config_locations:
+        if location.exists():
+            config_path = location
+            break
+
+    if config_path is None:
+        Debug.error(
+            "config.json not found. Please ensure it exists in the project root or package directory."
+        )
+        return {}
+
     try:
-        if sys.version_info >= (3, 9):
-            from importlib.resources import files
-
-            package_config = files("src").joinpath("config.json")
-            if hasattr(package_config, "read_text"):
-                config = json.loads(package_config.read_text(encoding="utf-8"))
-                return config.get(language, config.get("de", {}))
-    except Exception:
-        pass  # Fallback zu Dateipfaden
-
-    for config_path in possible_paths:
-        try:
-            if config_path.exists():
-                with open(config_path, "r", encoding="utf-8") as f:
-                    config = json.load(f)
-                    Debug.debug(f"Config loaded from: {config_path}")
-                    return config.get(language, config.get("de", {}))
-        except (FileNotFoundError, json.JSONDecodeError):
-            continue
-
-    Debug.error("config.json not found. Please ensure it exists in the project root.")
-    return {}
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            return config[language]
+    except json.JSONDecodeError as e:
+        Debug.error(f"Error decoding JSON from config.json: {e}")
+        return {}
+    except KeyError:
+        Debug.error(f"Language '{language}' not found in config.json")
+        return {}
