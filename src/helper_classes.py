@@ -472,9 +472,11 @@ def import_config(language: str = "de") -> dict:
 
     # Mögliche Pfade für config.json (in Prioritätsreihenfolge)
     possible_paths = [
-        Path("config.json"),  # Aktuelles Verzeichnis
+        Path(__file__).parent
+        / "config.json",  # Im src/ Verzeichnis (neben diesem File)
         Path(__file__).parent.parent
         / "config.json",  # Projektroot (src/../config.json)
+        Path("config.json"),  # Aktuelles Verzeichnis
         Path(sys.prefix) / "config.json",  # Installation prefix
     ]
 
@@ -483,7 +485,7 @@ def import_config(language: str = "de") -> dict:
         if sys.version_info >= (3, 9):
             from importlib.resources import files
 
-            package_config = files("src").joinpath("../config.json")
+            package_config = files("src").joinpath("config.json")
             if hasattr(package_config, "read_text"):
                 config = json.loads(package_config.read_text(encoding="utf-8"))
                 return config.get(language, config.get("de", {}))
