@@ -1,19 +1,27 @@
 #include <Arduino.h>
 #include "serial_com.h"
 
-bool DEBUG = false;          // Global debug flag
-const char *O_CODE = "TEST"; // OpenBIS code for the device
-int MAX_LENGTH = 64;         // Maximum allowed length of a message line
+bool DEBUG = false;                                          // Global debug flag
+const char *O_CODE = "TEST";                                 // OpenBIS code for the device
+const char *VERSION = "1.0.0";                               // Version string for the device
+const char *COPYRIGHT = "GMCounter (c) 2024-2025 TU Berlin"; // Copyright string
+int MAX_LENGTH = 64;                                         // Maximum allowed length of a message line
 
 /**
  * @brief Initializes the serial communication and sets the debug mode
  *
  * @param debug_on Flag to enable or disable debug output
+ * @param openbiscode OpenBIS code for the device
+ * @param version Version string for the device
+ * @param copyright Copyright string for the device
+ * @param max_length Maximum length of a message line
  */
-void init(bool debug_on, const char *openbiscode, int max_length)
+void init(bool debug_on, const char *openbiscode, const char *version, const char *copyright, int max_length)
 {
     DEBUG = debug_on;
     O_CODE = openbiscode;
+    VERSION = version;
+    COPYRIGHT = copyright;
     MAX_LENGTH = max_length;
 }
 
@@ -232,12 +240,30 @@ void sendMessage(String command, volatile bool &measurementInProgress)
     }
     if (command == "info")
     {
-        // Handle info command
+        // Handle info command - return OpenBIS code
         if (DEBUG)
         {
             Serial.println("Info command received.");
         }
         Serial.print("OpenBIS code: ");
         Serial.println(O_CODE); // Send OpenBIS code
+    }
+    else if (command == "c")
+    {
+        // Handle copyright command
+        if (DEBUG)
+        {
+            Serial.println("Copyright command received.");
+        }
+        Serial.println(COPYRIGHT); // Send copyright information
+    }
+    else if (command == "v")
+    {
+        // Handle version command
+        if (DEBUG)
+        {
+            Serial.println("Version command received.");
+        }
+        Serial.println(VERSION); // Send version information
     }
 }

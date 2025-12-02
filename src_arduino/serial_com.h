@@ -8,9 +8,11 @@
  *
  * @param debug_on Flag to enable or disable debug output
  * @param openbiscode OpenBIS code for the device
+ * @param version Version string for the device
+ * @param copyright Copyright string for the device
  * @param max_length Maximum length of a message line
  */
-void init(bool debug_on, const char *openbiscode, int max_length);
+void init(bool debug_on, const char *openbiscode, const char *version, const char *copyright, int max_length);
 
 /**
  * @brief Checks if a string is a valid integer
