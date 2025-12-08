@@ -91,25 +91,22 @@ class MainWindow(QMainWindow):
     #
 
     def _setup_device_manager(self, device_manager: DeviceManager):
-        """Configure the device manager and attach callbacks.
+        """Configure the device manager and connect signals.
 
         Args:
             device_manager: The device manager instance to use.
         """
         self.device_manager = device_manager
-        self.device_manager.data_callback = self.handle_data
-        self.device_manager.status_callback = self.statusbar.temp_message
-        self.device_manager.info_callback = self._update_device_info
+
+        # Connect DeviceManager signals to MainWindow slots
+        self.device_manager.data_received.connect(self.handle_data)
+        self.device_manager.status_update.connect(self.statusbar.temp_message)
+        self.device_manager.device_info_received.connect(self._update_device_info)
 
         # Ensure the acquisition thread forwards data to this window. When the
         # connection dialog created the DeviceManager the acquisition thread may
         # already be running without our callback connected.
         self.device_manager.start_acquisition()
-
-        # Fetch device info if already connected (in case info_callback wasn't
-        # set during initial connection)
-        if self.device_manager.connected and self.device_manager.device:
-            self.device_manager._fetch_device_info()
 
     def _update_device_info(self, info: dict):
         """Update the UI with device information.
@@ -123,10 +120,8 @@ class MainWindow(QMainWindow):
         openbis = info.get("openbis", "unknown")
 
         # Update UI labels
-        if hasattr(self.ui, "cVersion"):
-            self.ui.cVersion.setText(version if version else "unknown")
-        if hasattr(self.ui, "cOpenbis"):
-            self.ui.cOpenbis.setText(openbis if openbis else "unknown")
+        self.ui.cVersion.setText(version)
+        self.ui.cOpenbis.setText(openbis)
 
     def _setup_controls(self):
         self.control = ControlWidget(
@@ -163,33 +158,36 @@ class MainWindow(QMainWindow):
         self.ui.buttonStart.clicked.connect(self._start_measurement)
         self.ui.buttonStop.clicked.connect(self._stop_measurement)
         self.ui.buttonSave.clicked.connect(self._save_measurement)
+        self.ui.buttonReset.clicked.connect(self.data_controller.clear_data)
         self.ui.buttonSetting.clicked.connect(self._apply_settings)
 
         # Initial state of buttons
         self.ui.buttonStart.setEnabled(True)
         self.ui.buttonStop.setEnabled(False)
         self.ui.buttonSave.setEnabled(False)
+        self.ui.buttonReset.setEnabled(False)
 
         # Check auto-save setting
         self.ui.autoSave.setChecked(self.save_manager.auto_save)
+        self.ui.autoSave.stateChanged.emit(1 if self.save_manager.auto_save else 0)
         self.ui.autoSave.toggled.connect(self._change_auto_save)
 
     def _setup_radioactive_sample_input(self):
         """Initialise the input field for radioactive samples."""
         samples = CONFIG["radioactive_samples"]
-        radCombo = self.ui.radSample
-        radCombo.clear()
-        radCombo.addItems(samples)
+        rad_dropdown = self.ui.radSample
+        rad_dropdown.clear()
+        rad_dropdown.addItems(samples)
         Debug.debug(
             f"Radioaktive Proben geladen: {len(samples)} Proben",
         )
-        radCombo.setCurrentIndex(-1)  # No default selection
+        rad_dropdown.setCurrentIndex(-1)  # No default selection
 
         # QCompleter for radioactive samples
         completer = QCompleter(samples)
         completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        radCombo.setCompleter(completer)
+        rad_dropdown.setCompleter(completer)
 
     def _setup_timers(self):
         """Initialise timers used by the application.
