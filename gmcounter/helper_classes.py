@@ -3,7 +3,7 @@ import csv
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QStatusBar,
     QLabel,
