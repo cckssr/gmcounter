@@ -56,7 +56,9 @@ class ConnectionWindow(QDialog):
             demo_mode (bool, optional): If True, uses a mock port for demonstration purposes.
             default_device (str, optional): The default device to connect to. Defaults to "None".
         """
-        self.device_manager = DeviceManager(status_callback=self.status_message)
+        self.device_manager = DeviceManager()
+        # Connect status_update signal to our status_message slot
+        self.device_manager.status_update.connect(self.status_message)
         self.connection_successful = False
         self.default_device = default_device
         self.ports = []  # List to hold available ports
@@ -250,7 +252,7 @@ class ConnectionWindow(QDialog):
         QApplication.processEvents()
 
         # Check if connected
-        success = self.device_manager.connect(port, baudrate)
+        success = self.device_manager.connect_device(port, baudrate)
 
         if success:
             self.status_message(f"Successfully connected to {port}", "darkgreen")
