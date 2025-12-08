@@ -352,6 +352,7 @@ class DataController:
     def clear_data(self) -> None:
         """Clear all data points and reset optional widgets."""
         try:
+            Debug.info(f"DataController: Clearing {len(self.data_points)} data points")
             # Remove stored points (both full and GUI data)
             self.data_points = []
             self.gui_data_points = []

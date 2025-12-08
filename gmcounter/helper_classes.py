@@ -347,6 +347,11 @@ class SaveManager:
 
         self.last_saved = False
 
+    def mark_saved(self) -> None:
+        """Mark the current measurement as saved."""
+
+        self.last_saved = True
+
     def has_unsaved(self) -> bool:
         """Return ``True`` if a measurement has not been saved."""
 

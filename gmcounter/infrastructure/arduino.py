@@ -446,11 +446,6 @@ class Arduino:
 
             # Simple read without delimiter
             buffer = self.serial.read(max_bytes)
-            Debug.debug(
-                f"Fast read: {len(buffer)} bytes"
-                if buffer
-                else "Fast read: no data available"
-            )
             return buffer if buffer else b""
 
         except serial.SerialException as e:

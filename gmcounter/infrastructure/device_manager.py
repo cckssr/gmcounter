@@ -80,6 +80,8 @@ class DeviceManager(QObject):
         self.acquire_thread = DataAcquisitionThread(self)
         # Forward data_point signal from thread to our data_received signal
         self.acquire_thread.data_point.connect(self.data_received.emit)
+        # Connect connection_lost signal to handle disconnections
+        self.acquire_thread.connection_lost.connect(self._handle_connection_lost)
         self.acquire_thread.start()
         return True
 
@@ -101,6 +103,9 @@ class DeviceManager(QObject):
 
             self.device.set_counting(True)
             self.measurement_active = True
+            Debug.info(
+                f"DeviceManager: measurement_active set to {self.measurement_active}"
+            )
             return True
         except Exception as exc:  # pragma: no cover - unexpected errors
             Debug.error(f"Failed to start measurement: {exc}")
@@ -117,3 +122,10 @@ class DeviceManager(QObject):
             Debug.error(f"Failed to stop measurement: {exc}")
         self.measurement_active = False
         return True
+
+    def _handle_connection_lost(self) -> None:
+        """Handle connection loss from acquisition thread."""
+        Debug.error("Connection lost during acquisition")
+        self.connected = False
+        self.measurement_active = False
+        self.status_update.emit("Connection lost", "red")

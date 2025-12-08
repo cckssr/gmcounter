@@ -105,6 +105,10 @@ class MainWindow(QMainWindow):
         # already be running without our callback connected.
         self.device_manager.start_acquisition()
 
+        # Request device info again since it may have been emitted before we connected the signal
+        if self.device_manager.device and self.device_manager.connected:
+            self.device_manager._fetch_device_info()
+
     def _update_device_info(self, info: dict):
         """Update the UI with device information.
 
@@ -155,7 +159,7 @@ class MainWindow(QMainWindow):
         self.ui.buttonStart.clicked.connect(self._start_measurement)
         self.ui.buttonStop.clicked.connect(self._stop_measurement)
         self.ui.buttonSave.clicked.connect(self._save_measurement)
-        self.ui.buttonReset.clicked.connect(self.data_controller.clear_data)
+        self.ui.buttonReset.clicked.connect(self._clear_data)
         self.ui.buttonSetting.clicked.connect(self._apply_settings)
 
         # Initial state of buttons
@@ -215,19 +219,30 @@ class MainWindow(QMainWindow):
         self.ui.buttonSetting.setEnabled(False)
         self.ui.buttonStop.setEnabled(True)
         self.ui.buttonSave.setEnabled(False)
+        self.ui.buttonReset.setEnabled(False)
         Debug.debug("UI in Messmodus gesetzt")
 
     def _set_ui_idle_state(self) -> None:
         """Return the UI to idle mode after a measurement."""
-        self.control_update_timer.start(CONFIG["timers"]["control_update_interval"])
-        self.ui.buttonStart.setEnabled(True)
+        # Verzögere Timer-Start um 500ms, damit Device Zeit hat, den Stopp-Befehl zu verarbeiten
+        QTimer.singleShot(
+            500,
+            lambda: self.control_update_timer.start(
+                CONFIG["timers"]["control_update_interval"]
+            ),
+        )
+
+        # Start nur aktivieren wenn keine ungespeicherten Daten vorhanden
+        has_unsaved = self.save_manager.has_unsaved()
+        self.ui.buttonStart.setEnabled(not has_unsaved)
         self.ui.buttonSetting.setEnabled(True)
         self.ui.buttonStop.setEnabled(False)
-        # buttonSave is enabled separately based on existing data
-        save_enabled = self.save_manager.has_unsaved()
-        self.ui.buttonSave.setEnabled(save_enabled)
+        self.ui.buttonReset.setEnabled(True)
+        self.ui.buttonSave.setEnabled(has_unsaved)
         Debug.debug(
-            f"UI in Ruhemodus gesetzt (Save-Button: {'aktiviert' if save_enabled else 'deaktiviert'})"
+            f"UI in Ruhemodus gesetzt \
+                (Start: {'deaktiviert' if has_unsaved else 'aktiviert'},\
+                Save: {'aktiviert' if has_unsaved else 'deaktiviert'})"
         )
 
     def _setup_progress_bar(self, duration_seconds: int) -> None:
@@ -265,15 +280,18 @@ class MainWindow(QMainWindow):
 
     def _start_measurement(self):
         """Start measurement and adjust UI."""
+        # Button sollte bereits deaktiviert sein wenn ungespeicherte Daten vorliegen
+        # Aber zur Sicherheit nochmal prüfen
         if self.save_manager.has_unsaved():
-            if not MessageHelper.ask_question(
+            MessageHelper.show_warning(
                 self,
-                CONFIG["messages"]["unsaved_data"],
+                "Bitte speichern oder löschen Sie die vorhandenen Messdaten, bevor Sie eine neue Messung starten.",
                 "Warnung",
-            ):
-                return
+            )
+            return
 
         self.data_controller.clear_data()
+        self.save_manager.mark_saved()  # Neue Messung hat keine ungespeicherten Daten
 
         if self.device_manager.start_measurement():
             self.is_measuring = True
@@ -295,6 +313,11 @@ class MainWindow(QMainWindow):
         self.is_measuring = False
         self.measurement_end = datetime.now()
         self._stop_progress_bar()
+
+        # Markiere Messung als ungespeichert, wenn Daten vorhanden sind
+        if self.data_controller.get_csv_data():
+            self.save_manager.mark_unsaved()
+
         self._set_ui_idle_state()
         self.statusbar.temp_message(
             CONFIG["messages"]["measurement_stopped"],
@@ -357,7 +380,12 @@ class MainWindow(QMainWindow):
 
             if saved_path and saved_path.exists():
                 self.data_saved = True
+                self.save_manager.mark_saved()  # Markiere als gespeichert
+
+                # Update UI - Start aktivieren, Save deaktivieren
                 self.ui.buttonSave.setEnabled(False)
+                self.ui.buttonStart.setEnabled(True)
+
                 self.statusbar.temp_message(
                     f"Messung erfolgreich gespeichert: {saved_path}",
                     CONFIG["colors"]["green"],
@@ -377,6 +405,38 @@ class MainWindow(QMainWindow):
                 f"Unerwarteter Fehler beim Speichern: {str(e)}",
                 "Fehler",
             )
+
+    def _clear_data(self):
+        """Clear all recorded data from the data controller."""
+        if self.is_measuring:
+            MessageHelper.show_warning(
+                self,
+                "Daten können während einer Messung nicht gelöscht werden.",
+                "Warnung",
+            )
+            return
+
+        if self.save_manager.has_unsaved():
+            if not MessageHelper.ask_question(
+                self,
+                CONFIG["messages"]["unsaved_data"],
+                "Warnung",
+            ):
+                return
+
+        self.data_controller.clear_data()
+        self.data_saved = True
+        self.save_manager.mark_saved()  # Markiere als gespeichert
+
+        # Update UI - Start aktivieren, Save deaktivieren
+        self.ui.buttonSave.setEnabled(False)
+        self.ui.buttonStart.setEnabled(True)
+
+        self.statusbar.temp_message(
+            "Alle Messdaten wurden gelöscht.",
+            CONFIG["colors"]["green"],
+        )
+        Debug.info("Alle Messdaten wurden gelöscht.")
 
     #
     # 2. DATA PROCESSING AND STATISTICS
@@ -399,9 +459,12 @@ class MainWindow(QMainWindow):
         self.data_saved = False
         self.save_manager.mark_unsaved()
 
-        # Enable save button when not measuring (idle)
+        # Update buttons: Start deaktivieren (wegen ungespeicherter Daten), Save aktivieren
         if not self.is_measuring:
             self.ui.buttonSave.setEnabled(True)
+            self.ui.buttonStart.setEnabled(
+                False
+            )  # Start deaktiviert bei ungespeicherten Daten
 
     def _update_statistics(self):
         """Update statistics shown in the user interface."""
@@ -439,6 +502,12 @@ class MainWindow(QMainWindow):
 
     def _update_control_display(self):
         """Update the displayed configuration values from the GM counter."""
+        if self.is_measuring:
+            Debug.warning(
+                "Control update timer fired during measurement - should not happen!"
+            )
+            return
+
         try:
             # Request fresh data from the GM counter
             data = self.control.get_settings()

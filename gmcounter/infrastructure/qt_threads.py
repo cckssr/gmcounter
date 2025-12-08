@@ -148,9 +148,13 @@ class DataAcquisitionThread(QThread):
                     continue
 
                 # Read available bytes using read_fast method
-                raw_data = device.read_fast(max_bytes=4096, timeout_ms=1)
+                raw_data = device.read_fast(max_bytes=4096, timeout_ms=1500)
+                Debug.debug(
+                    f"Thread: read_fast() returned: {type(raw_data)} with length {len(raw_data) if raw_data else 0}"
+                )
 
                 if raw_data:
+                    Debug.debug(f"Thread received {len(raw_data)} bytes")
                     # Reset connection timeout
                     self._last_data_time = time.time()
                     self._connection_lost_emitted = False
@@ -198,9 +202,10 @@ class DataAcquisitionThread(QThread):
 
     def reset_index(self):
         """Reset the measurement index counter."""
+        old_index = self._index
         self._index = 0
         self._skip_first_point = False
-        Debug.debug("Data acquisition index reset to 0")
+        Debug.info(f"Data acquisition index reset from {old_index} to 0")
 
     def stop(self):
         """Stop the acquisition thread and wait for it to finish."""
@@ -210,6 +215,6 @@ class DataAcquisitionThread(QThread):
 
         # Wait for thread to finish (max 2 seconds)
         if not self.wait(2000):
-            Debug.warning("Thread did not stop within timeout, terminating...")
+            Debug.info("Thread did not stop within timeout, terminating...")
             self.terminate()
             self.wait()
