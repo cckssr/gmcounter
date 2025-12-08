@@ -223,11 +223,8 @@ class DataController:
 
             self._points_processed_in_last_update = len(new_points)
 
-            # Add all new points to the full data set (for CSV export)
-            for index_num, value_num, timestamp in new_points:
-                self.data_points.append((index_num, value_num, timestamp))
-
-            # Add all new points to GUI data as well (with limit)
+            # Add all new points to GUI data (with limit)
+            # NOTE: data_points are already populated in add_data_fast()
             for index_num, value_num, timestamp in new_points:
                 self.gui_data_points.append((index_num, value_num, timestamp))
 
@@ -372,7 +369,10 @@ class DataController:
 
             # Clear the plot
             if self.plot:
+                Debug.info("DataController: Clearing plot")
                 self.plot.clear()
+            else:
+                Debug.info("DataController: No plot to clear")
 
             # Reset displayed value
             if self.display:
@@ -388,9 +388,13 @@ class DataController:
 
             # Clear the table model
             if self.table_model is not None:
+                Debug.info(
+                    f"DataController: Clearing table with {self.table_model.rowCount()} rows"
+                )
                 try:
                     while self.table_model.rowCount() > 0:
                         self.table_model.removeRow(0)
+                    Debug.info("DataController: Table cleared successfully")
                 except Exception as table_error:
                     Debug.error(
                         f"Failed to clear table model: {table_error}", exc_info=True
@@ -561,7 +565,7 @@ class DataController:
         data = self.get_csv_data()
 
         if not data or len(data) <= 1:  # Only header row
-            MessageHelper.warning(
+            MessageHelper.info(
                 parent,
                 CONFIG.get("messages", {}).get(
                     "no_data_to_save", "Keine Messdaten zum Speichern vorhanden."
@@ -571,7 +575,7 @@ class DataController:
             return None
 
         if not rad_sample or not group_letter:
-            MessageHelper.warning(
+            MessageHelper.info(
                 parent,
                 CONFIG.get("messages", {}).get(
                     "select_sample_and_group",
