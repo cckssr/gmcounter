@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QFileDialog,
 )
 from PySide6.QtCore import QTimer  # pylint: disable=no-name-in-module
-from .debug_utils import Debug
+from .infrastructure.logging import Debug
 
 
 class Statusbar:

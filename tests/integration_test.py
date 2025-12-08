@@ -23,7 +23,7 @@ pytest.importorskip("PySide6.QtWidgets")
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QTimer
 
-from gmcounter.main_window import MainWindow
+from gmcounter.ui.windows.main_window import MainWindow
 from gmcounter.device_manager import DeviceManager
 
 

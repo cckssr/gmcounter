@@ -11,7 +11,7 @@ from tempfile import gettempdir
 
 # Füge das übergeordnete Verzeichnis zum Python-Pfad hinzu, um src zu finden
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from gmcounter.debug_utils import Debug
+from gmcounter.infrastructure.logging import Debug
 
 
 class MockGMCounter:

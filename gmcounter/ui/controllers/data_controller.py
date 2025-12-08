@@ -19,7 +19,7 @@ try:  # pragma: no cover - optional dependency for headless testing
         QStandardItemModel,
         QStandardItem,
     )
-    from PySide6.QtCore import Qt, QTimer  # pylint: disable=no-name-in-module
+    from PySide6.QtCore import QTimer  # pylint: disable=no-name-in-module
 
 
 except Exception:  # ImportError or missing Qt libraries
@@ -90,15 +90,13 @@ except Exception:  # ImportError or missing Qt libraries
 
     Qt = _Qt()
 
-from .plot import PlotWidget, HistogramWidget
-from .debug_utils import Debug
-from .helper_classes import (
-    import_config,
+from ..widgets.plot import PlotWidget, HistogramWidget
+from ...infrastructure.logging import Debug
+from ...infrastructure.config import import_config
+from ...helper_classes_compat import (
     SaveManager,
-    create_dropbox_foldername,
-    sanitize_subterm_for_folder,
-    MessageHelper,
 )
+from ..common import dialogs as MessageHelper
 
 # Configuration constants
 CONFIG = import_config()

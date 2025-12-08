@@ -5,7 +5,7 @@ import sys
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
 from gmcounter.device_manager import DeviceManager
-from gmcounter.main_window import MainWindow
+from gmcounter.ui.windows.main_window import MainWindow
 
 
 def test_gui_connections():

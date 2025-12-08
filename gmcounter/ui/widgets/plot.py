@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Iterable, Optional, Tuple, List
 import numpy as np
 
-from .debug_utils import Debug
+from ...infrastructure.logging import Debug
 
 try:  # pragma: no cover - optional dependency during headless tests
     import pyqtgraph as pg

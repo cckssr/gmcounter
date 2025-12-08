@@ -11,10 +11,10 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QDialogButtonBox,
 )
 from serial.tools import list_ports
-from .pyqt.ui_connection import Ui_Dialog as Ui_Connection
-from .helper_classes import AlertWindow
-from .debug_utils import Debug
-from .device_manager import DeviceManager
+from ...pyqt.ui_connection import Ui_Dialog as Ui_Connection
+from ...helper_classes_compat import AlertWindow
+from ...infrastructure.logging import Debug
+from ...infrastructure.device_manager import DeviceManager
 
 
 class ConnectionWindow(QDialog):

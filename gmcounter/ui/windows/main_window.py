@@ -6,18 +6,15 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QCompleter,
 )
 from PySide6.QtCore import QTimer, Qt  # pylint: disable=no-name-in-module
-from .device_manager import DeviceManager
-from .control import ControlWidget
-from .plot import PlotWidget, HistogramWidget
-from .debug_utils import Debug
-from .helper_classes import (
-    import_config,
-    Statusbar,
-    SaveManager,
-    MessageHelper,
-)
-from .data_controller import DataController
-from .pyqt.ui_mainwindow import Ui_MainWindow
+from ...infrastructure.device_manager import DeviceManager
+from ...ui.controllers.control import ControlWidget
+from ..widgets.plot import PlotWidget, HistogramWidget
+from ...infrastructure.logging import Debug
+from ...infrastructure.config import import_config
+from ...helper_classes_compat import Statusbar, SaveManager
+from ..common import dialogs as MessageHelper
+from ...pyqt.ui_mainwindow import Ui_MainWindow
+from ..controllers.data_controller import DataController
 
 
 # Import settings and messages
@@ -269,7 +266,7 @@ class MainWindow(QMainWindow):
     def _start_measurement(self):
         """Start measurement and adjust UI."""
         if self.save_manager.has_unsaved():
-            if not MessageHelper.question(
+            if not MessageHelper.ask_question(
                 self,
                 CONFIG["messages"]["unsaved_data"],
                 "Warnung",
@@ -325,7 +322,7 @@ class MainWindow(QMainWindow):
                 )
                 Debug.info(f"Messung automatisch gespeichert: {saved_path}")
             else:
-                MessageHelper.error(
+                MessageHelper.show_error(
                     self,
                     "Fehler beim Speichern der Messung. Siehe Log für Details.",
                     "Fehler",
@@ -336,7 +333,7 @@ class MainWindow(QMainWindow):
         try:
             # Check if there is data to save
             if not self.save_manager.has_unsaved():
-                MessageHelper.info(
+                MessageHelper.show_info(
                     self,
                     "Keine ungespeicherten Daten vorhanden.",
                     "Information",
@@ -367,7 +364,7 @@ class MainWindow(QMainWindow):
                 )
                 Debug.info(f"Messung manuell gespeichert: {saved_path}")
             else:
-                MessageHelper.error(
+                MessageHelper.show_error(
                     self,
                     "Fehler beim Speichern der Messung. Siehe Log für Details.",
                     "Fehler",
@@ -375,7 +372,7 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             Debug.error(f"Fehler beim manuellen Speichern: {e}")
-            MessageHelper.error(
+            MessageHelper.show_error(
                 self,
                 f"Unerwarteter Fehler beim Speichern: {str(e)}",
                 "Fehler",
@@ -462,7 +459,8 @@ class MainWindow(QMainWindow):
             self.ui.cMode.setText(
                 label["repeat_on"] if data["repeat"] else label["repeat_off"]
             )
-            # self.ui.cQueryMode.setText(label["auto_on"] if data["auto_query"] else label["auto_off"]) # FEAT: auto_query implementieren
+            # self.ui.cQueryMode.setText(label["auto_on"] if data["auto_query"] else label["auto_off"])
+            # FEAT: auto_query implementieren
 
         except Exception as e:
             Debug.error(f"Fehler bei der Aktualisierung der Anzeige: {e}")
@@ -538,7 +536,7 @@ class MainWindow(QMainWindow):
             try:
                 Debug.info("SaveManager Cleanup...")
                 if self.save_manager.has_unsaved():
-                    if not MessageHelper.question(
+                    if not MessageHelper.ask_question(
                         self,
                         CONFIG["messages"]["unsaved_data_end"],
                         "Warnung",
