@@ -9,8 +9,22 @@ from ...infrastructure.logging import Debug
 
 try:  # pragma: no cover - optional dependency during headless tests
     import pyqtgraph as pg
+    from PySide6.QtCore import Signal, QObject  # pylint: disable=no-name-in-module
 except Exception:  # pragma: no cover - fallback stubs
     from PySide6.QtWidgets import QWidget
+
+    class Signal:  # pragma: no cover - fallback stub
+        def __init__(self, *args):
+            pass
+
+        def emit(self, *args):
+            pass
+
+        def connect(self, *args):
+            pass
+
+    class QObject:  # pragma: no cover - fallback stub
+        pass
 
     class _DummyPlotWidget(QWidget, object):
         def __init__(self, *_, **__):
@@ -36,6 +50,9 @@ except Exception:  # pragma: no cover - fallback stubs
 
 class PlotWidget(pg.PlotWidget):
     """A real-time plot widget using pyqtgraph."""
+
+    # Signal emitted when user manually interacts with the plot
+    user_interaction_detected = Signal()
 
     def __init__(
         self,
@@ -63,6 +80,11 @@ class PlotWidget(pg.PlotWidget):
         self.max_plot_points = max_plot_points
         self.fontsize = fontsize
         self._user_interacted = False
+        self._auto_scroll_enabled = False
+        self._auto_range_enabled = False
+        self._programmatic_update = (
+            False  # Flag to prevent triggering on programmatic changes
+        )
 
         # Set up the plot appearance
         self.setBackground(None)
@@ -74,12 +96,65 @@ class PlotWidget(pg.PlotWidget):
         # Store config for potential future use
         self._plot_config = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
 
+        # Connect to view range changed signal to detect user interaction
+        viewbox = self.plotItem.getViewBox()
+        viewbox.sigRangeChanged.connect(self._on_view_changed)
+
         # Redraw the canvas
         self.update()  # Triggers an explicit QWidget repaint
 
     def _on_view_changed(self):
-        """Called when user pans or zooms the plot"""
-        self._user_interacted = True
+        """Called when user pans or zooms the plot.
+
+        Disables auto-range and auto-scroll when user manually adjusts the view.
+        Emits signal to notify MainWindow to update UI checkboxes.
+        """
+        # Ignore programmatic updates
+        if self._programmatic_update:
+            return
+
+        # Check if this is a user-initiated change
+        viewbox = self.plotItem.getViewBox()
+        if viewbox.state["mouseEnabled"][0] or viewbox.state["mouseEnabled"][1]:
+            # Only react if auto-range or auto-scroll is currently enabled
+            if self._auto_range_enabled or self._auto_scroll_enabled:
+                self._auto_range_enabled = False
+                self._auto_scroll_enabled = False
+                self._user_interacted = True
+                Debug.info(
+                    "Auto-Range und Auto-Scroll durch Benutzerinteraktion deaktiviert"
+                )
+                # Emit signal to notify MainWindow
+                self.user_interaction_detected.emit()
+
+    def set_auto_scroll(self, enabled: bool, max_points: int = None):
+        """Enable or disable auto-scroll mode.
+
+        Args:
+            enabled: Whether to enable auto-scroll
+            max_points: Maximum number of points to display (optional)
+        """
+        self._auto_scroll_enabled = enabled
+        if max_points is not None:
+            self.max_plot_points = max_points
+        Debug.debug(f"Auto-Scroll: {enabled}, Max Points: {self.max_plot_points}")
+
+    def enable_auto_range(self, enabled: bool = True):
+        """Enable or disable automatic range adjustment.
+
+        Args:
+            enabled: Whether to enable auto-range
+        """
+        self._auto_range_enabled = enabled
+        self._user_interacted = not enabled
+
+        viewbox = self.plotItem.getViewBox()
+        if enabled:
+            viewbox.enableAutoRange(enable=True)
+            Debug.debug("Auto-Range aktiviert")
+        else:
+            viewbox.enableAutoRange(enable=False)
+            Debug.debug("Auto-Range deaktiviert")
 
     def update_plot(self, data_points: List[Tuple[int, float, str]]):
         """
@@ -109,45 +184,108 @@ class PlotWidget(pg.PlotWidget):
         )
         Debug.debug(f"Changed plot data to show {len(all_indices)} datapoints.")
 
-        # AutoRange calculation based only on LAST max_plot_points for consistent view
-        display_data_for_range = (
-            data_points[-self.max_plot_points :]
-            if len(data_points) > self.max_plot_points
-            else data_points
-        )
+        # Handle range adjustment based on mode
+        viewbox = self.plotItem.getViewBox()
 
-        if len(display_data_for_range) > 0:
-            # Extract indices and values for range calculation only
-            range_indices = np.array([point[0] for point in display_data_for_range])
-            range_values_us = np.array([point[1] for point in display_data_for_range])
+        if self._auto_range_enabled:
+            # Auto-range mode: let pyqtgraph handle it
+            self._programmatic_update = True
+            viewbox.enableAutoRange(enable=True)
+            self._programmatic_update = False
+            Debug.debug("Auto-Range aktiviert - pyqtgraph übernimmt Range-Berechnung")
+        elif self._auto_scroll_enabled:
+            # Auto-scroll mode: show only the last max_plot_points
+            display_data_for_range = (
+                data_points[-self.max_plot_points :]
+                if len(data_points) > self.max_plot_points
+                else data_points
+            )
 
-            # Calculate proper ranges with minimal padding
-            x_min, x_max = range_indices.min(), range_indices.max()
-            y_min, y_max = range_values_us.min(), range_values_us.max()
-            Debug.debug(f"Range values are: {x_min}, {x_max}, {y_min}, {y_max}.")
+            if len(display_data_for_range) > 0:
+                # Extract indices and values for range calculation only
+                range_indices = np.array([point[0] for point in display_data_for_range])
+                range_values_us = np.array(
+                    [point[1] for point in display_data_for_range]
+                )
 
-            # Ensure minimum range for single-point plots
-            if x_max == x_min:
-                x_padding = max(1, x_min * 0.1)  # 10% of index or at least 1
-                final_x_range = [x_min - x_padding, x_max + x_padding]
-            else:
-                x_range = x_max - x_min
-                x_padding = x_range * 0.05
-                final_x_range = [x_min - x_padding, x_max + x_padding]
+                # Calculate proper ranges with minimal padding
+                x_min, x_max = range_indices.min(), range_indices.max()
+                y_min, y_max = range_values_us.min(), range_values_us.max()
+                Debug.debug(f"Range values are: {x_min}, {x_max}, {y_min}, {y_max}.")
 
-            if y_max == y_min:
-                y_padding = max(1000, y_min * 0.1)  # 10% of value or at least 1000µs
-                final_y_range = [y_min - y_padding, y_max + y_padding]
-            else:
-                y_range = y_max - y_min
-                y_padding = y_range * 0.05
-                final_y_range = [y_min - y_padding, y_max + y_padding]
+                # Ensure minimum range for single-point plots
+                if x_max == x_min:
+                    x_padding = max(1, x_min * 0.1)  # 10% of index or at least 1
+                    final_x_range = [x_min - x_padding, x_max + x_padding]
+                else:
+                    x_range = x_max - x_min
+                    x_padding = x_range * 0.05
+                    final_x_range = [x_min - x_padding, x_max + x_padding]
 
-            # Disable automatic autoRange and set manual range
-            viewbox = self.plotItem.getViewBox()
-            viewbox.enableAutoRange(enable=False)  # Disable PyQtGraph's autoRange
-            viewbox.setRange(xRange=final_x_range, yRange=final_y_range, padding=0)
-            Debug.debug(f"Set manual range: {final_x_range}, {final_y_range}")
+                if y_max == y_min:
+                    y_padding = max(
+                        1000, y_min * 0.1
+                    )  # 10% of value or at least 1000µs
+                    final_y_range = [y_min - y_padding, y_max + y_padding]
+                else:
+                    y_range = y_max - y_min
+                    y_padding = y_range * 0.05
+                    final_y_range = [y_min - y_padding, y_max + y_padding]
+
+                # Set manual range for auto-scroll
+                self._programmatic_update = True
+                viewbox.enableAutoRange(enable=False)
+                viewbox.setRange(xRange=final_x_range, yRange=final_y_range, padding=0)
+                self._programmatic_update = False
+                Debug.debug(f"Auto-Scroll Range: {final_x_range}, {final_y_range}")
+        else:
+            # Manual mode: don't change the view if user has interacted
+            if not self._user_interacted:
+                # First time or no user interaction yet - set initial range
+                display_data_for_range = (
+                    data_points[-self.max_plot_points :]
+                    if len(data_points) > self.max_plot_points
+                    else data_points
+                )
+
+                if len(display_data_for_range) > 0:
+                    # Extract indices and values for range calculation only
+                    range_indices = np.array(
+                        [point[0] for point in display_data_for_range]
+                    )
+                    range_values_us = np.array(
+                        [point[1] for point in display_data_for_range]
+                    )
+
+                    # Calculate proper ranges with minimal padding
+                    x_min, x_max = range_indices.min(), range_indices.max()
+                    y_min, y_max = range_values_us.min(), range_values_us.max()
+
+                    # Ensure minimum range for single-point plots
+                    if x_max == x_min:
+                        x_padding = max(1, x_min * 0.1)
+                        final_x_range = [x_min - x_padding, x_max + x_padding]
+                    else:
+                        x_range = x_max - x_min
+                        x_padding = x_range * 0.05
+                        final_x_range = [x_min - x_padding, x_max + x_padding]
+
+                    if y_max == y_min:
+                        y_padding = max(1000, y_min * 0.1)
+                        final_y_range = [y_min - y_padding, y_max + y_padding]
+                    else:
+                        y_range = y_max - y_min
+                        y_padding = y_range * 0.05
+                        final_y_range = [y_min - y_padding, y_max + y_padding]
+
+                    # Set initial range
+                    self._programmatic_update = True
+                    viewbox.enableAutoRange(enable=False)
+                    viewbox.setRange(
+                        xRange=final_x_range, yRange=final_y_range, padding=0
+                    )
+                    self._programmatic_update = False
+                    Debug.debug(f"Initial range: {final_x_range}, {final_y_range}")
 
     def update_plot_batch(self, data_points: List[Tuple[int, float, str]]):
         """

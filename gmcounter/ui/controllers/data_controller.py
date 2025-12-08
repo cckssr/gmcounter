@@ -265,9 +265,9 @@ class DataController:
                     # Fallback - use the standard update_plot method with all data
                     self.plot.update_plot(self.gui_data_points)
 
-            # Update current value display with the last value
+            # Update current value display with the total count of data points
             if self.display:
-                self.display.display(value)
+                self.display.display(len(self.data_points))
 
             # Update histogram with current data distribution
             if self.histogram and len(self.gui_data_points) > 1:

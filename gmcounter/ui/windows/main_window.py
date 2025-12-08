@@ -173,6 +173,22 @@ class MainWindow(QMainWindow):
         self.ui.autoSave.stateChanged.emit(1 if self.save_manager.auto_save else 0)
         self.ui.autoSave.toggled.connect(self._change_auto_save)
 
+        # Connect autoScroll checkbox
+        self.ui.autoScroll.toggled.connect(self._handle_auto_scroll)
+
+        # Connect sPlotpoints spinbox
+        self.ui.sPlotpoints.valueChanged.connect(self._handle_plot_points_changed)
+
+        # Connect buttonAutoRange
+        self.ui.buttonAutoRange.clicked.connect(self._handle_auto_range_button)
+
+        # Connect plot's user interaction signal
+        self.plot.user_interaction_detected.connect(self._handle_plot_user_interaction)
+
+        # Initialize auto-scroll if checkbox is already checked
+        if self.ui.autoScroll.isChecked():
+            self._handle_auto_scroll(True)
+
     def _setup_radioactive_sample_input(self):
         """Initialise the input field for radioactive samples."""
         samples = CONFIG["radioactive_samples"]
@@ -575,6 +591,49 @@ class MainWindow(QMainWindow):
                 CONFIG["colors"]["green"],
                 1000,
             )
+
+    def _handle_auto_scroll(self, checked: bool):
+        """Handle autoScroll checkbox state change.
+
+        When autoScroll is enabled, activate auto-scroll in the plot and use
+        the configured max_plot_points value.
+        """
+        if checked:
+            # Enable auto-scroll mode
+            max_points = self.ui.sPlotpoints.value()
+            self.plot.set_auto_scroll(True, max_points)
+            Debug.debug(f"Auto-Scroll aktiviert mit {max_points} Punkten")
+        else:
+            # Disable auto-scroll mode
+            self.plot.set_auto_scroll(False)
+            Debug.debug("Auto-Scroll deaktiviert")
+
+    def _handle_plot_points_changed(self, value: int):
+        """Handle changes to the max plot points spinbox.
+
+        Update the plot's max_plot_points if auto-scroll is enabled.
+        """
+        if self.ui.autoScroll.isChecked():
+            self.plot.set_auto_scroll(True, value)
+            Debug.debug(f"Max Plot Points aktualisiert auf: {value}")
+
+    def _handle_auto_range_button(self):
+        """Handle buttonAutoRange click.
+
+        Enable auto-range in the timePlot when clicked.
+        """
+        self.plot.enable_auto_range(True)
+        Debug.debug("Auto-Range durch Button aktiviert")
+
+    def _handle_plot_user_interaction(self):
+        """Handle manual user interaction in the plot.
+
+        Deactivates autoScroll checkbox when user manually pans or zooms.
+        """
+        # Deactivate autoScroll checkbox (this will trigger _handle_auto_scroll)
+        if self.ui.autoScroll.isChecked():
+            self.ui.autoScroll.setChecked(False)
+            Debug.debug("Auto-Scroll durch manuelle Plot-Interaktion deaktiviert")
 
     def closeEvent(self, event):
         """Handle the window close event and shut down all components cleanly.
