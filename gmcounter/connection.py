@@ -243,7 +243,7 @@ class ConnectionWindow(QDialog):
         baudrate = int(self.ui.comboBox.currentText())
 
         # Show connecting message and give UI time to update
-        self.status_message(f"Connecting to {port}...", "yellow")
+        self.status_message(f"Connecting to {port}...", "orange")
         Debug.info(f"Attempting to connect to port: {port}")
 
         # Give UI time to show the message
@@ -253,7 +253,7 @@ class ConnectionWindow(QDialog):
         success = self.device_manager.connect(port, baudrate)
 
         if success:
-            self.status_message(f"Successfully connected to {port}", "green")
+            self.status_message(f"Successfully connected to {port}", "darkgreen")
             Debug.info(f"Successfully connected to port: {port}")
             self.connection_successful = True
             return True, self.device_manager
