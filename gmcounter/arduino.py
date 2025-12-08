@@ -71,7 +71,7 @@ class Arduino:
 
             if is_pty:
                 # For PTYs, open without baudrate configuration
-                Debug.debug(f"Detected PTY device, using raw serial access")
+                Debug.debug("Detected PTY device, using raw serial access")
                 self.serial = serial.Serial()
                 self.serial.port = self.port
                 self.serial.timeout = self.timeout
@@ -111,12 +111,13 @@ class Arduino:
             Debug.debug(f"Connection to {self.port} closed")
         self.connected = False
 
-    def send_command(self, command: str) -> bool:
+    def send_command(self, command: str, add_newline: bool = True) -> bool:
         """
         Sends a command to the Arduino.
 
         Args:
             command (str): Command to send
+            add_newline (bool): If True, append newline if not present. Default True.
 
         Returns:
             bool: True if command sent successfully, False otherwise
@@ -126,262 +127,461 @@ class Arduino:
             return False
 
         try:
-            # Ensure command ends with a newline
-            if not command.endswith("\n"):
-                command += "\n"
-            self.serial.write(command.encode("utf-8"))
-            self.serial.flush()
-            Debug.debug(f"Command sent: {command.strip()}")
+            # Prepare command
+            cmd = command
+            if add_newline and not cmd.endswith("\n"):
+                cmd += "\n"
+
+            # Encode and send
+            self.serial.write(cmd.encode("utf-8"))
+            self.serial.flush()  # Ensure data is sent immediately
+            Debug.debug(f"Sent command: {repr(cmd.strip())}")
             return True
+
+        except serial.SerialException as e:
+            Debug.error(f"Serial error sending command: {e}", exc_info=True)
+            return False
         except Exception as e:
-            Debug.error(
-                f"Error sending command '{command.strip()}': {e}", exc_info=True
-            )
+            Debug.error(f"Unexpected error sending command: {e}", exc_info=True)
             return False
 
-    def read_value(self) -> Union[int, float, str, None]:
-        """
-        Reads a single value from the Arduino, ensuring a
-        complete line is read until a newline or carriage return.
-
-        Returns:
-            Union[int, float, str, None]: The value read, or None if reading failed
-        """
-        if not self.serial or not self.serial.is_open:
-            Debug.error("Error: Serial connection not open")
-            return None
-
-        # temp = self.serial.readline()
-        # Debug.debug(f"Raw data read (bytes): {temp}")
-        try:
-            # Wait briefly to ensure data has arrived
-            sleep(0.2)
-
-            # Check if there is data available to read
+    def _wait_for_data(self, timeout: float) -> bool:
+        """Wait for data to arrive in the serial buffer."""
+        if not self.serial:
+            return False
+        start_time = time()
+        while (time() - start_time) < timeout:
             if self.serial.in_waiting > 0:
-                # Read until newline or carriage return
-                response = self.serial.readline()
-                response = response.decode("utf-8").strip()
-                Debug.debug(f"Received raw data: '{response}'")
+                return True
+            sleep(0.01)
+        return False
 
-                # Check if the response is empty or invalid
-                if not response:
-                    Debug.info("Empty response received")
-                    return None
-                if response.lower() == "invalid":
-                    Debug.info("'invalid' response received")
-                    return None
+    def _decode_bytes_to_string(self, raw_data: bytes, strip: bool) -> Optional[str]:
+        """Decode bytes to UTF-8 string, filtering invalid responses."""
+        decoded = raw_data.decode("utf-8")
+        if strip:
+            decoded = decoded.strip()
 
-                # Return the raw response
-                return response
-            else:
-                Debug.info("No data available to read")
-                return None
-        except (serial.SerialException, UnicodeDecodeError) as e:
-            Debug.error(f"Error reading value: {e}", exc_info=True)
+        if decoded.lower() == "invalid":
+            Debug.info("'invalid' response received")
             return None
 
-    def read_string_response(self, timeout: float = 1.0) -> str:
-        """
-        Reads a string response from the Arduino, collecting all available data.
+        if not decoded:
+            Debug.debug("Empty string after decoding")
+            return None
 
-        This method is more lenient than read_value() and is designed for
-        text responses like copyright and version information that may not
-        follow the standard newline-terminated format.
+        return decoded
+
+    def read_value(
+        self,
+        timeout: float = 1.0,
+        return_type: str = "auto",
+        strip_whitespace: bool = True,
+    ) -> Union[str, bytes, None]:
+        """
+        Unified method to read a single value from the Arduino.
+
+        This is the standard read method. It automatically handles both text and binary
+        data. Use this for general-purpose reading unless you need extreme speed.
 
         Args:
-            timeout (float): Maximum time to wait for response in seconds.
+            timeout (float): Maximum time to wait for a complete line in seconds. Default 1.0.
+            return_type (str): One of "auto", "str", or "bytes":
+                - "auto": Attempt to decode as UTF-8 string; return bytes if decode fails.
+                - "str": Force string return; discard non-UTF-8 data.
+                - "bytes": Return raw bytes without decoding.
+            strip_whitespace (bool): If True and return_type is "str", strip whitespace.
 
         Returns:
-            str: The collected response string, or empty string if nothing received.
+            Union[str, bytes, None]: The value read, or None if reading failed or no data available.
         """
         if not self.serial or not self.serial.is_open:
-            Debug.error("Error: Serial connection not open")
+            Debug.error("Serial connection not open")
+            return None
+
+        try:
+            # Wait for data with timeout
+            if not self._wait_for_data(timeout):
+                Debug.debug("Timeout: No data available to read")
+                return None
+
+            # Read raw data
+            raw_data = self.serial.readline()
+            if not raw_data:
+                Debug.debug("Empty data read")
+                return None
+
+            # Return bytes directly if requested
+            if return_type == "bytes":
+                Debug.debug(f"Received {len(raw_data)} bytes")
+                return raw_data
+
+            # Try to decode as string
+            try:
+                decoded = self._decode_bytes_to_string(raw_data, strip_whitespace)
+                if decoded:
+                    Debug.debug(f"Received string: '{decoded}'")
+                return decoded
+
+            except UnicodeDecodeError:
+                if return_type == "auto":
+                    Debug.debug(
+                        f"Could not decode as UTF-8, returning {len(raw_data)} raw bytes"
+                    )
+                    return raw_data
+                Debug.info(
+                    "Could not decode as UTF-8 (return_type='str'), returning None"
+                )
+                return None
+
+        except serial.SerialException as e:
+            Debug.error(f"Serial read error: {e}", exc_info=True)
+            return None
+        except Exception as e:
+            Debug.error(f"Unexpected error in read_value: {e}", exc_info=True)
+            return None
+
+    def _skip_binary_packets(
+        self, timeout_remaining: float, packet_size: int = 6, start_byte: int = 0xAA
+    ) -> Optional[str]:
+        """Skip binary packets and return the first text character found.
+
+        Args:
+            timeout_remaining (float): Remaining timeout in seconds.
+            packet_size (int): Size of binary packets to skip (default 6 bytes).
+            start_byte (int): Start byte of binary packets (default 0xAA).
+        Returns:
+            Optional[str]: The first text character found, or None if none found.
+        """
+        if not self.serial:
+            return None
+
+        # Quick check - if no data available immediately, return early
+        initial_wait = min(0.1, timeout_remaining)
+        if not self._wait_for_data(initial_wait):
+            return None
+
+        start_time = time()
+        while (time() - start_time) < timeout_remaining and self.serial.in_waiting > 0:
+            peek = self.serial.read(1)
+            if not peek:
+                return None
+
+            # Skip binary packet start byte (0xAA)
+            if peek[0] == start_byte:
+                try:
+                    self.serial.read(packet_size - 1)
+                except Exception:
+                    pass
+                continue
+
+            # Try to decode as text
+            try:
+                char = peek.decode("utf-8")
+                if char.isprintable() or char in "\r\n\t":
+                    return char
+            except UnicodeDecodeError:
+                continue
+        return None
+
+    def _try_read_single_line(self, result_parts: list) -> bool:
+        """Try to read a single line. Returns True if data was read.
+
+        Args:
+            result_parts (list): List to append read lines to.
+        Returns:
+            bool: True if data was read, False otherwise.
+        """
+        if not self.serial or self.serial.in_waiting == 0:
+            return False
+
+        try:
+            line = self.serial.readline()
+            if not line:
+                return False
+
+            decoded = line.decode("utf-8", errors="ignore").strip()
+            if decoded and decoded.lower() != "invalid":
+                result_parts.append(decoded)
+
+                # Check if we should wait for more
+                if line.endswith(b"\n") or line.endswith(b"\r"):
+                    sleep(0.05)
+                    return self.serial.in_waiting > 0
+            return True
+
+        except (UnicodeDecodeError, serial.SerialException) as e:
+            Debug.debug(f"Error reading line: {e}")
+            return False
+
+    def _read_text_lines(self, timeout_remaining: float, result_parts: list) -> None:
+        """Read text lines until timeout or no more data.
+
+        Args:
+            timeout_remaining (float): Remaining timeout in seconds.
+            result_parts (list): List to append read lines to.
+        """
+        if not self.serial:
+            return
+
+        start_time = time()
+        while (time() - start_time) < timeout_remaining:
+            if not self._try_read_single_line(result_parts):
+                # No data available, check if we're done
+                sleep(0.05)
+                if result_parts and self.serial.in_waiting == 0:
+                    sleep(0.1)  # Extra wait
+                    if self.serial.in_waiting == 0:
+                        break
+
+    def read_text_response(self, timeout: float = 1.0, packet_size: int = 6) -> str:
+        """
+        Reads a complete text response from the Arduino, handling multiple lines
+        and filtering out binary data.
+
+        This method is more lenient than read_value() and is designed for
+        multi-line text responses (copyright, version information, etc.).
+        It automatically skips binary packets and waits for a complete response.
+
+        Args:
+            timeout (float): Maximum time to wait for response in seconds. Default 1.0.
+            packet_size (int): Size of binary packets to skip (default 6 bytes).
+
+        Returns:
+            str: The collected response string, or empty string if nothing received or
+                 if only binary data was found.
+        """
+        if not self.serial or not self.serial.is_open:
+            Debug.error("Serial connection not open")
             return ""
 
         result_parts = []
         start_time = time()
 
         try:
-            # Clear any binary data that might be in the buffer first
-            # (skip bytes that look like binary packet data)
-            while self.serial.in_waiting > 0:
-                peek = self.serial.read(1)
-                if peek:
-                    # If it's a binary start byte (0xAA), skip until we find text
-                    if peek[0] == 0xAA:
-                        # Try to skip a full binary packet (6 bytes total)
-                        self.serial.read(5)  # Skip remaining 5 bytes
-                        continue
-                    # Put back readable character by including in result
-                    try:
-                        char = peek.decode("utf-8")
-                        if char.isprintable() or char in "\r\n\t":
-                            result_parts.append(char)
-                    except UnicodeDecodeError:
-                        continue  # Skip non-UTF8 bytes
-                    break
+            # Skip binary packets and get first text character
+            first_char = self._skip_binary_packets(timeout, packet_size)
+            if first_char:
+                result_parts.append(first_char)
 
-            # Now read the actual response
-            while (time() - start_time) < timeout:
-                if self.serial.in_waiting > 0:
-                    try:
-                        line = self.serial.readline()
-                        decoded = line.decode("utf-8", errors="ignore").strip()
-                        if decoded and decoded.lower() != "invalid":
-                            result_parts.append(decoded)
-                            # If we got a complete line, we're probably done
-                            if line.endswith(b"\n") or line.endswith(b"\r"):
-                                break
-                    except UnicodeDecodeError:
-                        continue
-                else:
-                    # Small sleep to avoid busy-waiting
-                    sleep(0.05)
-                    # If we already have some data and no more is coming, we're done
-                    if result_parts and self.serial.in_waiting == 0:
-                        sleep(0.1)  # Extra wait to be sure
-                        if self.serial.in_waiting == 0:
-                            break
+            # Read remaining text data
+            remaining_time = timeout - (time() - start_time)
+            if remaining_time > 0:
+                self._read_text_lines(remaining_time, result_parts)
 
             response = " ".join(result_parts).strip()
-            Debug.debug(f"String response received: '{response}'")
+            Debug.debug(f"Text response: '{response}'")
             return response
 
-        except serial.SerialException as e:
-            Debug.error(f"Error reading string response: {e}", exc_info=True)
+        except Exception as e:
+            Debug.error(f"Error in read_text_response: {e}", exc_info=True)
             return ""
 
-    def read_bytes_fast(
+    def _read_with_delimiter(self, max_bytes: int, delimiter: bytes) -> bytes:
+        """Read bytes until delimiter found or max_bytes reached.
+
+        Args:
+            max_bytes (int): Maximum number of bytes to read.
+            delimiter (bytes): Byte sequence marking end of message.
+        Returns:
+            bytes: The bytes read including the delimiter, or empty bytes if none.
+        """
+        if not self.serial:
+            return b""
+
+        buffer = bytearray()
+        while len(buffer) < max_bytes:
+            chunk = self.serial.read(1)
+            if not chunk:
+                break
+
+            buffer.extend(chunk)
+
+            # Check if delimiter found
+            if delimiter in bytes(buffer):
+                pos = buffer.find(delimiter)
+                result = bytes(buffer[: pos + len(delimiter)])
+                Debug.debug(f"Fast read complete: {len(result)} bytes with delimiter")
+                return result
+
+        # No delimiter found
+        if buffer:
+            Debug.debug(f"Fast read timeout: {len(buffer)} bytes without delimiter")
+        return bytes(buffer)
+
+    def read_fast(
         self,
         max_bytes: int = 1024,
         timeout_ms: int = 100,
-        start_byte: Optional[int] = None,
-    ) -> bytes:
-        """Read raw bytes at very high speed with minimal overhead.
+        delimiter: Optional[bytes] = None,
+    ) -> Optional[bytes]:
+        """
+        Read raw bytes at very high speed with minimal overhead.
+
+        This is optimized for bulk data transfer and high-frequency sampling.
+        Use this instead of read_value() when you need maximum performance.
 
         Args:
-            max_bytes (int): Maximum number of bytes to read (default ``1024``).
-            timeout_ms (int): Timeout in milliseconds (default ``100``).
-            start_byte (Optional[int]): Optional start byte to synchronise on.
+            max_bytes (int): Maximum number of bytes to read. Default 1024.
+            timeout_ms (int): Timeout in milliseconds. Default 100.
+            delimiter (Optional[bytes]): If provided, read until this byte sequence
+                                         is found (e.g., b"\\n"). Default None.
 
         Returns:
-            bytes: The raw data read from the serial port.
+            Optional[bytes]: The raw bytes read, or None on error.
+                            Empty bytes if no data and no delimiter found.
         """
         if not self.serial or not self.serial.is_open:
-            return b""
+            Debug.error("Serial connection not open")
+            return None
 
         original_timeout = self.serial.timeout
 
         try:
             self.serial.timeout = timeout_ms * 0.001
 
-            if start_byte is None:
-                return self.serial.read(max_bytes)
+            # Read with delimiter if specified
+            if delimiter:
+                return self._read_with_delimiter(max_bytes, delimiter)
 
-            # Suche nach Start-Byte
-            while True:
-                byte_data = self.serial.read(1)
-                if not byte_data:
-                    return b""
-                if byte_data[0] == start_byte:
-                    # Start-Byte gefunden, lese restliche Daten
-                    remaining_data = self.serial.read(max_bytes - 1)
-                    return byte_data + remaining_data
+            # Simple read without delimiter
+            buffer = self.serial.read(max_bytes)
+            Debug.debug(
+                f"Fast read: {len(buffer)} bytes"
+                if buffer
+                else "Fast read: no data available"
+            )
+            return buffer if buffer else b""
 
-        except:
-            return b""
+        except serial.SerialException as e:
+            Debug.error(f"Serial error in fast read: {e}", exc_info=True)
+            return None
+        except Exception as e:
+            Debug.error(f"Unexpected error in fast read: {e}", exc_info=True)
+            return None
         finally:
             self.serial.timeout = original_timeout
 
-    def read_stream_fast(
-        self, delimiter: bytes = b"\n", max_buffer: int = 4096
+    def _check_delimiter_in_buffer(
+        self, buffer: bytearray, delimiter: bytes
     ) -> Optional[bytes]:
-        """Read bytes until ``delimiter`` is encountered.
+        """Check if delimiter is in buffer and extract message if found."""
+        delimiter_pos = buffer.find(delimiter)
+        if delimiter_pos == -1:
+            return None
+
+        message = bytes(buffer[:delimiter_pos])
+        remaining = buffer[delimiter_pos + len(delimiter) :]
+
+        if remaining:
+            Debug.debug(f"Found delimiter, {len(remaining)} bytes remain in buffer")
+
+        Debug.debug(f"Read complete message: {len(message)} bytes")
+        return message
+
+    def read_until_delimiter(
+        self,
+        delimiter: bytes = b"\n",
+        max_buffer: int = 4096,
+        timeout: float = 2.0,
+    ) -> Optional[bytes]:
+        """
+        Read bytes until a delimiter is encountered.
+
+        Optimized for streaming data where you need to read complete messages
+        separated by a delimiter (e.g., newline).
 
         Args:
-            delimiter (bytes): Delimiter indicating end of message.
-            max_buffer (int): Maximum buffer size in bytes.
+            delimiter (bytes): Byte sequence marking end of message. Default b"\\n".
+            max_buffer (int): Maximum buffer size before giving up. Default 4096.
+            timeout (float): Total timeout in seconds. Default 2.0.
 
         Returns:
-            Optional[bytes]: Complete message or ``None`` on error.
+            Optional[bytes]: Complete message excluding the delimiter, or None on error.
+                            Empty bytes if no data received.
         """
         if not self.serial or not self.serial.is_open:
-            Debug.error("Error: Serial connection not open")
+            Debug.error("Serial connection not open")
             return None
 
         buffer = bytearray()
+        start_time = time()
 
         try:
             while len(buffer) < max_buffer:
-                # Read very small chunks for efficiency
-                chunk = self.read_bytes_fast(max_bytes=64, timeout_ms=50)
+                # Check timeout
+                if (time() - start_time) > timeout:
+                    Debug.info(
+                        f"Timeout reading until delimiter (collected {len(buffer)} bytes)"
+                    )
+                    return bytes(buffer) if buffer else None
+
+                # Read available data
+                chunk = self.read_fast(max_bytes=64, timeout_ms=50)
+                if chunk is None:
+                    Debug.error("read_fast() returned None")
+                    return None
 
                 if not chunk:
-                    # No new data, check if buffer already has data
-                    if buffer:
-                        # Wait briefly in case more data arrives
-                        sleep(0.005)  # 5ms
-                        continue
-                    else:
-                        # No buffer and no new data
-                        return None
+                    sleep(0.01)
+                    continue
 
                 buffer.extend(chunk)
 
-                # Check whether the delimiter was found
-                delimiter_pos = buffer.find(delimiter)
-                if delimiter_pos != -1:
-                    # Delimiter found, extract message
-                    message = bytes(buffer[:delimiter_pos])
-
-                    # Writing remaining data back to the serial buffer is not possible,
-                    # but we can store them for the next call
-                    remaining = buffer[delimiter_pos + len(delimiter) :]
-                    if remaining:
-                        # For simplicity we only log
-                        Debug.debug(
-                            f"Remaining bytes after delimiter: {len(remaining)}"
-                        )
-
-                    Debug.debug(f"Stream read complete: {len(message)} bytes")
+                # Check if delimiter found
+                message = self._check_delimiter_in_buffer(buffer, delimiter)
+                if message is not None:
                     return message
 
-            # Buffer full but no delimiter found
-            Debug.info(f"Buffer full ({max_buffer} bytes) without finding delimiter")
-            return bytes(buffer)
+            # Buffer full without finding delimiter
+            Debug.info(
+                f"Buffer limit ({max_buffer} bytes) reached without finding delimiter"
+            )
+            return bytes(buffer) if buffer else None
 
         except Exception as e:
-            Debug.error(f"Error in stream reading: {e}", exc_info=True)
+            Debug.error(f"Error reading until delimiter: {e}", exc_info=True)
             return None
 
     def flush_input_buffer(self) -> bool:
-        """Clear the serial input buffer for a clean restart.
+        """
+        Clear the serial input buffer for a clean restart.
+
+        Reads and discards all pending data in the buffer. Useful before
+        expecting a specific response.
 
         Returns:
-            bool: ``True`` on success, ``False`` otherwise.
+            bool: True on success, False on error.
         """
         if not self.serial or not self.serial.is_open:
-            Debug.error("Error: Serial connection not open")
+            Debug.error("Serial connection not open")
             return False
 
         try:
-            # Read and discard all available data
             discarded_bytes = 0
+
+            # Read and discard all available data
             while self.serial.in_waiting > 0:
-                chunk = self.serial.read(self.serial.in_waiting)
-                discarded_bytes += len(chunk)
-                sleep(0.001)  # Kurz warten falls mehr Daten kommen
+                try:
+                    chunk = self.serial.read(min(self.serial.in_waiting, 256))
+                    discarded_bytes += len(chunk)
+                    sleep(0.001)  # Brief wait for more data to arrive
+                except serial.SerialException:
+                    break
 
             # Reset input buffer
-            self.serial.reset_input_buffer()
+            try:
+                self.serial.reset_input_buffer()
+            except (OSError, serial.SerialException):
+                # Some virtual ports don't support this
+                pass
 
             if discarded_bytes > 0:
                 Debug.debug(f"Flushed {discarded_bytes} bytes from input buffer")
 
             return True
 
-        except serial.SerialException as e:
+        except Exception as e:
             Debug.error(f"Error flushing input buffer: {e}", exc_info=True)
             return False
 
@@ -422,6 +622,9 @@ class GMCounter(Arduino):
 
     def __init__(self, port: str, baudrate: int = 115200, timeout: float = 1.0):
         super().__init__(port, baudrate, timeout)
+        self._device_info_cache: Optional[Dict[str, str]] = (
+            None  # Cache for device info
+        )
         self.reconnect()
         sleep(0.5)
         self.reconnect()
@@ -439,14 +642,60 @@ class GMCounter(Arduino):
             init_value = self.read_value()
             sleep(0.5)
 
+    def _parse_data_field(self, key: str, value: str) -> Union[int, bool]:
+        """Parse a single data field."""
+        if key == "repeat":
+            return bool(int(value))
+        return int(value)
+
+    def _parse_csv_line(self, line: str, data_template: dict) -> dict:
+        """Parse comma-separated data line into dictionary."""
+        parts = line.split(",")
+
+        # Remove empty trailing parts
+        if parts and parts[-1] == "":
+            parts = parts[:-1]
+
+        # Validate field count
+        if len(parts) != len(data_template):
+            Debug.info(f"Expected {len(data_template)} fields, got {len(parts)}")
+            if not parts:
+                return data_template
+
+        # Parse each field
+        result = data_template.copy()
+        for i, part in enumerate(parts):
+            if i >= len(data_template):
+                break
+            key = list(data_template.keys())[i]
+            try:
+                result[key] = self._parse_data_field(key, part)
+            except (ValueError, IndexError) as e:
+                Debug.info(f"Could not parse field '{key}': '{part}' ({e})")
+
+        return result
+
     def get_data(self, request: bool = True) -> Dict[str, Union[int, bool]]:
         """
         Extracts data from the GM counter data string stream.
 
+        Sends a request to the device (if requested) and reads a single
+        data line containing comma-separated values.
+
+        Args:
+            request (bool): If True, send a data request command first. Default True.
+
         Returns:
-            dict: A dictionary containing the extracted data.
+            dict: A dictionary with keys:
+                - 'count': Current count value
+                - 'last_count': Last count value
+                - 'counting_time': Counting time setting
+                - 'repeat': Repeat mode (bool)
+                - 'progress': Progress value
+                - 'voltage': Current voltage setting
+                All values default to 0/False if parsing fails.
         """
-        data = {
+        data_template = {
             "count": 0,
             "last_count": 0,
             "counting_time": 0,
@@ -455,47 +704,31 @@ class GMCounter(Arduino):
             "voltage": 0,
         }
 
-        if request:
-            Debug.info("Requesting data from GMCounter...")
-            self.send_command("b2")  # Request single data read
+        try:
+            if request:
+                Debug.info("Requesting data from GMCounter...")
+                if not self.send_command("b2"):
+                    Debug.error("Failed to send data request command")
+                    return data_template
+                sleep(0.1)
 
-        # Read data with logging
-        Debug.debug("Attempting to read data from GMCounter...")
-        line = self.read_value()
+            # Read single line of data
+            Debug.debug("Reading data from GMCounter...")
+            line = self.read_value(timeout=2.0, return_type="str")
 
-        if line:
-            Debug.debug(f"Processing data line: '{line}'")
-            try:
-                parts = str(line).split(",")
-                if parts[-1] == "":  # Remove empty last part if present
-                    parts = parts[:-1]
-                Debug.debug(f"Split into {len(parts)} parts: {parts}")
+            if not line:
+                Debug.info("No data received from GMCounter")
+                return data_template
 
-                # Only process data if we have the expected number of parts
-                if len(parts) == len(data):
-                    for i, part in enumerate(parts):
-                        key = list(data.keys())[i]
-                        try:
-                            if key == "repeat":
-                                data[key] = bool(int(part))
-                            else:
-                                data[key] = int(part)
-                        except ValueError as e:
-                            Debug.error(
-                                f"Error converting value '{part}' for key '{key}': {e}"
-                            )
-                            # Keep default value for this field
-                else:
-                    Debug.info(
-                        f"Warning: Received {len(parts)} values instead of {len(data)} expected values."
-                    )
-            except ValueError as e:
-                Debug.error(f"Error parsing line: '{line}'. {e}")
-        else:
-            Debug.info("No data received from GMCounter")
+            # Parse comma-separated values
+            Debug.debug(f"Parsing data line: '{line}'")
+            data = self._parse_csv_line(line, data_template)
+            Debug.debug(f"Parsed data: {data}")
+            return data
 
-        Debug.debug(f"Final data: {data}")
-        return data
+        except Exception as e:
+            Debug.error(f"Error in get_data: {e}", exc_info=True)
+            return data_template
 
     def set_stream(self, value: int = 0):
         """
@@ -516,54 +749,72 @@ class GMCounter(Arduino):
         self.send_command(f"b{value}")
         return True
 
-    def get_information(self) -> Dict[str, str]:
+    def get_information(self, use_cache: bool = True) -> Dict[str, str]:
         """
         Gets information from the GM counter.
 
-        This method uses read_string_response() which is more lenient
-        than read_value() and can handle text responses that don't
-        follow the standard newline-terminated format.
+        Queries the device for copyright, version, and OpenBIS code information.
+        Uses read_text_response() with optimized timeouts for fast handshake.
+        Results are cached to avoid repeated queries.
+
+        Args:
+            use_cache (bool): If True and info was previously fetched, return cached value.
+                             Set to False to force a fresh query. Default True.
 
         Returns:
-            dict: A dictionary containing the GM counter information
-                  with keys: 'copyright', 'version', 'openbis'
+            dict: A dictionary containing:
+                - 'copyright': Copyright/device information
+                - 'version': Software version information
+                - 'openbis': OpenBIS code identifier
         """
+        # Return cached info if available and cache is enabled
+        if use_cache and self._device_info_cache is not None:
+            Debug.debug("Returning cached device information")
+            return self._device_info_cache.copy()
+
         info = {"copyright": "", "version": "", "openbis": ""}
 
-        Debug.info("Requesting copyright information...")
-        # Change to "oc" for own copyright command
-        self.send_command("oc")
-        # Use the more lenient string response reader
-        response = self.read_string_response(timeout=1.0)
-        if response:
-            info["copyright"] = response
-            Debug.info(f"Copyright info: {info['copyright']}")
-        else:
-            Debug.info("No copyright information received")
+        try:
+            # Flush buffer before starting to avoid reading stale data
+            self.flush_input_buffer()
 
-        Debug.info("Requesting version information...")
-        self.send_command("sv")
-        # Use the more lenient string response reader
-        response = self.read_string_response(timeout=1.0)
-        if response:
-            info["version"] = response
-            Debug.info(f"Version info: {info['version']}")
-        else:
-            Debug.info("No version information received")
-
-        Debug.info("Requesting OpenBIS code...")
-        self.send_command("info")
-        # Use the more lenient string response reader
-        response = self.read_string_response(timeout=1.0)
-        if response:
-            # Response format: "OpenBIS code: XXXXX"
-            if ":" in response:
-                info["openbis"] = response.split(":", 1)[1].strip()
+            # Use shorter timeout (0.3s) for faster handshake when no response expected
+            Debug.info("Requesting copyright information...")
+            self.send_command("oc")
+            response = self.read_text_response(timeout=0.3)
+            if response:
+                info["copyright"] = response
+                Debug.info(f"Copyright info: {info['copyright']}")
             else:
-                info["openbis"] = response.strip()
-            Debug.info(f"OpenBIS code: {info['openbis']}")
-        else:
-            Debug.info("No OpenBIS code received")
+                Debug.debug("No copyright information received")
+
+            Debug.info("Requesting version information...")
+            self.send_command("sv")
+            response = self.read_text_response(timeout=0.3)
+            if response:
+                info["version"] = response
+                Debug.info(f"Version info: {info['version']}")
+            else:
+                Debug.debug("No version information received")
+
+            Debug.info("Requesting OpenBIS code...")
+            self.send_command("info")
+            response = self.read_text_response(timeout=0.3)
+            if response:
+                # Parse response format: "OpenBIS code: XXXXX" or similar
+                if ":" in response:
+                    info["openbis"] = response.split(":", 1)[1].strip()
+                else:
+                    info["openbis"] = response.strip()
+                Debug.info(f"OpenBIS code: {info['openbis']}")
+            else:
+                Debug.debug("No OpenBIS code received")
+
+            # Cache the result
+            self._device_info_cache = info.copy()
+
+        except Exception as e:
+            Debug.error(f"Error getting information: {e}", exc_info=True)
 
         return info
 
