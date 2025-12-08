@@ -17,6 +17,7 @@ from .debug_utils import Debug
 from .connection import ConnectionWindow
 from .main_window import MainWindow
 from .helper_classes import import_config
+from .stylesheets import apply_stylesheet
 
 # If executed as a script (package context missing), ensure the repo root is on
 # sys.path and set __package__ so relative imports below work correctly.
@@ -61,6 +62,7 @@ def main():
     # QApplication erstellen
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
+    apply_stylesheet(app, CONFIG.get("ui", {}).get("theme", "dark"))
 
     # Verbindungsdialog anzeigen
     connection_dialog = ConnectionWindow(

@@ -54,6 +54,10 @@
       }
     },
 
+    "ui": {
+      "theme": "dark"
+    },
+
     "colors": {
       "green": "green",
       "red": "red",
