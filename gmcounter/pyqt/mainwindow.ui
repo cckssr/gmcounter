@@ -1113,7 +1113,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="pushButton">
+                <widget class="QPushButton" name="buttonAutoRange">
                  <property name="text">
                   <string>x/y Limits anpassen</string>
                  </property>
@@ -1378,8 +1378,14 @@
                  <verstretch>0</verstretch>
                 </sizepolicy>
                </property>
+               <property name="minimumSize">
+                <size>
+                 <width>50</width>
+                 <height>0</height>
+                </size>
+               </property>
                <property name="text">
-                <string>999</string>
+                <string>99999 s</string>
                </property>
               </widget>
              </item>
@@ -1907,7 +1913,7 @@
   </connection>
  </connections>
  <buttongroups>
-  <buttongroup name="groupMode"/>
   <buttongroup name="groupQMode"/>
+  <buttongroup name="groupMode"/>
  </buttongroups>
 </ui>

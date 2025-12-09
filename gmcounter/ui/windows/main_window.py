@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
+import time
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QMainWindow,
     QVBoxLayout,
     QCompleter,
 )
 from PySide6.QtCore import QTimer, Qt  # pylint: disable=no-name-in-module
+import gmcounter
 from ...infrastructure.device_manager import DeviceManager
 from ...ui.controllers.control import ControlWidget
 from ..widgets.plot import PlotWidget, HistogramWidget
 from ...infrastructure.logging import Debug
 from ...infrastructure.config import import_config
-from ...helper_classes_compat import Statusbar, SaveManager
+from ...helper_classes_compat import Statusbar
+from ...core.services import SaveService
 from ..common import dialogs as MessageHelper
+from ..common.file_dialogs import FileDialogManager
 from ...pyqt.ui_mainwindow import Ui_MainWindow
 from ..controllers.data_controller import DataController
 
@@ -50,10 +54,12 @@ class MainWindow(QMainWindow):
         # Measurement status
         self.is_measuring = False
         self.data_saved = True
-        self.save_manager = SaveManager(
+        self.save_service = SaveService(
             base_dir=CONFIG.get("save", {}).get("base_folder", "GMCounter"),
             tk_designation=CONFIG.get("save", {}).get("tk_designation", "TK47"),
         )
+        # FileDialogManager is only used for UI dialogs (file picker)
+        self.file_dialog_manager = FileDialogManager(self.save_service)
         self.measurement_start = None
         self.measurement_end = None
         self._elapsed_seconds = 0
@@ -96,7 +102,12 @@ class MainWindow(QMainWindow):
         self.device_manager = device_manager
 
         # Connect DeviceManager signals to MainWindow slots
-        self.device_manager.data_received.connect(self.handle_data)
+        # CRITICAL: Use Qt.QueuedConnection to ensure thread-safe signal delivery
+        # The data_received signal comes from DataAcquisitionThread (background)
+        # and MUST be queued to avoid blocking the acquisition thread
+        self.device_manager.data_received.connect(
+            self.handle_data, Qt.ConnectionType.QueuedConnection
+        )
         self.device_manager.status_update.connect(self.statusbar.temp_message)
         self.device_manager.device_info_received.connect(self._update_device_info)
 
@@ -168,9 +179,10 @@ class MainWindow(QMainWindow):
         self.ui.buttonSave.setEnabled(False)
         self.ui.buttonReset.setEnabled(False)
 
-        # Check auto-save setting
-        self.ui.autoSave.setChecked(self.save_manager.auto_save)
-        self.ui.autoSave.stateChanged.emit(1 if self.save_manager.auto_save else 0)
+        # Check auto-save setting (checkbox is for UI only, backup always runs)
+        self.ui.autoSave.setChecked(
+            True
+        )  # Show as enabled since backup is always active
         self.ui.autoSave.toggled.connect(self._change_auto_save)
 
         # Connect autoScroll checkbox
@@ -224,6 +236,11 @@ class MainWindow(QMainWindow):
         self.stats_timer.timeout.connect(self._update_statistics)
         self.stats_timer.start(CONFIG["timers"]["statistics_update_interval"])
 
+        # Timer for auto-backup every 30 seconds during measurement
+        self.backup_timer = QTimer(self)
+        self.backup_timer.timeout.connect(self._auto_backup_measurement)
+        # Timer wird nur während der Messung gestartet
+
     #
     # 2a. MEASUREMENT CONTROL
     #
@@ -249,16 +266,16 @@ class MainWindow(QMainWindow):
         )
 
         # Start nur aktivieren wenn keine ungespeicherten Daten vorhanden
-        has_unsaved = self.save_manager.has_unsaved()
+        has_unsaved = self.save_service.has_unsaved()
         self.ui.buttonStart.setEnabled(not has_unsaved)
         self.ui.buttonSetting.setEnabled(True)
         self.ui.buttonStop.setEnabled(False)
         self.ui.buttonReset.setEnabled(True)
         self.ui.buttonSave.setEnabled(has_unsaved)
         Debug.debug(
-            f"UI in Ruhemodus gesetzt \
-                (Start: {'deaktiviert' if has_unsaved else 'aktiviert'},\
-                Save: {'aktiviert' if has_unsaved else 'deaktiviert'})"
+            f"UI in Ruhemodus gesetzt "
+            f"(Start: {'deaktiviert' if has_unsaved else 'aktiviert'}, "
+            f"Save: {'aktiviert' if has_unsaved else 'deaktiviert'})"
         )
 
     def _setup_progress_bar(self, duration_seconds: int) -> None:
@@ -267,20 +284,31 @@ class MainWindow(QMainWindow):
         Args:
             duration_seconds: Duration in seconds (``999`` means infinite).
         """
+        # Reset elapsed time counter FIRST
+        self._elapsed_seconds = 0
+        self.ui.progressTimer.setText("0s")
+
         if duration_seconds != 999:
             # Finite duration - progress bar with timer
             self.ui.progressBar.setMaximum(duration_seconds)
             self.ui.progressBar.setValue(0)
-            self._measurement_timer = QTimer(self)
-            self._measurement_timer.timeout.connect(self._update_progress)
-            self._measurement_timer.start(1000)  # Update every second
             Debug.debug(f"ProgressBar konfiguriert für {duration_seconds} Sekunden")
         else:
-            # Infinite duration - indeterminate progress bar
+            # Infinite duration - indeterminate progress bar (animiert hin und her)
             self.ui.progressBar.setMaximum(0)
             self.ui.progressBar.setValue(0)
-            self._measurement_timer = None
-            Debug.debug("ProgressBar konfiguriert für unendliche Messdauer")
+            Debug.debug(
+                "ProgressBar konfiguriert für unendliche Messdauer (indeterminate mode)"
+            )
+
+        # Start timer to update progressTimer label for both finite and infinite measurements
+        self._measurement_timer = QTimer(self)
+        self._measurement_timer.timeout.connect(self._update_progress)
+        self._measurement_timer.start(1000)  # Update every second
+        Debug.debug(
+            f"Timer started: isActive={self._measurement_timer.isActive()}, "
+            f"duration={duration_seconds}s"
+        )
 
     def _stop_progress_bar(self) -> None:
         """Stop the progress bar and its timer."""
@@ -288,17 +316,18 @@ class MainWindow(QMainWindow):
             self._measurement_timer.stop()
             self._measurement_timer = None
 
-        # Reset progress bar to idle state
+        # Reset progress bar and timer display to idle state
         self.ui.progressBar.setMaximum(100)
         self.ui.progressBar.setValue(0)
+        self.ui.progressTimer.setText("0s")
         self._elapsed_seconds = 0
-        Debug.debug("ProgressBar gestoppt und zurückgesetzt")
+        Debug.debug("ProgressBar und Timer gestoppt und zurückgesetzt")
 
     def _start_measurement(self):
         """Start measurement and adjust UI."""
         # Button sollte bereits deaktiviert sein wenn ungespeicherte Daten vorliegen
         # Aber zur Sicherheit nochmal prüfen
-        if self.save_manager.has_unsaved():
+        if self.save_service.has_unsaved():
             MessageHelper.show_warning(
                 self,
                 "Bitte speichern oder löschen Sie die vorhandenen Messdaten, bevor Sie eine neue Messung starten.",
@@ -307,17 +336,20 @@ class MainWindow(QMainWindow):
             return
 
         self.data_controller.clear_data()
-        self.save_manager.mark_saved()  # Neue Messung hat keine ungespeicherten Daten
+        self.save_service.mark_saved()  # Neue Messung hat keine ungespeicherten Daten
 
         if self.device_manager.start_measurement():
             self.is_measuring = True
             self._set_ui_measuring_state()
             self.measurement_start = datetime.now()
-            self._elapsed_seconds = 0
             seconds = int(self.ui.cDuration.value())
             if seconds == 0:
                 seconds = 999
             self._setup_progress_bar(seconds)
+
+            # Starte automatisches Backup alle 30 Sekunden
+            self.backup_timer.start(30000)  # 30000ms = 30s
+
             self.statusbar.temp_message(
                 CONFIG["messages"]["measurement_running"],
                 CONFIG["colors"]["orange"],
@@ -330,48 +362,26 @@ class MainWindow(QMainWindow):
         self.measurement_end = datetime.now()
         self._stop_progress_bar()
 
+        # Stoppe automatisches Backup
+        self.backup_timer.stop()
+
         # Markiere Messung als ungespeichert, wenn Daten vorhanden sind
         if self.data_controller.get_csv_data():
-            self.save_manager.mark_unsaved()
+            self.save_service.mark_unsaved()
 
         self._set_ui_idle_state()
         self.statusbar.temp_message(
             CONFIG["messages"]["measurement_stopped"],
             CONFIG["colors"]["red"],
         )
-        if self.save_manager.auto_save and not self.save_manager.last_saved:
-            data = self.data_controller.get_csv_data()
-            rad_sample = self.ui.radSample.currentText()
-            group_letter = self.ui.groupLetter.currentText()
-            suffix = self.ui.suffix.text().strip()
-            saved_path = self.save_manager.auto_save_measurement(
-                rad_sample,
-                group_letter,
-                data,
-                self.measurement_start or datetime.now(),
-                self.measurement_end or datetime.now(),
-                suffix,
-            )
-            if saved_path and saved_path.exists():
-                self.data_saved = True
-                self.ui.buttonSave.setEnabled(False)
-                self.statusbar.temp_message(
-                    f"Messung erfolgreich gespeichert: {saved_path}",
-                    CONFIG["colors"]["green"],
-                )
-                Debug.info(f"Messung automatisch gespeichert: {saved_path}")
-            else:
-                MessageHelper.show_error(
-                    self,
-                    "Fehler beim Speichern der Messung. Siehe Log für Details.",
-                    "Fehler",
-                )
+        # Auto-save is handled by backup timer, not here
+        # The periodic auto_backup via SaveService takes care of incremental backups
 
     def _save_measurement(self):
         """Manually save the current measurement data using a file dialog."""
         try:
             # Check if there is data to save
-            if not self.save_manager.has_unsaved():
+            if not self.save_service.has_unsaved():
                 MessageHelper.show_info(
                     self,
                     "Keine ungespeicherten Daten vorhanden.",
@@ -384,7 +394,12 @@ class MainWindow(QMainWindow):
             group_letter = self.ui.groupLetter.currentText()
             subterm = self.ui.suffix.text().strip()
 
-            saved_path = self.save_manager.manual_save_measurement(
+            # Erstelle erweiterte Metadaten über SaveService (core layer)
+            extra_metadata = self._get_extended_metadata()
+
+            # Use FileDialogManager for UI file dialog interaction
+            # SaveService handles the actual saving logic
+            saved_path = self.file_dialog_manager.manual_save_measurement(
                 self,
                 rad_sample,
                 group_letter,
@@ -392,11 +407,12 @@ class MainWindow(QMainWindow):
                 self.measurement_start or datetime.now(),
                 self.measurement_end or datetime.now(),
                 subterm,
+                extra_metadata=extra_metadata,
             )
 
             if saved_path and saved_path.exists():
                 self.data_saved = True
-                self.save_manager.mark_saved()  # Markiere als gespeichert
+                self.save_service.mark_saved()  # Markiere als gespeichert
 
                 # Update UI - Start aktivieren, Save deaktivieren
                 self.ui.buttonSave.setEnabled(False)
@@ -432,7 +448,7 @@ class MainWindow(QMainWindow):
             )
             return
 
-        if self.save_manager.has_unsaved():
+        if self.save_service.has_unsaved():
             if not MessageHelper.ask_question(
                 self,
                 CONFIG["messages"]["unsaved_data"],
@@ -442,7 +458,7 @@ class MainWindow(QMainWindow):
 
         self.data_controller.clear_data()
         self.data_saved = True
-        self.save_manager.mark_saved()  # Markiere als gespeichert
+        self.save_service.mark_saved()  # Markiere als gespeichert
 
         # Update UI - Start aktivieren, Save deaktivieren
         self.ui.buttonSave.setEnabled(False)
@@ -473,7 +489,7 @@ class MainWindow(QMainWindow):
 
         # Mark data as unsaved
         self.data_saved = False
-        self.save_manager.mark_unsaved()
+        self.save_service.mark_unsaved()
 
         # Update buttons: Start deaktivieren (wegen ungespeicherter Daten), Save aktivieren
         if not self.is_measuring:
@@ -502,15 +518,23 @@ class MainWindow(QMainWindow):
             )
 
     def _update_progress(self) -> None:
-        """Update progress bar during finite measurements."""
+        """Update progress bar during measurements.
 
+        For finite measurements: increment progress and stop when done.
+        For infinite measurements: just increment elapsed time counter.
+        """
         self._elapsed_seconds += 1
-        self.ui.progressBar.setValue(self._elapsed_seconds)
-        if (
-            self.ui.progressBar.maximum() > 0
-            and self._elapsed_seconds >= self.ui.progressBar.maximum()
-        ):
-            self._stop_measurement()
+
+        # Update progressTimer label (for both finite and infinite measurements)
+        self.ui.progressTimer.setText(f"{self._elapsed_seconds}s")
+        Debug.debug(f"Progress timer tick: elapsed={self._elapsed_seconds}s")
+
+        # For finite measurements: update progress bar and check if done
+        if self.ui.progressBar.maximum() > 0:
+            self.ui.progressBar.setValue(self._elapsed_seconds)
+            if self._elapsed_seconds >= self.ui.progressBar.maximum():
+                self._stop_measurement()
+        # For infinite measurements: progressBar stays in indeterminate mode (animates automatically)
 
     #
     # 3. DEVICE CONTROL
@@ -519,7 +543,7 @@ class MainWindow(QMainWindow):
     def _update_control_display(self):
         """Update the displayed configuration values from the GM counter."""
         if self.is_measuring:
-            Debug.warning(
+            Debug.info(
                 "Control update timer fired during measurement - should not happen!"
             )
             return
@@ -529,6 +553,17 @@ class MainWindow(QMainWindow):
             data = self.control.get_settings()
             if not data:
                 Debug.error("Keine Daten vom GM-Counter erhalten.")
+                # Möglicherweise ist Arduino noch im Streaming-Modus
+                # Dies sollte nicht passieren wenn stop_measurement() korrekt war
+                if self.device_manager.device and self.device_manager.connected:
+                    Debug.warning("Versuche Arduino-Reset...")
+                    self.device_manager.device.set_counting(False)
+
+                    time.sleep(0.5)
+                    try:
+                        self.device_manager.device.serial.reset_input_buffer()
+                    except (OSError, AttributeError):
+                        pass
                 return
 
             # Update UI elements
@@ -578,7 +613,8 @@ class MainWindow(QMainWindow):
         Args:
             checked: ``True`` if auto save is enabled.
         """
-        self.save_manager.auto_save = checked
+        # Note: Auto-backup via SaveService is always active during measurements.
+        # This checkbox is kept for UI compatibility but doesn't affect backup behavior.
         if checked:
             self.statusbar.temp_message(
                 CONFIG["messages"]["auto_save_enabled"],
@@ -623,6 +659,7 @@ class MainWindow(QMainWindow):
         Enable auto-range in the timePlot when clicked.
         """
         self.plot.enable_auto_range(True)
+        self.ui.autoScroll.setChecked(True)  # Also enable autoScroll checkbox
         Debug.debug("Auto-Range durch Button aktiviert")
 
     def _handle_plot_user_interaction(self):
@@ -633,7 +670,76 @@ class MainWindow(QMainWindow):
         # Deactivate autoScroll checkbox (this will trigger _handle_auto_scroll)
         if self.ui.autoScroll.isChecked():
             self.ui.autoScroll.setChecked(False)
-            Debug.debug("Auto-Scroll durch manuelle Plot-Interaktion deaktiviert")
+            Debug.info("Auto-Scroll durch manuelle Plot-Interaktion deaktiviert")
+
+    def _auto_backup_measurement(self):
+        """Automatically backup measurement data to temporary file every 30 seconds.
+
+        Delegates to SaveService (core layer) for the actual backup logic.
+        MainWindow only collects UI-specific data and calls the service.
+        """
+        if not self.is_measuring:
+            return
+
+        data = self.data_controller.get_csv_data()
+        if not data or len(data) <= 1:  # Only header present
+            return
+
+        # Collect UI-specific extended metadata
+        extra_metadata = self._get_extended_metadata()
+
+        # Get UI values
+        rad_sample = self.ui.radSample.currentText() or "unknown"
+        group_letter = self.ui.groupLetter.currentText() or "unknown"
+        subterm = self.ui.suffix.text().strip()
+
+        # Delegate to SaveService (core layer)
+        self.save_service.auto_backup(
+            data=data,
+            start=self.measurement_start or datetime.now(),
+            rad_sample=rad_sample,
+            group_letter=group_letter,
+            subterm=subterm,
+            extra_metadata=extra_metadata,
+        )
+
+    def _get_extended_metadata(self) -> dict:
+        """Collect extended metadata from UI elements.
+
+        This method is UI-specific and belongs in MainWindow.
+        It collects data from UI widgets that the SaveManager doesn't have access to.
+
+        Returns:
+            dict: Extended metadata including sampleDistance, OpenBIS code,
+                  firmware versions, and total count
+        """
+
+        extra = {}
+
+        # Sample Distance (nur wenn != 0)
+        sample_distance = self.ui.sampleDistance.value()
+        if sample_distance != 0:
+            extra["sample_distance_cm"] = sample_distance
+
+        # OpenBIS Code des Zählers
+        openbis_code = self.ui.cOpenbis.text()
+        if openbis_code and openbis_code != "unknown":
+            extra["counter_openbis_code"] = openbis_code
+
+        # Firmware Version des Zählers
+        firmware_version = self.ui.cVersion.text()
+        if firmware_version and firmware_version != "unknown":
+            extra["counter_firmware_version"] = firmware_version
+
+        # GUI Version
+        extra["gui_version"] = gmcounter.__version__
+
+        # Gesamtzählung der aktuellen Messung
+        data = self.data_controller.get_csv_data()
+        if data and len(data) > 1:  # Header + Daten
+            extra["total_count"] = len(data) - 1  # Ohne Header
+
+        return extra
 
     def closeEvent(self, event):
         """Handle the window close event and shut down all components cleanly.
@@ -643,6 +749,29 @@ class MainWindow(QMainWindow):
         """
         Debug.info("Anwendung wird geschlossen, fahre Komponenten herunter...")
 
+        # Check if unsaved data is present FIRST, before stopping anything
+        if hasattr(self, "save_service"):
+            try:
+                if self.save_service.has_unsaved():
+                    # ask_question returns True for "Yes", False for "No"
+                    if MessageHelper.ask_question(
+                        self,
+                        CONFIG["messages"]["unsaved_data_end"],
+                        "Warnung",
+                    ):
+                        # User clicked "Yes" - proceed with closing
+                        Debug.info(
+                            "Benutzer hat bestätigt: Schließen mit ungespeicherten Daten"
+                        )
+                    else:
+                        # User clicked "No" - abort closing
+                        Debug.info("Benutzer hat das Schließen abgebrochen")
+                        event.ignore()
+                        return
+            except Exception as e:
+                Debug.error(f"Fehler beim SaveService Cleanup: {e}")
+
+        # User confirmed closing, now stop everything
         # Stop data acquisition in the DeviceManager
         if hasattr(self, "device_manager"):
             try:
@@ -658,20 +787,6 @@ class MainWindow(QMainWindow):
                     self.device_manager.device.close()
             except Exception as e:
                 Debug.error(f"Fehler beim Herunterfahren des DeviceManagers: {e}")
-
-        # Check if unsaved data is present
-        if hasattr(self, "save_manager"):
-            try:
-                Debug.info("SaveManager Cleanup...")
-                if self.save_manager.has_unsaved():
-                    if not MessageHelper.ask_question(
-                        self,
-                        CONFIG["messages"]["unsaved_data_end"],
-                        "Warnung",
-                    ):
-                        return
-            except Exception as e:
-                Debug.error(f"Fehler beim SaveManager Cleanup: {e}")
 
         # Stop all timers
         for timer_attr in ["control_update_timer", "stats_timer"]:

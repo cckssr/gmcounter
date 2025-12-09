@@ -98,12 +98,32 @@ class SaveService:
         self.base_dir = Path(base_dir)
         self.tk_designation = tk_designation
         self.index = 0
+        self._backup_counter = 0  # Counter for backup file numbering
+        self._unsaved = False  # Track unsaved data state
 
         Debug.info(f"Using base directory for saving: {self.base_dir}")
         try:
             self.base_dir.mkdir(parents=True, exist_ok=True)
         except Exception as exc:
             Debug.error(f"Failed to create base directory {self.base_dir}: {exc}")
+
+    def has_unsaved(self) -> bool:
+        """Check if there is unsaved data.
+
+        Returns:
+            bool: True if there is unsaved data, False otherwise.
+        """
+        return self._unsaved
+
+    def mark_saved(self):
+        """Mark current data as saved."""
+        self._unsaved = False
+        Debug.debug("Data marked as saved")
+
+    def mark_unsaved(self):
+        """Mark current data as unsaved."""
+        self._unsaved = True
+        Debug.debug("Data marked as unsaved")
 
     def generate_filename(
         self,
@@ -224,6 +244,101 @@ class SaveService:
         file_name = self.generate_filename(rad_sample, group_letter, subterm, suffix)
         meta = self.create_metadata(start, end, group_letter, rad_sample, subterm)
         return self.save_measurement(file_name, data, meta)
+
+    def auto_backup(
+        self,
+        data: List[List[str]],
+        start: datetime,
+        rad_sample: str = "unknown",
+        group_letter: str = "unknown",
+        subterm: str = "",
+        extra_metadata: dict | None = None,
+    ) -> Optional[Path]:
+        """Automatically backup measurement data to temporary file.
+
+        This method is designed to be called periodically during a measurement
+        to create incremental backups that can be recovered in case of crashes.
+
+        Args:
+            data: Measurement data to backup (list of rows including header)
+            start: Measurement start time
+            rad_sample: Radioactive sample identifier (default: "unknown")
+            group_letter: Group letter (default: "unknown")
+            subterm: Subgroup term
+            extra_metadata: Additional metadata to include (e.g., device info, GUI version)
+
+        Returns:
+            Path to backup file or None if backup failed
+        """
+        if not data or len(data) <= 1:  # Only header present
+            return None
+
+        try:
+            # Create backup directory
+            backup_dir = self.base_dir / ".backup"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create unique backup filename with timestamp and counter
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self._backup_counter += 1
+            backup_filename = f"backup_{timestamp}_{self._backup_counter:03d}.csv"
+            backup_path = backup_dir / backup_filename
+
+            # Create metadata
+            metadata = self.create_metadata(
+                start,
+                datetime.now(),  # Current time as end
+                group_letter,
+                rad_sample,
+                subterm,
+                extra=extra_metadata,
+            )
+
+            # Save CSV
+            with open(backup_path, "w", newline="", encoding="utf-8") as csv_f:
+                writer = csv.writer(csv_f)
+                writer.writerows(data)
+
+            # Save metadata
+            metadata_path = backup_path.parent / (backup_path.stem + "_MD.json")
+            with open(metadata_path, "w", encoding="utf-8") as js_f:
+                json.dump(metadata, js_f, indent=2)
+
+            Debug.debug(
+                f"Auto-backup created: {backup_path} ({len(data)-1} data points)"
+            )
+
+            # Cleanup old backups
+            self.cleanup_old_backups(backup_dir)
+
+            return backup_path
+
+        except Exception as exc:
+            Debug.error(f"Failed to create auto-backup: {exc}", exc_info=exc)
+            return None
+
+    def cleanup_old_backups(self, backup_dir: Path, max_age_hours: int = 24):
+        """Remove backup files older than specified age.
+
+        Args:
+            backup_dir: Directory containing backup files
+            max_age_hours: Maximum age of backups in hours (default: 24)
+        """
+        try:
+            from datetime import timedelta
+
+            cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
+
+            for file in backup_dir.glob("backup_*.csv"):
+                if file.stat().st_mtime < cutoff_time.timestamp():
+                    file.unlink()
+                    # Delete associated metadata
+                    metadata_file = file.parent / (file.stem + "_MD.json")
+                    if metadata_file.exists():
+                        metadata_file.unlink()
+                    Debug.debug(f"Deleted old backup: {file}")
+        except Exception as exc:
+            Debug.info(f"Error cleaning up old backups: {exc}")
 
 
 class DeviceControlService:

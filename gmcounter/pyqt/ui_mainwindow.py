@@ -682,6 +682,7 @@ class Ui_MainWindow(object):
         self.progressTimer.setObjectName(u"progressTimer")
         sizePolicy17.setHeightForWidth(self.progressTimer.sizePolicy().hasHeightForWidth())
         self.progressTimer.setSizePolicy(sizePolicy17)
+        self.progressTimer.setMinimumSize(QSize(50, 0))
 
         self.horizontalLayout_4.addWidget(self.progressTimer)
 
@@ -1029,7 +1030,7 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.list), QCoreApplication.translate("MainWindow", u"Liste", None))
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"Voriges Z\u00e4hlergebnis", None))
         self.label_18.setText(QCoreApplication.translate("MainWindow", u"Aktuelle GM-Parameter", None))
-        self.progressTimer.setText(QCoreApplication.translate("MainWindow", u"999", None))
+        self.progressTimer.setText(QCoreApplication.translate("MainWindow", u"99999 s", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Status:", None))
         self.statusText.setText(QCoreApplication.translate("MainWindow", u"unknown", None))
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"Aktuelles Z\u00e4hlergebnis", None))

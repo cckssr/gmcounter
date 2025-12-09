@@ -21,6 +21,10 @@
 #ifndef VERSION
 #define VERSION *"1.1.1"
 #endif
+// TEST_PLATFORM as build flag for test devices without GM counter
+#ifndef TEST_PLATFORM
+#define TEST_PLATFORM false
+#endif
 
 // COPYRIGHT Information
 #define COPYRIGHT "GMCounter (c) 2024-2025 TU Berlin"
@@ -62,7 +66,6 @@ void isr_handle()
     timestamps[writeIndex++] = micros(); // Store the current time in microseconds
     writeIndex %= 128;                   // Wrap around to keep the index within bounds
 }
-// Note: handleInterrupt() was removed - isr_handle() is the actual ISR being used
 
 void debugByteValue(u_int32_t value)
 {
@@ -95,6 +98,11 @@ void sendByteValue(u_int32_t value)
     }
 }
 
+/**
+ * Handles the timer by reading timestamps from the buffer and calculating deltas.
+ * It sends the delta time as binary data if it exceeds the debounce threshold.
+ * Inlcudes proper handling of shared variables between interrupt and main context.
+ */
 void handleTimer()
 {
     // Safely read the shared variable
@@ -137,9 +145,9 @@ void handleTimer()
  */
 void setup()
 {
-    init(DEBUG, OPENBIS_CODE, VERSION, COPYRIGHT, MAX_LENGTH); // Initialize serial communication and set debug mode
-    Serial.begin(1000000);                                     // Initialize serial communication at 115200 baud
-    Serial1.begin(9600);                                       // Initialize second serial communication with GM-Counter
+    init(DEBUG, OPENBIS_CODE, VERSION, COPYRIGHT, MAX_LENGTH, TEST_PLATFORM); // Initialize serial communication and set debug mode
+    Serial.begin(1000000);                                                    // Initialize serial communication at 115200 baud
+    Serial1.begin(9600);                                                      // Initialize second serial communication with GM-Counter
     // Serial1.begin(1000000);        // Initialize second serial communication with GM-Counter
     pinMode(INTERRUPT_PIN, INPUT); // Configure the interrupt pin as an input
     // Attach interrupt to the pin, using RISING edge detection
@@ -155,26 +163,25 @@ void loop()
 {
     if (measurementInProgress)
     {
-        // If measurement is in progress, handle the timer
+        // Measurement loop - keep as fast and minimal as possible
         handleTimer();
 
-        // Check if measurement is stopped
+        // Only check for stop command
         if (Serial.available() > 0)
         {
-            sendMessage(Serial.readStringUntil('\n'), measurementInProgress);
+            sendMessage(Serial.readStringUntil('\n'), measurementInProgress, readIndex, writeIndex, last_timestamp);
         }
     }
     else
     {
-        // Serial.println("test");
-        // If no measurement is in progress, check for incoming messages
+        // Idle mode - handle GM counter communication and commands
         if (Serial1.available() > 0)
         {
             receiveMessage(Serial1.read(), message, index);
         }
         if (Serial.available() > 0)
         {
-            sendMessage(Serial.readStringUntil('\n'), measurementInProgress);
+            sendMessage(Serial.readStringUntil('\n'), measurementInProgress, readIndex, writeIndex, last_timestamp);
         }
     }
 }

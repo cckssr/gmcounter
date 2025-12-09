@@ -17,6 +17,7 @@ from .infrastructure.logging import Debug
 from .ui.dialogs.connection import ConnectionWindow
 from .ui.windows.main_window import MainWindow
 from .infrastructure.config import import_config
+from .ui.resources.stylesheet import apply_stylesheet
 
 # If executed as a script (package context missing), ensure the repo root is on
 # sys.path and set __package__ so relative imports below work correctly.
@@ -62,6 +63,9 @@ def main():
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
 
+    # Stylesheet anwenden
+    # apply_stylesheet(app, CONFIG.get("ui", {}).get("theme", "dark"))
+    # Debug.debug("Stylesheet angewendet")
     # Verbindungsdialog anzeigen
     connection_dialog = ConnectionWindow(
         demo_mode=CONFIG["gm_counter"]["demo_mode"],

@@ -19,7 +19,11 @@ try:  # pragma: no cover - optional dependency for headless testing
         QStandardItemModel,
         QStandardItem,
     )
-    from PySide6.QtCore import QTimer  # pylint: disable=no-name-in-module
+    from PySide6.QtCore import (
+        QTimer,
+        QObject,
+        Signal,
+    )  # pylint: disable=no-name-in-module
 
 
 except Exception:  # ImportError or missing Qt libraries
@@ -101,10 +105,12 @@ from ..common import dialogs as MessageHelper
 # Configuration constants
 CONFIG = import_config()
 MAX_HISTORY_SIZE = CONFIG["data_controller"]["max_history_size"]
-UPDATE_INTERVAL = CONFIG["timers"]["gui_update_interval"]
+# Increase GUI update interval to reduce load at high frequencies
+# 500ms = 2 updates/sec is sufficient for visual feedback at high data rates
+UPDATE_INTERVAL = max(500, CONFIG["timers"]["gui_update_interval"])
 
 
-class DataController:
+class DataController(QObject):
     """Store measurement data and provide statistics for the UI."""
 
     def __init__(
@@ -128,6 +134,7 @@ class DataController:
             table_widget: Optional table widget for data display.
             max_history: Maximum number of data points for GUI display (not file storage).
         """
+        super().__init__()
         self.plot = plot_widget
         self.display = display_widget
         self.histogram = histogram_widget
@@ -144,9 +151,13 @@ class DataController:
         self.max_history = max_history
 
         # Queue for high-frequency data acquisition
-        self.data_queue: queue.Queue = queue.Queue()
+        # Max size: at 10kHz with 200ms updates = 2000 points max per batch
+        # Use 10000 as safety buffer (= 1 second at 10kHz)
+        self.data_queue: queue.Queue = queue.Queue(maxsize=10000)
         self._queue_lock = threading.Lock()
         self._last_update_time = time()
+        self._last_table_update = time()  # Separate timer for table updates
+        self._queue_overflow_warned = False  # Track if we warned about overflow
 
         # Timer for GUI updates
         try:
@@ -175,27 +186,47 @@ class DataController:
     ) -> None:
         """Quickly enqueue data points without immediate GUI update.
 
-        This method is optimised for high-frequency acquisition and updates
-        does not update the GUI immediately. Instead the data are enqueued
-        and processed every 100ms.
+        This method is optimised for high-frequency acquisition (up to 10kHz).
+        It performs minimal work in the caller's thread (acquisition thread):
+        - Fast type conversion
+        - Thread-safe enqueue to buffer
+        - NO GUI operations
+
+        The actual GUI updates happen in _process_queued_data() which runs
+        in the main GUI thread every 200ms.
 
         Args:
             index: The data point index
             value: The measured value
         """
         try:
-            # Fast validation and conversion
+            # Fast validation and conversion - optimized for speed
             index_num = int(index)
             value_num = float(value)
+            # Timestamp generation is relatively expensive but necessary
             timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
 
-            # Vollständige Daten sofort hinzufügen (für CSV-Export, unbegrenzt)
+            # Add to full dataset immediately (unbounded, for CSV export)
+            # This MUST be fast and thread-safe
             self.data_points.append((index_num, value_num, timestamp))
 
-            # Thread-safe enqueue
-            with self._queue_lock:
-                self.data_queue.put((index_num, value_num, timestamp))
-                self._total_points_received += 1
+            # Thread-safe enqueue with overflow protection
+            # Use put_nowait() to avoid blocking the acquisition thread
+            try:
+                with self._queue_lock:
+                    self.data_queue.put_nowait((index_num, value_num, timestamp))
+                    self._total_points_received += 1
+                    self._queue_overflow_warned = False  # Reset warning flag
+            except queue.Full:
+                # Queue is full - GUI is not processing fast enough
+                # This should rarely happen with proper GUI update intervals
+                if not self._queue_overflow_warned:
+                    Debug.warning(
+                        "Data queue overflow! GUI cannot keep up with acquisition rate. "
+                        "Some GUI updates may be skipped (data is still saved to file)."
+                    )
+                    self._queue_overflow_warned = True
+                # Continue without blocking - data is already in data_points
 
         except (ValueError, TypeError) as e:
             Debug.error(f"Failed to convert values for fast queue: {e}")
@@ -232,12 +263,23 @@ class DataController:
             while len(self.gui_data_points) > self.max_history:
                 self.gui_data_points.pop(0)
 
-            # Update GUI only once with the last value
+            # Update GUI widgets with all new points
             if new_points:
+                # Update plot and histogram only once with last value
                 last_index, last_value, last_timestamp = new_points[-1]
-                self._update_gui_widgets(last_index, last_value, last_timestamp)
+                self._update_plot_and_display(last_index, last_value, last_timestamp)
 
-            # Performance logging
+                # CRITICAL PERFORMANCE: Disable table updates when data rate is too high
+                # Table rendering is EXTREMELY expensive and causes GUI freeze
+                # Only update table if we have <5000 total points (= first 5 seconds at 1kHz)
+                if (
+                    len(self.data_points) < 5000
+                    and (current_time - self._last_table_update) >= 0.5
+                ):
+                    self._update_table_with_batch(new_points)
+                    self._last_table_update = current_time
+
+                # Performance logging
             time_since_last = current_time - self._last_update_time
             if time_since_last > 0:
                 rate = len(new_points) / time_since_last
@@ -251,52 +293,92 @@ class DataController:
         except Exception as e:
             Debug.error(f"Error processing queued data: {e}", exc_info=True)
 
-    def _update_gui_widgets(
+    def _update_plot_and_display(
         self, index: int, value: float, timestamp: Optional[str] = None
     ) -> None:
-        """Update plot, LCD and history list with a single data point."""
+        """Update plot, LCD and histogram with the latest data point.
+
+        PERFORMANCE: Updates are throttled and optimized for high frequencies.
+        """
         try:
             # Update plot widget with all current data points
+            # Only update plot if we have data to show
             if self.plot and len(self.gui_data_points) > 0:
-                # Use the efficient batch update method when available
+                # Always use batch update for better performance
+                # Pass only the last N points to reduce rendering overhead
                 if hasattr(self.plot, "update_plot_batch"):
                     self.plot.update_plot_batch(self.gui_data_points)
                 else:
-                    # Fallback - use the standard update_plot method with all data
+                    # Fallback - use standard method but with full dataset
                     self.plot.update_plot(self.gui_data_points)
 
-            # Update current value display with the total count of data points
+            # Update LCD display only every 20th call (reduces overhead)
+            # At 2 GUI updates/sec, this means LCD updates every 10 seconds
             if self.display:
-                self.display.display(len(self.data_points))
+                if not hasattr(self, "_display_update_counter"):
+                    self._display_update_counter = 0
+                self._display_update_counter += 1
+                if self._display_update_counter >= 20:
+                    self._display_update_counter = 0
+                    self.display.display(len(self.data_points))
 
-            # Update histogram with current data distribution
+            # Update histogram with current data distribution (every 50th call)
+            # At 2 updates/sec, this means histogram updates every 25 seconds
             if self.histogram and len(self.gui_data_points) > 1:
-                # Extract values for histogram (only the measurement values)
-                values = [point[1] for point in self.gui_data_points]
-                self.histogram.update_histogram(values)
-
-            # Update table model with new data
-            if self.table_model is not None:
-                try:
-                    # Use timestamp if provided, otherwise create current timestamp
-                    if timestamp is None:
-                        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-
-                    row = [
-                        QStandardItem(str(index)),
-                        QStandardItem(str(value)),
-                        QStandardItem(timestamp),
-                    ]
-                    self.table_model.appendRow(row)
-                    while self.table_model.rowCount() > self.max_history:
-                        self.table_model.removeRow(0)
-                except Exception as table_error:
-                    Debug.error(
-                        f"Failed to update table model: {table_error}", exc_info=True
-                    )
+                if not hasattr(self, "_histogram_update_counter"):
+                    self._histogram_update_counter = 0
+                self._histogram_update_counter += 1
+                if self._histogram_update_counter >= 50:
+                    self._histogram_update_counter = 0
+                    # Extract values for histogram (only the measurement values)
+                    values = [point[1] for point in self.gui_data_points]
+                    self.histogram.update_histogram(values)
 
         except (AttributeError, RuntimeError) as e:
-            Debug.error(f"Failed to update GUI widgets: {e}", exc_info=True)
+            Debug.error(f"Failed to update plot/display widgets: {e}", exc_info=True)
+
+    def _update_table_with_batch(
+        self, new_points: List[Tuple[int, float, str]]
+    ) -> None:
+        """Update table model with a batch of new data points.
+
+        Args:
+            new_points: List of (index, value, timestamp) tuples to add to table.
+        """
+        if self.table_model is None:
+            return
+
+        try:
+            # Add each point to the table
+            for index, value, timestamp in new_points:
+                row = [
+                    QStandardItem(str(index)),
+                    QStandardItem(str(value)),
+                    QStandardItem(timestamp),
+                ]
+                self.table_model.appendRow(row)
+
+            # Remove old rows to maintain max_history limit
+            while self.table_model.rowCount() > self.max_history:
+                self.table_model.removeRow(0)
+
+        except Exception as table_error:
+            Debug.error(f"Failed to update table model: {table_error}", exc_info=True)
+
+    def _update_gui_widgets(
+        self, index: int, value: float, timestamp: Optional[str] = None
+    ) -> None:
+        """Update plot, LCD, histogram and table with a single data point.
+
+        This method is kept for backwards compatibility and legacy code paths.
+        """
+        # Update plot and display
+        self._update_plot_and_display(index, value, timestamp)
+
+        # Update table with single point
+        if timestamp is None:
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        self._update_table_with_batch([(index, value, timestamp)])
 
     def add_data_point(self, index: Union[int, str], value: Union[float, str]) -> None:
         """Add a point and update optional widgets.
@@ -347,25 +429,47 @@ class DataController:
                 Debug.debug(f"Error starting GUI timer: {e}")
 
     def clear_data(self) -> None:
-        """Clear all data points and reset optional widgets."""
+        """Clear all data points and reset optional widgets.
+
+        Thread-safe: Can be called from GUI thread while acquisition is running.
+        """
         try:
             Debug.info(f"DataController: Clearing {len(self.data_points)} data points")
+
+            # Stop GUI updates temporarily to prevent race conditions
+            was_running = False
+            if hasattr(self, "gui_update_timer") and self.gui_update_timer is not None:
+                was_running = self.gui_update_timer.isActive()
+                if was_running:
+                    self.gui_update_timer.stop()
+
             # Remove stored points (both full and GUI data)
             self.data_points = []
             self.gui_data_points = []
 
-            # Clear the queue
+            # Clear the queue with lock
             with self._queue_lock:
-                while not self.data_queue.empty():
-                    try:
-                        self.data_queue.get_nowait()
-                    except queue.Empty:
-                        break
+                # Create new queue to ensure clean state
+                self.data_queue = queue.Queue(maxsize=10000)
 
             # Reset counters
             self._total_points_received = 0
             self._points_processed_in_last_update = 0
             self._last_update_time = time()
+            self._last_table_update = time()
+            self._queue_overflow_warned = False
+
+            # Reset display update counters
+            if hasattr(self, "_display_update_counter"):
+                self._display_update_counter = 0
+            if hasattr(self, "_histogram_update_counter"):
+                self._histogram_update_counter = 0
+
+            # Restart GUI updates if they were running
+            if was_running and self.gui_update_timer is not None:
+                self.gui_update_timer.start(
+                    max(200, CONFIG["timers"]["gui_update_interval"])
+                )
 
             # Clear the plot
             if self.plot:

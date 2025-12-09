@@ -3,7 +3,6 @@
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 
 def import_config(language: str = "de") -> dict:

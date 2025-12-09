@@ -138,8 +138,41 @@ class Arduino:
             Debug.debug(f"Sent command: {repr(cmd.strip())}")
             return True
 
-        except serial.SerialException as e:
+        except (serial.SerialException, OSError) as e:
             Debug.error(f"Serial error sending command: {e}", exc_info=True)
+
+            # Check if it's a "Device not configured" error - connection lost
+            if "Device not configured" in str(e) or "Errno 6" in str(e):
+                Debug.warning("Device disconnected! Attempting to reconnect...")
+                self.connected = False
+
+                # Try to reconnect
+                try:
+                    if self.reconnect():
+                        Debug.info("Reconnection successful! Retrying command...")
+                        # Retry the command after successful reconnection
+                        try:
+                            cmd_to_send = command
+                            if add_newline and not cmd_to_send.endswith("\n"):
+                                cmd_to_send += "\n"
+                            self.serial.write(cmd_to_send.encode("utf-8"))
+                            self.serial.flush()
+                            Debug.debug(
+                                f"Command resent after reconnect: {repr(cmd_to_send.strip())}"
+                            )
+                            return True
+                        except Exception as retry_error:
+                            Debug.error(
+                                f"Failed to resend command after reconnect: {retry_error}"
+                            )
+                            return False
+                    else:
+                        Debug.error("Reconnection failed")
+                        return False
+                except Exception as reconnect_error:
+                    Debug.error(f"Error during reconnection attempt: {reconnect_error}")
+                    return False
+
             return False
         except Exception as e:
             Debug.error(f"Unexpected error sending command: {e}", exc_info=True)
@@ -369,7 +402,8 @@ class Arduino:
             if remaining_time > 0:
                 self._read_text_lines(remaining_time, result_parts)
 
-            response = " ".join(result_parts).strip()
+            # Join without spaces - data comes from Arduino without spaces
+            response = "".join(result_parts).strip()
             Debug.debug(f"Text response: '{response}'")
             return response
 
@@ -620,8 +654,7 @@ class GMCounter(Arduino):
         self._device_info_cache: Optional[Dict[str, str]] = (
             None  # Cache for device info
         )
-        self.reconnect()
-        sleep(0.5)
+        # Establish single connection
         self.reconnect()
         Debug.info("Initializing GMCounter...")
 
@@ -629,13 +662,18 @@ class GMCounter(Arduino):
         self.set_counting(False)  # Send "s0" to stop measurement
         self.set_stream(0)  # Stop any streaming by default
         self.clear_register()
-        sleep(1)  # Allow time for the Arduino to reset
+        sleep(0.5)  # Allow time for the Arduino to process commands
+
+        # Clear any buffered data (limit iterations to avoid blocking)
+        max_attempts = 3
+        attempt = 0
         init_value = self.read_value()
-        while init_value != "" and init_value is not None:
-            Debug.debug(f"Initial value read: {init_value}")
-            self.set_stream(0)  # Stop any streaming by default
+        while init_value != "" and init_value is not None and attempt < max_attempts:
+            Debug.debug(f"Clearing initial buffer: {init_value}")
+            self.set_stream(0)  # Ensure streaming is stopped
             init_value = self.read_value()
-            sleep(0.5)
+            attempt += 1
+            sleep(0.1)  # Reduced sleep time
 
     def _parse_data_field(self, key: str, value: str) -> Union[int, bool]:
         """Parse a single data field."""

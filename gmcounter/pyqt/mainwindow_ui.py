@@ -509,10 +509,10 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_8.addWidget(self.autoScroll)
 
-        self.pushButton = QPushButton(self.time)
-        self.pushButton.setObjectName(u"pushButton")
+        self.buttonAutoRange = QPushButton(self.time)
+        self.buttonAutoRange.setObjectName(u"buttonAutoRange")
 
-        self.horizontalLayout_8.addWidget(self.pushButton)
+        self.horizontalLayout_8.addWidget(self.buttonAutoRange)
 
 
         self.gridLayout_6.addLayout(self.horizontalLayout_8, 0, 0, 1, 1)
@@ -682,6 +682,7 @@ class Ui_MainWindow(object):
         self.progressTimer.setObjectName(u"progressTimer")
         sizePolicy17.setHeightForWidth(self.progressTimer.sizePolicy().hasHeightForWidth())
         self.progressTimer.setSizePolicy(sizePolicy17)
+        self.progressTimer.setMinimumSize(QSize(50, 0))
 
         self.horizontalLayout_4.addWidget(self.progressTimer)
 
@@ -1018,7 +1019,7 @@ class Ui_MainWindow(object):
         self.gridGroupBox.setTitle(QCoreApplication.translate("MainWindow", u"Live-Metriken", None))
         self.label_19.setText(QCoreApplication.translate("MainWindow", u"Max. Plot Punkte", None))
         self.autoScroll.setText(QCoreApplication.translate("MainWindow", u"Auto Scroll", None))
-        self.pushButton.setText(QCoreApplication.translate("MainWindow", u"x/y Limits anpassen", None))
+        self.buttonAutoRange.setText(QCoreApplication.translate("MainWindow", u"x/y Limits anpassen", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.time), QCoreApplication.translate("MainWindow", u"Zeitverlauf", None))
         self.label_13.setText(QCoreApplication.translate("MainWindow", u"Anzahl:", None))
         self.label_14.setText(QCoreApplication.translate("MainWindow", u"Min / \u00b5s:", None))
@@ -1029,7 +1030,7 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.list), QCoreApplication.translate("MainWindow", u"Liste", None))
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"Voriges Z\u00e4hlergebnis", None))
         self.label_18.setText(QCoreApplication.translate("MainWindow", u"Aktuelle GM-Parameter", None))
-        self.progressTimer.setText(QCoreApplication.translate("MainWindow", u"999", None))
+        self.progressTimer.setText(QCoreApplication.translate("MainWindow", u"99999 s", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Status:", None))
         self.statusText.setText(QCoreApplication.translate("MainWindow", u"unknown", None))
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"Aktuelles Z\u00e4hlergebnis", None))

@@ -11,6 +11,7 @@ class DataAcquisitionThread(QThread):
     """Background thread that pulls data from the device."""
 
     CONNECTION_TIMEOUT = 3.0  # seconds
+    START_MARKER_TIMEOUT = 2.0  # seconds - timeout for detecting start marker
     START_BYTE = 0xAA
     END_BYTE = 0x55
     PACKET_SIZE = 6  # 1 Start-Byte + 4 Daten-Bytes + 1 End-Byte
@@ -68,8 +69,7 @@ class DataAcquisitionThread(QThread):
         Returns:
             True if packet should be skipped.
         """
-        if not self._skip_first_point:
-            self._skip_first_point = True
+        if self._skip_first_point:
             Debug.info(f"Discarding first measurement: 0x{packet.hex()}")
             return True
         return False
@@ -126,6 +126,10 @@ class DataAcquisitionThread(QThread):
         self._skip_first_point = False
         self._last_data_time = time.time()
         self._connection_lost_emitted = False
+        self._first_data_received = False  # Track first data batch
+        self._measurement_start_time = (
+            None  # Track when measurement started for marker timeout
+        )
 
         byte_buffer = b""
 
@@ -147,6 +151,20 @@ class DataAcquisitionThread(QThread):
                     time.sleep(0.05)  # Wait longer when not measuring
                     continue
 
+                # Set measurement start time on first iteration
+                if self._measurement_start_time is None:
+                    self._measurement_start_time = time.time()
+
+                # Check if start marker timeout has been reached
+                if not self._first_data_received:
+                    elapsed = time.time() - self._measurement_start_time
+                    if elapsed > self.START_MARKER_TIMEOUT:
+                        Debug.error(
+                            f"Start marker not detected within {self.START_MARKER_TIMEOUT}s - aborting measurement"
+                        )
+                        self.connection_lost.emit()
+                        break
+
                 # Read available bytes using read_fast method
                 raw_data = device.read_fast(max_bytes=4096, timeout_ms=1500)
                 Debug.debug(
@@ -162,7 +180,21 @@ class DataAcquisitionThread(QThread):
                     # Add new data to buffer
                     byte_buffer += raw_data
 
+                    # Check for measurement start marker (0xFF 0xFF 0xFF 0xFF 0xFF 0xFF)
+                    # This marker cannot be confused with normal packets (which start with 0xAA)
+                    start_marker = b"\xff\xff\xff\xff\xff\xff"
+                    marker_pos = byte_buffer.find(start_marker)
+                    if marker_pos != -1:
+                        # Found start marker - discard everything before and including it
+                        discarded_bytes = marker_pos + len(start_marker)
+                        Debug.info(
+                            f">>> MEASUREMENT START MARKER detected, discarding {discarded_bytes} bytes of accumulated data"
+                        )
+                        byte_buffer = byte_buffer[discarded_bytes:]
+                        self._first_data_received = True
+
                     # Process complete packets
+                    packets_processed = 0
                     while len(byte_buffer) >= self.PACKET_SIZE:
                         start_pos = self._find_packet_start(byte_buffer)
                         if start_pos == -1:
@@ -179,17 +211,30 @@ class DataAcquisitionThread(QThread):
 
                         packet = byte_buffer[: self.PACKET_SIZE]
                         self._process_packet(packet)
+                        packets_processed += 1
                         byte_buffer = byte_buffer[self.PACKET_SIZE :]
-                else:
-                    # No data - check for timeout only if measuring
-                    time_since_last = time.time() - self._last_data_time
-                    if time_since_last > self.CONNECTION_TIMEOUT:
-                        if not self._connection_lost_emitted:
-                            Debug.error("Connection timeout - no data received")
-                            self.connection_lost.emit()
-                            self._connection_lost_emitted = True
 
-                time.sleep(0.001)  # Small delay to prevent CPU hogging
+                    if packets_processed > 0:
+                        Debug.debug(
+                            f"Processed {packets_processed} packets, total index now: {self._index}"
+                        )
+                else:
+                    # No data - check for timeout only if NOT measuring
+                    # (during measurement, pulses can be slow and shouldn't trigger timeout)
+                    if not self.manager.measurement_active:
+                        time_since_last = time.time() - self._last_data_time
+                        if time_since_last > self.CONNECTION_TIMEOUT:
+                            if not self._connection_lost_emitted:
+                                Debug.error("Connection timeout - no data received")
+                                self.connection_lost.emit()
+                                self._connection_lost_emitted = True
+
+                # Adaptive sleep: shorter during active measurement for better response
+                # At 10kHz, packets arrive every 0.1ms, so 0.0001s sleep is appropriate
+                if self.manager.measurement_active:
+                    time.sleep(0.0001)  # 0.1ms - minimal delay during measurement
+                else:
+                    time.sleep(0.01)  # 10ms - longer when idle to save CPU
 
             except Exception as e:
                 Debug.error(f"Error in acquisition thread: {e}", exc_info=True)
@@ -205,7 +250,11 @@ class DataAcquisitionThread(QThread):
         old_index = self._index
         self._index = 0
         self._skip_first_point = False
-        Debug.info(f"Data acquisition index reset from {old_index} to 0")
+        self._first_data_received = False  # Reset first data flag
+        self._measurement_start_time = None  # Reset measurement start time
+        Debug.info(
+            f"Data acquisition index reset from {old_index} to 0 (ready for new measurement)"
+        )
 
     def stop(self):
         """Stop the acquisition thread and wait for it to finish."""

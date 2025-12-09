@@ -1,11 +1,12 @@
 #include <Arduino.h>
 #include "serial_com.h"
 
-bool DEBUG = false;           // Global debug flag
-const char *O_CODE = nullptr; // OpenBIS code for the device
+bool DEBUG = false;                  // Global debug flag
+const char *O_CODE = nullptr;        // OpenBIS code for the device
 const char *VERSION_STR = nullptr;   // Version string for the device
 const char *COPYRIGHT_STR = nullptr; // Copyright string
-int MAX_LENGTH = 64;          // Maximum allowed length of a message line
+int MAX_LENGTH = 64;                 // Maximum allowed length of a message line
+bool NO_GM_COUNTER = false;          // Flag to indicate if this is a test platform
 
 /**
  * @brief Initializes the serial communication and sets the debug mode
@@ -15,14 +16,16 @@ int MAX_LENGTH = 64;          // Maximum allowed length of a message line
  * @param version Version string for the device
  * @param copyright Copyright string for the device
  * @param max_length Maximum length of a message line
+ * @param test_platform Flag to indicate if this is a test platform
  */
-void init(bool debug_on, const char *openbiscode, const char *version, const char *copyright, int max_length)
+void init(bool debug_on, const char *openbiscode, const char *version, const char *copyright, int max_length, bool test_platform)
 {
     DEBUG = debug_on;
     O_CODE = openbiscode;
     VERSION_STR = version;
     COPYRIGHT_STR = copyright;
     MAX_LENGTH = max_length;
+    NO_GM_COUNTER = test_platform;
 }
 
 /**
@@ -203,7 +206,7 @@ void receiveMessage(char receivedChar, volatile char *message, volatile int &ind
  * @param command The command string to send
  * @param measurementInProgress Reference to the measurement progress flag
  */
-void sendMessage(String command, volatile bool &measurementInProgress)
+void sendMessage(String command, volatile bool &measurementInProgress, volatile uint8_t &readIndex, volatile uint8_t &writeIndex, volatile uint32_t &last_timestamp)
 {
     // Send commands to the external device
     command.trim(); // Remove whitespace and control characters
@@ -232,10 +235,26 @@ void sendMessage(String command, volatile bool &measurementInProgress)
     }
     if (command == "s1")
     {
-        measurementInProgress = true; // Start measurement
+        // FIRST: Reset ring buffer indices to discard accumulated ISR data
+        noInterrupts();
+        readIndex = writeIndex; // Sync read to write position (discard old data)
+        last_timestamp = 0;     // Reset timestamp tracking
+        interrupts();
+
+        // SECOND: Send special start marker to signal measurement begin
+        // Marker: 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF (6 bytes, cannot be confused with 0xAA start byte)
+        Serial.write(0xFF);
+        Serial.write(0xFF);
+        Serial.write(0xFF);
+        Serial.write(0xFF);
+        Serial.write(0xFF);
+        Serial.write(0xFF);
+
+        // THIRD: Start measurement
+        measurementInProgress = true;
         if (DEBUG)
         {
-            Serial.println("Measurement started.");
+            Serial.println("Measurement started with buffer reset and start marker sent.");
         }
     }
     if (command == "info")
@@ -280,6 +299,27 @@ void sendMessage(String command, volatile bool &measurementInProgress)
         if (DEBUG)
         {
             Serial.println("Version command received.");
+        }
+    }
+    else if (command == "b2")
+    {
+        // Handle b2 command - return test data on test platforms
+        if (!NO_GM_COUNTER)
+        {
+            // On real platforms, forward to GM counter
+            if (DEBUG)
+            {
+                Serial.println("b2 command forwarded to GM counter.");
+            }
+            Serial1.println(command);
+        }
+        else
+        {
+            if (DEBUG)
+            {
+                Serial.println("b2 command received (test platform).");
+            }
+            Serial.println("999,999,0,0,0,555,");
         }
     }
 }

@@ -93,34 +93,107 @@ class DeviceManager(QObject):
         return True
 
     def start_measurement(self) -> bool:
-        """Send start command to device and enable fast acquisition."""
+        """Send start command to device and enable fast acquisition.
+
+        The Arduino firmware now handles buffer clearing internally when receiving s1.
+        """
         if not (self.device and self.connected):
             return False
         try:
+            start_time = time.time()
+
             # Reset index counter for new measurement
             if self.acquire_thread:
                 self.acquire_thread.reset_index()
 
+            Debug.debug("=== MEASUREMENT START SEQUENCE ===")
+
+            # Send start command to Arduino (s1)
+            # Arduino firmware will:
+            # 1. Reset buffer indices (discard old ISR data)
+            # 2. Send start marker (0xFF x 6)
+            # 3. Activate measurement mode
             self.device.set_counting(True)
+            Debug.debug("Sent set_counting(True) to Arduino")
+
+            # Activate measurement mode in Python
             self.measurement_active = True
-            Debug.info(
-                f"DeviceManager: measurement_active set to {self.measurement_active}"
+
+            total_time = time.time() - start_time
+            Debug.info(f"Total start sequence: {total_time*1000:.1f} ms")
+            Debug.debug(
+                f"DeviceManager: measurement_active = {self.measurement_active}"
             )
+            Debug.debug("=== MEASUREMENT STARTED ===")
+
             return True
         except Exception as exc:  # pragma: no cover - unexpected errors
             Debug.error(f"Failed to start measurement: {exc}")
             return False
 
     def stop_measurement(self) -> bool:
-        """Stop counting and resume configuration polling."""
+        """Stop counting and ensure Arduino returns to command mode.
+
+        Approach:
+        1. Set measurement_active = False FIRST (stops timeout checking)
+        2. Send stop command to Arduino
+        3. Clear GM counter register to reset state
+        4. Wait briefly for processing
+        5. Clear serial buffers
+        """
+        start_time = time.time()
+
+        Debug.debug("=== MEASUREMENT STOP SEQUENCE ===")
+
+        # Set flag FIRST to prevent timeout during stop sequence
+        self.measurement_active = False
+        Debug.debug("Set measurement_active = False at t=0.0 ms")
+
         if not (self.device and self.connected):
-            self.measurement_active = False
+            Debug.warning("Stop called but device not connected")
             return False
+
         try:
+            # Send stop command to Arduino
             self.device.set_counting(False)
+            t1 = time.time()
+            Debug.info(
+                f"Sent set_counting(False) at t={((t1 - start_time)*1000):.1f} ms"
+            )
+
+            # Give Arduino brief moment to stop streaming
+            time.sleep(0.2)
+            t2 = time.time()
+            Debug.info(f"Waited 200ms, now at t={((t2 - start_time)*1000):.1f} ms")
+
+            # Clear GM counter register to reset its state
+            self.device.clear_register()
+            t3 = time.time()
+            Debug.info(f"Sent clear_register() at t={((t3 - start_time)*1000):.1f} ms")
+
+            # Wait for GM counter to process reset
+            time.sleep(0.2)
+            t4 = time.time()
+            Debug.info(f"Waited 200ms, now at t={((t4 - start_time)*1000):.1f} ms")
+
+            # Clear any remaining buffered data
+            if self.device.serial and self.device.serial.is_open:
+                bytes_waiting = self.device.serial.in_waiting
+                Debug.info(f"Buffer status: {bytes_waiting} bytes waiting")
+
+                try:
+                    self.device.serial.reset_input_buffer()
+                    Debug.info("Cleared remaining serial buffer")
+                except OSError as e:
+                    Debug.debug(f"Could not reset buffer: {e}")
+
+            total_time = time.time() - start_time
+            Debug.info(f"Total stop sequence: {total_time*1000:.1f} ms")
+            Debug.info("=== MEASUREMENT STOPPED ===")
+
         except Exception as exc:  # pragma: no cover - unexpected errors
             Debug.error(f"Failed to stop measurement: {exc}")
-        self.measurement_active = False
+
         return True
 
     def _handle_connection_lost(self) -> None:
