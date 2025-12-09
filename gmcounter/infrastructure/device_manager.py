@@ -3,8 +3,9 @@
 from typing import Optional
 import time
 from threading import Event
+import serial
 
-from PySide6.QtCore import QObject, Signal  # pylint: disable=no-name-in-module
+from PySide6.QtCore import QObject, Signal, QTimer  # pylint: disable=no-name-in-module
 
 from .arduino import GMCounter
 from .logging import Debug
@@ -12,7 +13,19 @@ from .qt_threads import DataAcquisitionThread
 
 
 class DeviceManager(QObject):
-    """Handle device connections and data acquisition."""
+    """Handle device connections and data acquisition.
+
+    This class manages the hardware interface layer only:
+    - Device connection/disconnection
+    - Data acquisition thread lifecycle
+    - Hardware command execution
+
+    Domain state (measurement_active) should be managed by core/services.
+    """
+
+    # Timing constants for hardware operations (milliseconds)
+    STOP_SEQUENCE_DELAY_MS = 200
+    CLEAR_REGISTER_DELAY_MS = 200
 
     # Signals for data and status updates
     status_update = Signal(str, str)  # (message, color)
@@ -42,8 +55,13 @@ class DeviceManager(QObject):
 
             self.start_acquisition()
             return True
-        except Exception as exc:
-            Debug.error(f"Connection failed: {exc}")
+        except serial.SerialException as exc:
+            Debug.error(f"Serial connection failed: {exc}")
+            self.connected = False
+            self.status_update.emit(f"Connection failed: {exc}", "red")
+            return False
+        except (OSError, ValueError) as exc:
+            Debug.error(f"Device initialization failed: {exc}")
             self.connected = False
             self.status_update.emit(f"Connection failed: {exc}", "red")
             return False
@@ -57,7 +75,7 @@ class DeviceManager(QObject):
             info = self.device.get_information()
             Debug.info(f"Device info retrieved: {info}")
             self.device_info_received.emit(info)
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-except
             Debug.error(f"Failed to fetch device info: {exc}")
 
     def disconnect_device(self) -> None:
@@ -66,10 +84,11 @@ class DeviceManager(QObject):
         if self.device:
             try:
                 self.device.close()
-            except Exception as exc:  # pragma: no cover - close errors
+            except (serial.SerialException, OSError) as exc:
                 Debug.error(f"Error closing device: {exc}")
         self.device = None
         self.connected = False
+        self.measurement_active = False
 
     def start_acquisition(self) -> bool:
         """Start or (re)connect the acquisition thread."""
@@ -77,20 +96,37 @@ class DeviceManager(QObject):
             # Thread already running, ensure signal is connected
             return True
 
-        self.acquire_thread = DataAcquisitionThread(self)
-        # Forward data_point signal from thread to our data_received signal
-        self.acquire_thread.data_point.connect(self.data_received.emit)
-        # Connect connection_lost signal to handle disconnections
-        self.acquire_thread.connection_lost.connect(self._handle_connection_lost)
-        self.acquire_thread.start()
-        return True
+        try:
+            self.acquire_thread = DataAcquisitionThread(self)
+            # Forward data_point signal from thread to our data_received signal
+            self.acquire_thread.data_point.connect(self.data_received.emit)
+            # Connect connection_lost signal to handle disconnections
+            self.acquire_thread.connection_lost.connect(self._handle_connection_lost)
+            self.acquire_thread.start()
 
-    def stop_acquisition(self) -> bool:
-        """Stop the acquisition thread."""
+            # Verify thread started successfully
+            if not self.acquire_thread.isRunning():
+                Debug.error("Failed to start acquisition thread")
+                return False
+
+            return True
+        except Exception as exc:  # pylint: disable=broad-except
+            Debug.error(f"Failed to start acquisition thread: {exc}")
+            return False
+
+    def stop_acquisition(self) -> None:
+        """Stop the acquisition thread if running."""
         if self.acquire_thread and self.acquire_thread.isRunning():
-            self.acquire_thread.stop()
-        self.acquire_thread = None
-        return True
+            try:
+                self.stop_event.set()
+                self.acquire_thread.stop()
+                self.acquire_thread.wait(2000)  # Wait up to 2 seconds
+                if self.acquire_thread.isRunning():
+                    Debug.warning("Acquisition thread did not stop in time")
+            except Exception as exc:  # pylint: disable=broad-except
+                Debug.error(f"Error stopping acquisition thread: {exc}")
+            finally:
+                self.stop_event.clear()
 
     def start_measurement(self) -> bool:
         """Send start command to device and enable fast acquisition.
@@ -98,7 +134,9 @@ class DeviceManager(QObject):
         The Arduino firmware now handles buffer clearing internally when receiving s1.
         """
         if not (self.device and self.connected):
+            Debug.warning("Cannot start measurement: device not connected")
             return False
+
         try:
             start_time = time.time()
 
@@ -117,6 +155,7 @@ class DeviceManager(QObject):
             Debug.debug("Sent set_counting(True) to Arduino")
 
             # Activate measurement mode in Python
+            # NOTE: This is domain state and should eventually move to core/services
             self.measurement_active = True
 
             total_time = time.time() - start_time
@@ -124,11 +163,16 @@ class DeviceManager(QObject):
             Debug.debug(
                 f"DeviceManager: measurement_active = {self.measurement_active}"
             )
-            Debug.debug("=== MEASUREMENT STARTED ===")
+            Debug.info("=== MEASUREMENT STARTED ===")
 
             return True
-        except Exception as exc:  # pragma: no cover - unexpected errors
+        except serial.SerialException as exc:
+            Debug.error(f"Serial error during start measurement: {exc}")
+            self.measurement_active = False
+            return False
+        except (OSError, ValueError) as exc:
             Debug.error(f"Failed to start measurement: {exc}")
+            self.measurement_active = False
             return False
 
     def stop_measurement(self) -> bool:
@@ -138,8 +182,10 @@ class DeviceManager(QObject):
         1. Set measurement_active = False FIRST (stops timeout checking)
         2. Send stop command to Arduino
         3. Clear GM counter register to reset state
-        4. Wait briefly for processing
+        4. Wait briefly for processing (using QTimer callbacks)
         5. Clear serial buffers
+
+        Note: Uses sequential QTimer.singleShot calls to avoid blocking.
         """
         start_time = time.time()
 
@@ -157,48 +203,92 @@ class DeviceManager(QObject):
             # Send stop command to Arduino
             self.device.set_counting(False)
             t1 = time.time()
-            Debug.info(
+            Debug.debug(
                 f"Sent set_counting(False) at t={((t1 - start_time)*1000):.1f} ms"
             )
 
-            # Give Arduino brief moment to stop streaming
-            time.sleep(0.2)
-            t2 = time.time()
-            Debug.info(f"Waited 200ms, now at t={((t2 - start_time)*1000):.1f} ms")
+            # Schedule the rest of the stop sequence with QTimer to avoid blocking
+            QTimer.singleShot(self.STOP_SEQUENCE_DELAY_MS, self._continue_stop_sequence)
 
+            return True
+
+        except serial.SerialException as exc:
+            Debug.error(f"Serial error during stop measurement: {exc}")
+            return False
+        except (OSError, ValueError) as exc:
+            Debug.error(f"Failed to stop measurement: {exc}")
+            return False
+
+    def _continue_stop_sequence(self) -> None:
+        """Continue stop sequence after initial delay (called by QTimer)."""
+        if not (self.device and self.connected):
+            return
+
+        try:
             # Clear GM counter register to reset its state
             self.device.clear_register()
-            t3 = time.time()
-            Debug.info(f"Sent clear_register() at t={((t3 - start_time)*1000):.1f} ms")
+            Debug.debug("Sent clear_register()")
 
-            # Wait for GM counter to process reset
-            time.sleep(0.2)
-            t4 = time.time()
-            Debug.info(f"Waited 200ms, now at t={((t4 - start_time)*1000):.1f} ms")
+            # Schedule buffer clearing after another delay
+            QTimer.singleShot(
+                self.CLEAR_REGISTER_DELAY_MS, self._finalize_stop_sequence
+            )
 
+        except serial.SerialException as exc:
+            Debug.error(f"Serial error during stop sequence: {exc}")
+        except (OSError, ValueError) as exc:
+            Debug.error(f"Error during stop sequence: {exc}")
+
+    def _finalize_stop_sequence(self) -> None:
+        """Finalize stop sequence by clearing buffers (called by QTimer)."""
+        if not (self.device and self.connected):
+            return
+
+        try:
             # Clear any remaining buffered data
             if self.device.serial and self.device.serial.is_open:
                 bytes_waiting = self.device.serial.in_waiting
-                Debug.info(f"Buffer status: {bytes_waiting} bytes waiting")
+                Debug.debug(f"Buffer status: {bytes_waiting} bytes waiting")
 
                 try:
                     self.device.serial.reset_input_buffer()
-                    Debug.info("Cleared remaining serial buffer")
+                    Debug.debug("Cleared remaining serial buffer")
                 except OSError as e:
-                    Debug.debug(f"Could not reset buffer: {e}")
+                    Debug.warning(f"Could not reset buffer: {e}")
 
-            total_time = time.time() - start_time
-            Debug.info(f"Total stop sequence: {total_time*1000:.1f} ms")
             Debug.info("=== MEASUREMENT STOPPED ===")
 
-        except Exception as exc:  # pragma: no cover - unexpected errors
-            Debug.error(f"Failed to stop measurement: {exc}")
-
-        return True
+        except serial.SerialException as exc:
+            Debug.error(f"Serial error finalizing stop: {exc}")
+        except (OSError, ValueError) as exc:
+            Debug.error(f"Error finalizing stop: {exc}")
 
     def _handle_connection_lost(self) -> None:
-        """Handle connection loss from acquisition thread."""
+        """Handle connection loss from acquisition thread.
+
+        Performs cleanup and notifies UI of disconnection.
+        """
         Debug.error("Connection lost during acquisition")
+
+        # Update state flags
         self.connected = False
         self.measurement_active = False
+
+        # Stop acquisition thread
+        if self.acquire_thread and self.acquire_thread.isRunning():
+            try:
+                self.acquire_thread.stop()
+            except Exception as exc:  # pylint: disable=broad-except
+                Debug.error(f"Error stopping acquisition thread: {exc}")
+
+        # Close device connection
+        if self.device:
+            try:
+                self.device.close()
+            except Exception as exc:  # pylint: disable=broad-except
+                Debug.error(f"Error closing device after connection loss: {exc}")
+            self.device = None
+
+        # Notify UI
         self.status_update.emit("Connection lost", "red")
+        Debug.debug("Connection cleanup completed")
