@@ -10,6 +10,7 @@ from PySide6.QtCore import QObject, Signal, QTimer  # pylint: disable=no-name-in
 from .arduino import GMCounter
 from .logging import Debug
 from .qt_threads import DataAcquisitionThread
+from ..core.services import MeasurementStateService
 
 
 class DeviceManager(QObject):
@@ -20,7 +21,7 @@ class DeviceManager(QObject):
     - Data acquisition thread lifecycle
     - Hardware command execution
 
-    Domain state (measurement_active) should be managed by core/services.
+    Domain state (measurement_active) is delegated to MeasurementStateService.
     """
 
     # Timing constants for hardware operations (milliseconds)
@@ -31,15 +32,26 @@ class DeviceManager(QObject):
     status_update = Signal(str, str)  # (message, color)
     data_received = Signal(int, float)  # (index, value)
     device_info_received = Signal(dict)  # device info dictionary
+    connection_lost = Signal()  # Emitted when device connection is lost
 
-    def __init__(self, parent=None) -> None:
+    def __init__(
+        self, measurement_state: Optional[MeasurementStateService] = None, parent=None
+    ) -> None:
         super().__init__(parent)
         self.connected = False
         self.port = "None"
         self.device: Optional[GMCounter] = None
         self.acquire_thread: Optional[DataAcquisitionThread] = None
         self.stop_event = Event()
-        self.measurement_active = False
+
+        # Use provided service or create default
+        if measurement_state is None:
+            self.measurement_state = MeasurementStateService()
+        else:
+            self.measurement_state = measurement_state
+
+        # Flag to prevent multiple connection_lost handlers
+        self._connection_lost_handled = False
 
     def connect_device(self, port: str, baudrate: int) -> bool:
         """Connect to the given serial port and retrieve device information."""
@@ -48,6 +60,7 @@ class DeviceManager(QObject):
         try:
             self.device = GMCounter(port=port, baudrate=baudrate)
             self.connected = True
+            self._connection_lost_handled = False  # Reset on successful connection
             self.status_update.emit(f"Connected to {port}", "green")
 
             # Retrieve and report device information (version, openbis, etc.)
@@ -65,6 +78,27 @@ class DeviceManager(QObject):
             self.connected = False
             self.status_update.emit(f"Connection failed: {exc}", "red")
             return False
+
+    def attempt_automatic_reconnect(self) -> bool:
+        """Attempt to automatically reconnect to the last known device.
+
+        This is called when an unexpected disconnection is detected.
+        It tries to reconnect to the same port without user intervention.
+
+        Returns:
+            True if reconnection successful, False otherwise.
+        """
+        if not self.port or self.port == "None":
+            Debug.warning("No previous port to reconnect to")
+            return False
+
+        Debug.info(f"Attempting automatic reconnection to {self.port}")
+        # Reset the connection_lost_handled flag before attempting
+        self._connection_lost_handled = False
+
+        # ✅ FIX: Use correct baudrate (1000000 for Arduino R4)
+        # instead of hardcoded 115200
+        return self.connect_device(self.port, 1000000)
 
     def _fetch_device_info(self) -> None:
         """Fetch device information and call the info callback."""
@@ -88,7 +122,8 @@ class DeviceManager(QObject):
                 Debug.error(f"Error closing device: {exc}")
         self.device = None
         self.connected = False
-        self.measurement_active = False
+        self.measurement_state.stop_measurement()
+        self._connection_lost_handled = False  # Reset flag for next disconnection
 
     def start_acquisition(self) -> bool:
         """Start or (re)connect the acquisition thread."""
@@ -154,25 +189,24 @@ class DeviceManager(QObject):
             self.device.set_counting(True)
             Debug.debug("Sent set_counting(True) to Arduino")
 
-            # Activate measurement mode in Python
-            # NOTE: This is domain state and should eventually move to core/services
-            self.measurement_active = True
+            # Activate measurement mode via domain service
+            self.measurement_state.start_measurement()
 
             total_time = time.time() - start_time
             Debug.info(f"Total start sequence: {total_time*1000:.1f} ms")
             Debug.debug(
-                f"DeviceManager: measurement_active = {self.measurement_active}"
+                f"DeviceManager: measurement_active = {self.measurement_state.measurement_active}"
             )
             Debug.info("=== MEASUREMENT STARTED ===")
 
             return True
         except serial.SerialException as exc:
             Debug.error(f"Serial error during start measurement: {exc}")
-            self.measurement_active = False
+            self.measurement_state.stop_measurement()
             return False
         except (OSError, ValueError) as exc:
             Debug.error(f"Failed to start measurement: {exc}")
-            self.measurement_active = False
+            self.measurement_state.stop_measurement()
             return False
 
     def stop_measurement(self) -> bool:
@@ -192,7 +226,7 @@ class DeviceManager(QObject):
         Debug.debug("=== MEASUREMENT STOP SEQUENCE ===")
 
         # Set flag FIRST to prevent timeout during stop sequence
-        self.measurement_active = False
+        self.measurement_state.stop_measurement()
         Debug.debug("Set measurement_active = False at t=0.0 ms")
 
         if not (self.device and self.connected):
@@ -267,21 +301,21 @@ class DeviceManager(QObject):
         """Handle connection loss from acquisition thread.
 
         Performs cleanup and notifies UI of disconnection.
+        Uses a flag to prevent race conditions from multiple signal emissions.
         """
-        Debug.error("Connection lost during acquisition")
+        # Prevent handler from running multiple times
+        if self._connection_lost_handled:
+            Debug.debug("Connection lost already handled, ignoring duplicate signal")
+            return
+
+        self._connection_lost_handled = True
+        Debug.error("Connection lost during acquisition - initiating cleanup")
 
         # Update state flags
         self.connected = False
-        self.measurement_active = False
+        self.measurement_state.stop_measurement()
 
-        # Stop acquisition thread
-        if self.acquire_thread and self.acquire_thread.isRunning():
-            try:
-                self.acquire_thread.stop()
-            except Exception as exc:  # pylint: disable=broad-except
-                Debug.error(f"Error stopping acquisition thread: {exc}")
-
-        # Close device connection
+        # Close device connection (doesn't require stopping thread)
         if self.device:
             try:
                 self.device.close()
@@ -289,6 +323,17 @@ class DeviceManager(QObject):
                 Debug.error(f"Error closing device after connection loss: {exc}")
             self.device = None
 
+        # Stop acquisition thread asynchronously to avoid blocking signal handler
+        # The thread should exit naturally when device is None
+        if self.acquire_thread:
+            try:
+                self.stop_event.set()
+                # Don't wait - thread will exit when it detects device is None
+                self.acquire_thread.requestInterruption()
+            except Exception as exc:  # pylint: disable=broad-except
+                Debug.error(f"Error stopping acquisition thread: {exc}")
+
         # Notify UI
         self.status_update.emit("Connection lost", "red")
+        self.connection_lost.emit()
         Debug.debug("Connection cleanup completed")

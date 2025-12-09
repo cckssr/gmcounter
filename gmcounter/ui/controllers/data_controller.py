@@ -305,8 +305,16 @@ class DataController(QObject):
             self._histogram_update_timer.stop()
             self._histogram_update_timer = None
 
-        # Restart regular GUI updates (will be started in clear_data or automatically)
-        # Don't restart here to avoid conflicts with clear_data()
+        # ✅ FIX: Restart regular GUI updates (plot, table, etc.)
+        # Dies stellt sicher, dass Plot-Updates wiederaufgenommen werden
+        # nachdem HIGH_SPEED_MODE endet
+        if self.gui_update_timer is not None and not self.gui_update_timer.isActive():
+            self.gui_update_timer.start(UPDATE_INTERVAL)
+            Debug.info(
+                f"GUI update timer restarted after HIGH_SPEED_MODE deactivation "
+                f"(interval={UPDATE_INTERVAL}ms)"
+            )
+
         Debug.debug("HIGH_SPEED_MODE cleanup complete")
 
     def _check_high_speed_mode(self, batch_size: int, current_time: float) -> None:

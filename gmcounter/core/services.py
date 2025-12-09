@@ -427,3 +427,35 @@ class DeviceControlService:
         except Exception as e:
             Debug.error(f"Error resetting settings: {e}", exc_info=e)
             return False
+
+
+class MeasurementStateService:
+    """Service for managing measurement state - domain logic only.
+
+    This service encapsulates the domain state of whether a measurement
+    is active, separate from the hardware/infrastructure layer.
+    """
+
+    def __init__(self):
+        """Initialize the measurement state service."""
+        self._measurement_active = False
+
+    @property
+    def measurement_active(self) -> bool:
+        """Check if measurement is currently active."""
+        return self._measurement_active
+
+    def start_measurement(self) -> None:
+        """Mark measurement as started."""
+        self._measurement_active = True
+        Debug.debug("MeasurementStateService: measurement started")
+
+    def stop_measurement(self) -> None:
+        """Mark measurement as stopped."""
+        self._measurement_active = False
+        Debug.debug("MeasurementStateService: measurement stopped")
+
+    def reset(self) -> None:
+        """Reset measurement state."""
+        self._measurement_active = False
+        Debug.debug("MeasurementStateService: state reset")

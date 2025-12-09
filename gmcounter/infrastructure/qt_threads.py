@@ -139,15 +139,16 @@ class DataAcquisitionThread(QThread):
 
                 # Check if device is connected
                 if not device or not device.connected:
-                    Debug.error("Device not connected in acquisition thread")
+                    # Only log error once, not repeatedly
                     if not self._connection_lost_emitted:
+                        Debug.error("Device not connected in acquisition thread")
                         self.connection_lost.emit()
                         self._connection_lost_emitted = True
                     time.sleep(0.1)
                     continue
 
                 # Only acquire data if measurement is active
-                if not self.manager.measurement_active:
+                if not self.manager.measurement_state.measurement_active:
                     time.sleep(0.05)  # Wait longer when not measuring
                     continue
 
@@ -224,7 +225,7 @@ class DataAcquisitionThread(QThread):
                 else:
                     # No data - check for timeout only if NOT measuring
                     # (during measurement, pulses can be slow and shouldn't trigger timeout)
-                    if not self.manager.measurement_active:
+                    if not self.manager.measurement_state.measurement_active:
                         time_since_last = time.time() - self._last_data_time
                         if time_since_last > self.CONNECTION_TIMEOUT:
                             if not self._connection_lost_emitted:
@@ -234,7 +235,7 @@ class DataAcquisitionThread(QThread):
 
                 # Adaptive sleep: shorter during active measurement for better response
                 # At 10kHz, packets arrive every 0.1ms, so 0.0001s sleep is appropriate
-                if self.manager.measurement_active:
+                if self.manager.measurement_state.measurement_active:
                     time.sleep(0.0001)  # 0.1ms - minimal delay during measurement
                 else:
                     time.sleep(0.01)  # 10ms - longer when idle to save CPU

@@ -9,9 +9,13 @@
     },
 
     "debug": {
-      "level_default": "verbose"
+      "level_default": "info"
     },
-
+    "connection": {
+      "max_retry_attempts": 10,
+      "initial_retry_delay_ms": 2000,
+      "max_retry_delay_ms": 10000
+    },
     "plot": {
       "max_points": 300,
       "x_label": "Ereignis k",
