@@ -18,6 +18,8 @@ def import_config(language: str = "de") -> dict:
     from .logging import Debug
 
     # Mögliche Pfade für config.json (in Prioritätsreihenfolge)
+    # WICHTIG: Dateipfade haben Vorrang vor Package-Resources,
+    # damit während Development/Release die aktuelle Config verwendet wird
     possible_paths = [
         Path(__file__).parent.parent / "config.json",  # Im gmcounter/ Verzeichnis
         Path(__file__).parent.parent.parent / "config.json",  # Projektroot
@@ -25,18 +27,7 @@ def import_config(language: str = "de") -> dict:
         Path(sys.prefix) / "config.json",  # Installation prefix
     ]
 
-    # Falls als Package installiert, nutze importlib.resources (Python 3.9+)
-    try:
-        if sys.version_info >= (3, 9):
-            from importlib.resources import files
-
-            package_config = files("gmcounter").joinpath("config.json")
-            if hasattr(package_config, "read_text"):
-                config = json.loads(package_config.read_text(encoding="utf-8"))
-                return config.get(language, config.get("de", {}))
-    except Exception:
-        pass  # Fallback zu Dateipfaden
-
+    # ZUERST: Versuche config.json von Dateipfaden zu laden
     for config_path in possible_paths:
         try:
             if config_path.exists():
@@ -46,6 +37,19 @@ def import_config(language: str = "de") -> dict:
                     return config.get(language, config.get("de", {}))
         except (FileNotFoundError, json.JSONDecodeError):
             continue
+
+    # FALLBACK: Falls keine Datei gefunden, nutze importlib.resources (Package-Ressource)
+    try:
+        if sys.version_info >= (3, 9):
+            from importlib.resources import files
+
+            package_config = files("gmcounter").joinpath("config.json")
+            if hasattr(package_config, "read_text"):
+                config = json.loads(package_config.read_text(encoding="utf-8"))
+                Debug.debug("Config loaded from package resources (fallback).")
+                return config.get(language, config.get("de", {}))
+    except Exception as e:
+        Debug.debug(f"Failed to load config from package resources: {e}")
 
     Debug.error("config.json not found. Please ensure it exists in the project root.")
     return {}
