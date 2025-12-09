@@ -174,17 +174,72 @@ class PlotWidget(pg.PlotWidget):
             viewbox.enableAutoRange(enable=False)
             Debug.debug("Auto-Range deaktiviert")
 
-    def clear(self):
-        """Clear plot data efficiently.
+    def clear_measurement_data(self):
+        """Clear plot measurement data for new measurement.
 
-        PERFORMANCE: Only clear data, not the entire plot widget.
+        This method is called when starting a new measurement to ensure
+        the plot is in a clean state.
         """
+        Debug.info(
+            f"PlotWidget.clear_measurement_data() called, _plot_item exists: {hasattr(self, '_plot_item')}, is None: {getattr(self, '_plot_item', None) is None}"
+        )
         if hasattr(self, "_plot_item") and self._plot_item is not None:
-            # Just clear the data, don't destroy the plot item
-            self._plot_item.setData([], [])
+            # Remove the plot item completely for clean re-initialization
+            try:
+                self.removeItem(self._plot_item)
+                Debug.info("PlotWidget: Successfully removed _plot_item from view")
+            except Exception as e:
+                Debug.error(f"PlotWidget: Error removing _plot_item: {e}")
+            self._plot_item = None
+            Debug.info("PlotWidget: _plot_item set to None")
+        else:
+            Debug.info(
+                f"PlotWidget.clear_measurement_data(): _plot_item is already None or doesn't exist"
+            )
+
         # Reset scroll counter
         if hasattr(self, "_scroll_update_counter"):
             self._scroll_update_counter = 0
+
+        # Also call base class clear() to ensure complete cleanup
+        try:
+            super().clear()
+            Debug.info("PlotWidget: Base class clear() called")
+        except Exception as e:
+            Debug.error(f"PlotWidget: Error calling base clear(): {e}")
+
+    def clear(self):
+        """Clear plot data efficiently.
+
+        PERFORMANCE: Remove the plot item to ensure clean state for next measurement.
+        """
+        Debug.info(
+            f"PlotWidget.clear() called, _plot_item exists: {hasattr(self, '_plot_item')}, is None: {getattr(self, '_plot_item', None) is None}"
+        )
+        if hasattr(self, "_plot_item") and self._plot_item is not None:
+            # Remove the plot item completely for clean re-initialization
+            try:
+                self.removeItem(self._plot_item)
+                Debug.info("PlotWidget: Successfully removed _plot_item from view")
+            except Exception as e:
+                Debug.error(f"PlotWidget: Error removing _plot_item: {e}")
+            self._plot_item = None
+            Debug.info("PlotWidget: _plot_item set to None")
+        else:
+            Debug.info(
+                f"PlotWidget.clear(): _plot_item is already None or doesn't exist"
+            )
+
+        # Reset scroll counter
+        if hasattr(self, "_scroll_update_counter"):
+            self._scroll_update_counter = 0
+
+        # Also call base class clear() to ensure complete cleanup
+        try:
+            super().clear()
+            Debug.info("PlotWidget: Base class clear() called")
+        except Exception as e:
+            Debug.error(f"PlotWidget: Error calling base clear(): {e}")
 
     def update_plot(self, data_points: List[Tuple[int, float, str]]):
         """
@@ -197,6 +252,7 @@ class PlotWidget(pg.PlotWidget):
             data_points: List of (index_num, value_num, timestamp) tuples
         """
         if not data_points:
+            Debug.debug("update_plot called with empty data_points")
             return
 
         # AGGRESSIVE Downsampling for smooth performance
@@ -222,6 +278,18 @@ class PlotWidget(pg.PlotWidget):
         # This reuses the existing plot item instead of destroying and recreating it
         if not hasattr(self, "_plot_item") or self._plot_item is None:
             # First time: create plot item
+            Debug.info(
+                f"Creating new plot item with {len(display_points)} points, symbols={use_symbols}"
+            )
+            # CRITICAL: Disconnect sigRangeChanged to prevent false user interaction detection
+            # The signal will trigger multiple times during plot creation and cause auto-scroll to be disabled
+            viewbox = self.plotItem.getViewBox()
+            try:
+                viewbox.sigRangeChanged.disconnect(self._on_view_changed)
+                signal_disconnected = True
+            except:
+                signal_disconnected = False
+
             if use_symbols:
                 self._plot_item = self.plot(
                     all_indices,
@@ -239,6 +307,13 @@ class PlotWidget(pg.PlotWidget):
                     all_values_us,
                     pen="gray",
                 )
+
+            # Reconnect signal after plot creation
+            if signal_disconnected:
+                viewbox.sigRangeChanged.connect(self._on_view_changed)
+                Debug.debug(
+                    "PlotWidget: sigRangeChanged reconnected after plot creation"
+                )
         else:
             # Subsequent updates: just update data (MUCH faster!)
             self._plot_item.setData(all_indices, all_values_us)
@@ -254,11 +329,10 @@ class PlotWidget(pg.PlotWidget):
         viewbox = self.plotItem.getViewBox()
 
         if self._auto_range_enabled:
-            # Auto-range mode: let pyqtgraph handle it (but only update occasionally)
-            if len(data_points) % 50 == 0:  # Only every 50th update (was 10)
-                self._programmatic_update = True
-                viewbox.enableAutoRange(enable=True)
-                self._programmatic_update = False
+            # Auto-range mode: let pyqtgraph handle it immediately for responsive UI
+            self._programmatic_update = True
+            viewbox.enableAutoRange(enable=True)
+            self._programmatic_update = False
         elif self._auto_scroll_enabled:
             # Auto-scroll mode: update range only every 100 updates to reduce overhead
             if not hasattr(self, "_scroll_update_counter"):
@@ -266,8 +340,8 @@ class PlotWidget(pg.PlotWidget):
 
             self._scroll_update_counter += 1
 
-            # Only update range every 100 calls (was 20) - reduces overhead significantly
-            if self._scroll_update_counter >= 100:
+            # Update range every 10 calls for smooth scrolling
+            if self._scroll_update_counter >= 10:
                 self._scroll_update_counter = 0
 
                 # Show only the last max_plot_points
@@ -406,6 +480,28 @@ class HistogramWidget(pg.PlotWidget):
 
         self._hist_item = None
 
+    def clear_measurement_data(self):
+        """
+        Clear measurement data from histogram.
+        
+        Removes the histogram bar item completely to ensure clean state
+        for next measurement.
+        """
+        Debug.debug(
+            f"HistogramWidget.clear_measurement_data() called, _hist_item exists: {hasattr(self, '_hist_item')}, is None: {getattr(self, '_hist_item', None) is None}"
+        )
+        
+        if hasattr(self, "_hist_item") and self._hist_item is not None:
+            self.removeItem(self._hist_item)
+            self._hist_item = None
+            Debug.debug("HistogramWidget.clear_measurement_data(): _hist_item removed and set to None")
+        else:
+            Debug.debug(
+                "HistogramWidget.clear_measurement_data(): _hist_item is already None or doesn't exist"
+            )
+        
+        Debug.debug("HistogramWidget.clear_measurement_data(): Completed")
+
     def update_histogram(self, data: Iterable[float], bins: int = 50):
         """
         Update the histogram with new data.
@@ -444,6 +540,6 @@ class HistogramWidget(pg.PlotWidget):
                 width=width * 0.8,
             )
 
-        # Auto-range to fit data (only occasionally to reduce overhead)
-        if len(data) % 50 == 0:  # Only every 50th update
-            self.autoRange()
+        # Always auto-range to fit data (histogram should always show full distribution)
+        # User interaction (zoom/pan) is intentionally ignored for histogram
+        self.autoRange()

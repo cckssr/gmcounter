@@ -88,6 +88,9 @@ class MainWindow(QMainWindow):
             CONFIG["messages"]["connected"].format(self.device_manager.port),
             CONFIG["colors"]["green"],
         )
+        
+        # Set initial status indicator
+        self._update_status_indicator("Bereit", "green")
 
     #
     # 1. INITIALIZATION AND SETUP
@@ -151,7 +154,10 @@ class MainWindow(QMainWindow):
         QVBoxLayout(self.ui.timePlot).addWidget(self.plot)
 
         # Histogram plot
-        self.histogram = HistogramWidget(xlabel=CONFIG["plot"]["x_label"])
+        self.histogram = HistogramWidget(
+            xlabel=CONFIG["histogram"]["x_label"],
+            ylabel=CONFIG["histogram"]["y_label"],
+        )
         QVBoxLayout(self.ui.histWidget).addWidget(self.histogram)
 
     def _setup_data_controller(self):
@@ -162,6 +168,11 @@ class MainWindow(QMainWindow):
             histogram_widget=self.histogram,
             table_widget=self.ui.tableView,
             max_history=CONFIG["data_controller"]["max_history_size"],
+        )
+
+        # Connect HIGH_SPEED_MODE signal
+        self.data_controller.high_speed_mode_changed.connect(
+            self._handle_high_speed_mode_change
         )
 
     def _setup_buttons(self):
@@ -351,9 +362,12 @@ class MainWindow(QMainWindow):
             self.backup_timer.start(30000)  # 30000ms = 30s
 
             self.statusbar.temp_message(
-                CONFIG["messages"]["measurement_running"],
-                CONFIG["colors"]["orange"],
+                "Messung läuft...",
+                CONFIG["colors"]["blue"],
+                duration=0,  # Persistent during measurement
             )
+            self._update_status_indicator("Messung", "blue")
+            Debug.info("Measurement started, statusbar updated")
 
     def _stop_measurement(self):
         """Stop measurement and resume config polling."""
@@ -371,9 +385,12 @@ class MainWindow(QMainWindow):
 
         self._set_ui_idle_state()
         self.statusbar.temp_message(
-            CONFIG["messages"]["measurement_stopped"],
-            CONFIG["colors"]["red"],
+            "Messung gestoppt. Daten bereit zum Speichern.",
+            CONFIG["colors"]["green"],
+            duration=0,  # Persistent
         )
+        self._update_status_indicator("Gestoppt", "yellow")
+        Debug.info("Measurement stopped, statusbar updated")
         # Auto-save is handled by backup timer, not here
         # The periodic auto_backup via SaveService takes care of incremental backups
 
@@ -419,8 +436,9 @@ class MainWindow(QMainWindow):
                 self.ui.buttonStart.setEnabled(True)
 
                 self.statusbar.temp_message(
-                    f"Messung erfolgreich gespeichert: {saved_path}",
+                    f"Messung erfolgreich gespeichert. Bereit für neue Messung.",
                     CONFIG["colors"]["green"],
+                    duration=0,  # Persistent
                 )
                 Debug.info(f"Messung manuell gespeichert: {saved_path}")
             else:
@@ -465,10 +483,12 @@ class MainWindow(QMainWindow):
         self.ui.buttonStart.setEnabled(True)
 
         self.statusbar.temp_message(
-            "Alle Messdaten wurden gelöscht.",
+            "Alle Messdaten wurden gelöscht. Bereit für neue Messung.",
             CONFIG["colors"]["green"],
+            duration=0,  # Persistent
         )
-        Debug.info("Alle Messdaten wurden gelöscht.")
+        self._update_status_indicator("Bereit", "green")
+        Debug.info("All measurement data cleared, statusbar updated")
 
     #
     # 2. DATA PROCESSING AND STATISTICS
@@ -497,6 +517,92 @@ class MainWindow(QMainWindow):
             self.ui.buttonStart.setEnabled(
                 False
             )  # Start deaktiviert bei ungespeicherten Daten
+
+    def _handle_high_speed_mode_change(self, activated: bool):
+        """Handle HIGH_SPEED_MODE activation/deactivation from DataController.
+
+        Args:
+            activated: True if HIGH_SPEED_MODE was activated, False if deactivated
+        """
+        if activated:
+            # Calculate minimum frequency from config parameters
+            # batch_threshold points per batch, gui_update_interval in ms
+            batch_threshold = CONFIG["data_controller"]["high_speed_mode"][
+                "batch_threshold"
+            ]
+            gui_interval_ms = CONFIG["timers"]["gui_update_interval"]
+            min_freq_hz = int((batch_threshold * 1000) / gui_interval_ms)
+
+            # HIGH_SPEED_MODE activated
+            self.statusbar.temp_message(
+                f"⚡ HIGH-SPEED MODE aktiviert - Plot/Table deaktiviert",
+                CONFIG["colors"]["orange"],
+                duration=0,  # Permanent until deactivated
+            )
+
+            # Switch to Histogram tab (index 1) since plot is disabled
+            self.ui.tabWidget.setCurrentIndex(1)
+            
+            self._update_status_indicator("High-Speed", "orange")
+
+            Debug.info(
+                "MainWindow: HIGH_SPEED_MODE UI updated, switched to Histogram tab"
+            )
+        else:
+            # HIGH_SPEED_MODE deactivated - restore normal status
+            if self.is_measuring:
+                self.statusbar.temp_message(
+                    "Messung läuft (Normal-Modus)...",
+                    CONFIG["colors"]["blue"],
+                    duration=0,  # Persistent during measurement
+                )
+                self._update_status_indicator("Messung", "blue")
+            else:
+                self.statusbar.temp_message(
+                    "Bereit für Messungen.", CONFIG["colors"]["green"], duration=0
+                )
+                self._update_status_indicator("Bereit", "green")
+            Debug.info("MainWindow: Normal mode UI restored")
+
+    def _update_status_indicator(self, status: str, color: str = None):
+        """Update statusLED and statusText to reflect current state.
+        
+        Args:
+            status: Status text to display ("Bereit", "Messung", "High-Speed", "Gestoppt")
+            color: LED color ("green", "blue", "orange", "red", "yellow")
+        """
+        # Map status to colors if not explicitly provided
+        status_colors = {
+            "Bereit": "rgb(50, 205, 50)",  # Green
+            "Messung": "rgb(30, 144, 255)",  # Blue
+            "High-Speed": "rgb(255, 140, 0)",  # Orange
+            "Gestoppt": "rgb(255, 215, 0)",  # Yellow
+            "Fehler": "rgb(255, 11, 3)",  # Red
+        }
+        
+        if color is None:
+            led_color = status_colors.get(status, "rgb(128, 128, 128)")  # Gray default
+        else:
+            # Convert color name to RGB
+            color_map = {
+                "green": "rgb(50, 205, 50)",
+                "blue": "rgb(30, 144, 255)",
+                "orange": "rgb(255, 140, 0)",
+                "yellow": "rgb(255, 215, 0)",
+                "red": "rgb(255, 11, 3)",
+                "gray": "rgb(128, 128, 128)",
+            }
+            led_color = color_map.get(color, "rgb(128, 128, 128)")
+        
+        # Update LED
+        self.ui.statusLED.setStyleSheet(
+            f"background-color: {led_color}; border: 0px; padding: 4px; border-radius: 10px"
+        )
+        
+        # Update text
+        self.ui.statusText.setText(status)
+        
+        Debug.debug(f"Status indicator updated: {status} ({led_color})")
 
     def _update_statistics(self):
         """Update statistics shown in the user interface."""
