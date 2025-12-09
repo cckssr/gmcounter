@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from gmcounter.plot import PlotWidget
+from gmcounter.ui.widgets.plot import PlotWidget
 
 
 class DummyDebug:
@@ -14,7 +14,7 @@ class DummyDebug:
 
 
 # Patch Debug to avoid side effects during tests
-import gmcounter.plot
+import gmcounter.ui.widgets.plot
 
 src.plot.Debug = DummyDebug
 

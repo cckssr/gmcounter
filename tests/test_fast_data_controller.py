@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from gmcounter.data_controller import DataController
-from gmcounter.plot import PlotWidget
+from gmcounter.ui.widgets.plot import PlotWidget
 from gmcounter.debug_utils import Debug
 
 

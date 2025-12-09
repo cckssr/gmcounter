@@ -14,12 +14,16 @@
 // OPENBIS_CODE wird über platformio.ini build_flags gesetzt
 // Falls nicht gesetzt, wird "UNKNOWN" als Fallback verwendet
 #ifndef OPENBIS_CODE
-    #define OPENBIS_CODE* "UNKNOWN"
+#define OPENBIS_CODE *"UNKNOWN"
 #endif
 
 // VERSION wird über platformio.ini build_flags gesetzt
 #ifndef VERSION
-    #define VERSION* "1.1.0"
+#define VERSION *"1.1.1"
+#endif
+// TEST_PLATFORM as build flag for test devices without GM counter
+#ifndef TEST_PLATFORM
+#define TEST_PLATFORM false
 #endif
 
 // COPYRIGHT Information
@@ -62,51 +66,6 @@ void isr_handle()
     timestamps[writeIndex++] = micros(); // Store the current time in microseconds
     writeIndex %= 128;                   // Wrap around to keep the index within bounds
 }
-/**
- * Interrupt handler function
- * Called when a RISING edge is detected on the interrupt pin.
- * Calculates the time between consecutive pulses and stores it in currentDelta.
- */
-void handleInterrupt()
-{
-    unsigned long currentTime = micros(); // Current time in microseconds
-
-    if (firstPulseOccurred)
-    {
-        // Calculate the time difference between consecutive pulses
-        currentDelta = currentTime - lastPulseTime;
-
-        if (currentDelta > DEBOUNCE_TIME)
-        {
-            // Save the current delta to the buffer
-            if (USE_BUFFER)
-            {
-                buffer[bufferIndex] = currentDelta;
-                bufferIndex++;
-                if (bufferIndex >= BUFFER_SIZE)
-                {
-                    bufferFull = true; // Set the flag indicating the buffer is full
-                    bufferIndex = 0;   // Reset the index to start overwriting old values
-                }
-            }
-
-            // Always update lastPulseTime for the next delta calculation
-            lastPulseTime = currentTime;
-        }
-        else
-        {
-            // Delta is too small (debounce), don't update anything
-            currentDelta = 0;
-        }
-    }
-    else
-    {
-        // This is the first pulse, so just record the time.
-        lastPulseTime = currentTime; // Store the time of the first pulse
-        firstPulseOccurred = true;   // Set the flag indicating the first pulse has occurred
-        currentDelta = 0;            // No delta for the first pulse
-    }
-}
 
 void debugByteValue(u_int32_t value)
 {
@@ -139,21 +98,39 @@ void sendByteValue(u_int32_t value)
     }
 }
 
+/**
+ * Handles the timer by reading timestamps from the buffer and calculating deltas.
+ * It sends the delta time as binary data if it exceeds the debounce threshold.
+ * Inlcudes proper handling of shared variables between interrupt and main context.
+ */
 void handleTimer()
 {
     // Safely read the shared variable
+    uint32_t current_timestamp = 0;
+    bool has_new_data = false;
+
     noInterrupts(); // Disable interrupts for atomic access to shared variables
     if (readIndex != writeIndex)
     {
-        timestamp = timestamps[readIndex]; // Copy the value to a local variable
-        readIndex = (readIndex + 1) % 128; // Increment readIndex and wrap around
+        current_timestamp = timestamps[readIndex]; // Copy the value to a local variable
+        readIndex = (readIndex + 1) % 128;         // Increment readIndex and wrap around
+        has_new_data = true;
     }
     interrupts(); // Re-enable interrupts
 
-    if (timestamp != 0)
+    if (has_new_data && current_timestamp != 0)
     {
-        currentDelta = timestamp - last_timestamp; // Calculate the delta time since the last timestamp
-        last_timestamp = timestamp;                // Update the last timestamp
+        // Skip the first timestamp (no valid delta yet)
+        if (last_timestamp == 0)
+        {
+            last_timestamp = current_timestamp;
+            return; // Don't send anything for the first pulse
+        }
+
+        currentDelta = current_timestamp - last_timestamp; // Calculate the delta time since the last timestamp
+        last_timestamp = current_timestamp;                // Update the last timestamp
+
+        // Only send if delta is above debounce threshold
         if (currentDelta > DEBOUNCE_TIME)
         {
             sendByteValue(currentDelta); // Send the value as pure binary data
@@ -168,9 +145,9 @@ void handleTimer()
  */
 void setup()
 {
-    init(DEBUG, OPENBIS_CODE, VERSION, COPYRIGHT, MAX_LENGTH); // Initialize serial communication and set debug mode
-    Serial.begin(1000000);                                     // Initialize serial communication at 115200 baud
-    Serial1.begin(9600);                                       // Initialize second serial communication with GM-Counter
+    init(DEBUG, OPENBIS_CODE, VERSION, COPYRIGHT, MAX_LENGTH, TEST_PLATFORM); // Initialize serial communication and set debug mode
+    Serial.begin(1000000);                                                    // Initialize serial communication at 115200 baud
+    Serial1.begin(9600);                                                      // Initialize second serial communication with GM-Counter
     // Serial1.begin(1000000);        // Initialize second serial communication with GM-Counter
     pinMode(INTERRUPT_PIN, INPUT); // Configure the interrupt pin as an input
     // Attach interrupt to the pin, using RISING edge detection
@@ -186,26 +163,25 @@ void loop()
 {
     if (measurementInProgress)
     {
-        // If measurement is in progress, handle the timer
+        // Measurement loop - keep as fast and minimal as possible
         handleTimer();
 
-        // Check if measurement is stopped
+        // Only check for stop command
         if (Serial.available() > 0)
         {
-            sendMessage(Serial.readStringUntil('\n'), measurementInProgress);
+            sendMessage(Serial.readStringUntil('\n'), measurementInProgress, readIndex, writeIndex, last_timestamp);
         }
     }
     else
     {
-        // Serial.println("test");
-        // If no measurement is in progress, check for incoming messages
+        // Idle mode - handle GM counter communication and commands
         if (Serial1.available() > 0)
         {
             receiveMessage(Serial1.read(), message, index);
         }
         if (Serial.available() > 0)
         {
-            sendMessage(Serial.readStringUntil('\n'), measurementInProgress);
+            sendMessage(Serial.readStringUntil('\n'), measurementInProgress, readIndex, writeIndex, last_timestamp);
         }
     }
 }

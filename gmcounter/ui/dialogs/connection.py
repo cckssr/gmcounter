@@ -11,10 +11,10 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QDialogButtonBox,
 )
 from serial.tools import list_ports
-from .pyqt.ui_connection import Ui_Dialog as Ui_Connection
-from .helper_classes import AlertWindow
-from .debug_utils import Debug
-from .device_manager import DeviceManager
+from ...pyqt.ui_connection import Ui_Dialog as Ui_Connection
+from ...helper_classes_compat import AlertWindow
+from ...infrastructure.logging import Debug
+from ...infrastructure.device_manager import DeviceManager
 
 
 class ConnectionWindow(QDialog):
@@ -56,7 +56,9 @@ class ConnectionWindow(QDialog):
             demo_mode (bool, optional): If True, uses a mock port for demonstration purposes.
             default_device (str, optional): The default device to connect to. Defaults to "None".
         """
-        self.device_manager = DeviceManager(status_callback=self.status_message)
+        self.device_manager = DeviceManager()
+        # Connect status_update signal to our status_message slot
+        self.device_manager.status_update.connect(self.status_message)
         self.connection_successful = False
         self.default_device = default_device
         self.ports = []  # List to hold available ports
@@ -243,17 +245,17 @@ class ConnectionWindow(QDialog):
         baudrate = int(self.ui.comboBox.currentText())
 
         # Show connecting message and give UI time to update
-        self.status_message(f"Connecting to {port}...", "yellow")
+        self.status_message(f"Connecting to {port}...", "orange")
         Debug.info(f"Attempting to connect to port: {port}")
 
         # Give UI time to show the message
         QApplication.processEvents()
 
         # Check if connected
-        success = self.device_manager.connect(port, baudrate)
+        success = self.device_manager.connect_device(port, baudrate)
 
         if success:
-            self.status_message(f"Successfully connected to {port}", "green")
+            self.status_message(f"Successfully connected to {port}", "darkgreen")
             Debug.info(f"Successfully connected to port: {port}")
             self.connection_successful = True
             return True, self.device_manager

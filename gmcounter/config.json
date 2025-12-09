@@ -3,7 +3,7 @@
     "description": "Zentrale Konfigurationsdatei für die GMCounter-Anwendung. Stellt Konstanten und Standardwerte für die gesamte Anwendung bereit.",
 
     "application": {
-      "name": "Geiger-Müller Zähler GUI",
+      "name": "GM-Counter_GUI",
       "version": "1.0.0",
       "author": "C. Kessler, H. Celik"
     },
@@ -17,6 +17,11 @@
       "x_label": "Ereignis k",
       "y_label": "Zeit / µs"
     },
+    "histogram": {
+      "bin_size": 10,
+      "x_label": "Zeit / µs",
+      "y_label": "Anzahl Ereignisse"
+    },
 
     "timers": {
       "control_update_interval": 1000,
@@ -26,7 +31,11 @@
     },
 
     "data_controller": {
-      "max_history_size": 1000
+      "max_history_size": 1000,
+      "high_speed_mode": {
+        "batch_threshold": 100,
+        "batch_history": 5
+      }
     },
 
     "save": {
@@ -53,7 +62,9 @@
         "auto_off": "Manuell"
       }
     },
-
+    "ui": {
+      "theme": "dark"
+    },
     "colors": {
       "green": "green",
       "red": "red",

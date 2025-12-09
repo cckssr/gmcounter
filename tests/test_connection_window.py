@@ -26,7 +26,7 @@ pytest.importorskip("PySide6.QtWidgets")
 from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox
 from PySide6.QtCore import Qt, QTimer
 
-from gmcounter.connection import ConnectionWindow
+from gmcounter.ui.dialogs.connection import ConnectionWindow
 from gmcounter.device_manager import DeviceManager
 from gmcounter.helper_classes import AlertWindow
 

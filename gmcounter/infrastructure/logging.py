@@ -170,6 +170,26 @@ class Debug:
         cls.logger.debug(message)
 
     @classmethod
+    def warning(cls, message):
+        """
+        Log information as warning for non critical issues.
+
+        Args:
+            message: Warning information to log
+        """
+        # Klassennamen und Funktionsnamen ermitteln
+        if cls.DEBUG_LEVEL >= cls.DEBUG_VERBOSE:
+            prefix = cls._get_caller_info()
+            message = f"{prefix} {message}"
+
+        if not cls.logger:
+            if cls.DEBUG_LEVEL >= cls.DEBUG_INFO:
+                print(f"WARNING: {message}")
+            return
+
+        cls.logger.warning(message)
+
+    @classmethod
     def critical(cls, message):
         """
         Log a critical error message.

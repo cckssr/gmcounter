@@ -25,7 +25,7 @@ try:
 except:
     app = None
 
-from gmcounter.plot import PlotWidget
+from gmcounter.ui.widgets.plot import PlotWidget
 from gmcounter.data_controller import DataController
 
 

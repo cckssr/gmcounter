@@ -1,9 +1,11 @@
+# DEPRECATED NEVER USE FILE
+# ONLY FOR REFERENCE OF PREVIOUS IMPLEMENTATION
 import re
 import csv
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QStatusBar,
     QLabel,
@@ -14,7 +16,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QFileDialog,
 )
 from PySide6.QtCore import QTimer  # pylint: disable=no-name-in-module
-from .debug_utils import Debug
+from .infrastructure.logging import Debug
 
 
 class Statusbar:
@@ -346,6 +348,11 @@ class SaveManager:
         """Mark the current measurement as not yet saved."""
 
         self.last_saved = False
+
+    def mark_saved(self) -> None:
+        """Mark the current measurement as saved."""
+
+        self.last_saved = True
 
     def has_unsaved(self) -> bool:
         """Return ``True`` if a measurement has not been saved."""
