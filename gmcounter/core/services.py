@@ -118,12 +118,10 @@ class SaveService:
     def mark_saved(self):
         """Mark current data as saved."""
         self._unsaved = False
-        Debug.debug("Data marked as saved")
 
     def mark_unsaved(self):
         """Mark current data as unsaved."""
         self._unsaved = True
-        Debug.debug("Data marked as unsaved")
 
     def generate_filename(
         self,

@@ -752,7 +752,7 @@ class GMCounter(Arduino):
 
         try:
             if request:
-                Debug.info("Requesting data from GMCounter...")
+                Debug.debug("Requesting data from GMCounter...")
                 if not self.send_command("b2"):
                     Debug.error("Failed to send data request command")
                     return data_template
