@@ -94,7 +94,7 @@ except Exception:  # ImportError or missing Qt libraries
 
     Qt = _Qt()
 
-from ..widgets.plot import PlotWidget, HistogramWidget
+from ..widgets.plot import GeneralPlot, HistogramWidget
 from ...infrastructure.logging import Debug
 from ...infrastructure.config import import_config
 from ...helper_classes_compat import (
@@ -124,7 +124,7 @@ class DataController(QObject):
 
     def __init__(
         self,
-        plot_widget: PlotWidget,
+        plot_widget: GeneralPlot,
         display_widget: Optional[QLCDNumber] = None,
         histogram_widget: Optional[HistogramWidget] = None,
         stat_display: Optional[List[QLineEdit]] = None,
@@ -460,16 +460,13 @@ class DataController(QObject):
             # Update plot widget with all current data points
             # Only update plot if we have data to show
             if self.plot and len(self.gui_data_points) > 0:
-                # Always use batch update for better performance
+                # Always use deferred (batched) update for better performance
                 # Pass only the last N points to reduce rendering overhead
                 Debug.debug(
                     f"Updating plot with {len(self.gui_data_points)} gui_data_points"
                 )
-                if hasattr(self.plot, "update_plot_batch"):
-                    self.plot.update_plot_batch(self.gui_data_points)
-                else:
-                    # Fallback - use standard method but with full dataset
-                    self.plot.update_plot(self.gui_data_points)
+                # Use new high-performance update_plot_data method with deferred batching
+                self.plot.update_plot_data(self.gui_data_points, deferred=True)
             else:
                 if self.plot:
                     Debug.debug(

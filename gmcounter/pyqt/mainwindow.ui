@@ -6,15 +6,20 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1122</width>
-    <height>844</height>
+    <width>1163</width>
+    <height>808</height>
    </rect>
+  </property>
+  <property name="font">
+   <font>
+    <pointsize>10</pointsize>
+   </font>
   </property>
   <property name="windowTitle">
    <string>GM-Counter</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout_5">
+   <layout class="QGridLayout" name="gridLayout_5" columnstretch="0,0,1">
     <property name="leftMargin">
      <number>10</number>
     </property>
@@ -48,7 +53,7 @@
         </property>
         <property name="font">
          <font>
-          <pointsize>13</pointsize>
+          <pointsize>11</pointsize>
          </font>
         </property>
         <property name="title">
@@ -81,6 +86,11 @@
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>Zähl-Modus</string>
            </property>
@@ -101,6 +111,11 @@
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
              </property>
              <property name="toolTip">
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Stoppt die Messung nach Ablauf Zähldauer&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -123,6 +138,11 @@
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
              </property>
              <property name="toolTip">
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Wiederholt die Messung automatisch nach Ablauf Zähldauer&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -151,6 +171,11 @@
              <height>20</height>
             </size>
            </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>Abfragemodus</string>
            </property>
@@ -175,6 +200,11 @@
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>Manuell</string>
              </property>
@@ -197,6 +227,11 @@
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>Automatik</string>
              </property>
@@ -218,6 +253,11 @@
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>Zähldauer</string>
            </property>
@@ -230,6 +270,11 @@
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+            </font>
            </property>
            <property name="toolTip">
             <string>Wie lange der Zähler misst</string>
@@ -286,6 +331,11 @@
              <height>100</height>
             </size>
            </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+            </font>
+           </property>
            <property name="toolTip">
             <string>Spannung des Geiger-Müller Zählrohrs</string>
            </property>
@@ -315,6 +365,11 @@
                <width>0</width>
                <height>40</height>
               </size>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
              </property>
              <property name="buttonSymbols">
               <enum>QAbstractSpinBox::ButtonSymbols::UpDownArrows</enum>
@@ -356,6 +411,11 @@
                <height>100</height>
               </size>
              </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="minimum">
               <number>300</number>
              </property>
@@ -383,6 +443,11 @@
            <property name="enabled">
             <bool>true</bool>
            </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>Einstellungen ändern</string>
            </property>
@@ -405,6 +470,11 @@
       </item>
       <item>
        <spacer name="verticalSpacer">
+        <property name="font">
+         <font>
+          <pointsize>11</pointsize>
+         </font>
+        </property>
         <property name="orientation">
          <enum>Qt::Orientation::Vertical</enum>
         </property>
@@ -435,7 +505,7 @@
         </property>
         <property name="font">
          <font>
-          <pointsize>13</pointsize>
+          <pointsize>11</pointsize>
          </font>
         </property>
         <property name="title">
@@ -467,6 +537,11 @@
            </property>
            <item row="0" column="0">
             <widget class="QLabel" name="label_6">
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>Radioaktive Probe*</string>
              </property>
@@ -479,6 +554,11 @@
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
              </property>
              <property name="toolTip">
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Auswahl der verwendeten radioaktiven Probe &lt;span style=&quot; color:#ff001a;&quot;&gt;(Pflichtfeld)&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -639,6 +719,11 @@
            </item>
            <item row="1" column="0">
             <widget class="QLabel" name="label_7">
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>Gruppe*</string>
              </property>
@@ -651,6 +736,11 @@
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
              </property>
              <property name="toolTip">
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Auswahl der GP Praktikumsgruppe &lt;span style=&quot; color:#ff001a;&quot;&gt;(Pflichtfeld)&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -788,6 +878,11 @@
            </item>
            <item row="2" column="0">
             <widget class="QLabel" name="label_20">
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>Probenabstand (cm)</string>
              </property>
@@ -795,6 +890,11 @@
            </item>
            <item row="3" column="0">
             <widget class="QLabel" name="label_5">
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>Eigenes Suffix</string>
              </property>
@@ -807,6 +907,11 @@
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
              </property>
              <property name="toolTip">
               <string>Ein benutzerdefiniertes Suffix mit maximal 20 Zeichen</string>
@@ -821,6 +926,11 @@
            </item>
            <item row="2" column="1">
             <widget class="QDoubleSpinBox" name="sampleDistance">
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="maximum">
               <double>19999.000000000000000</double>
              </property>
@@ -851,6 +961,11 @@
              <height>40</height>
             </size>
            </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+            </font>
+           </property>
            <property name="toolTip">
             <string>Messung speichern (Dateidialog)</string>
            </property>
@@ -880,6 +995,11 @@
                <width>850</width>
                <height>16777215</height>
               </size>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
              </property>
              <property name="toolTip">
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Bei Aktivierung werden die Messungen automatisch im Format:&lt;/p&gt;&lt;p&gt;YYYY_MM_DD-&lt;span style=&quot; font-style:italic;&quot;&gt;Radioaktive Probe&lt;/span&gt;-&lt;span style=&quot; font-style:italic;&quot;&gt;Suffix&lt;/span&gt;.csv&lt;/p&gt;&lt;p&gt;im Ordner Dokumente/Geiger-Mueller/ gespeichert.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -934,6 +1054,11 @@
             <height>40</height>
            </size>
           </property>
+          <property name="font">
+           <font>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
           <property name="toolTip">
            <string>Start der Messung</string>
           </property>
@@ -959,6 +1084,11 @@
             <height>40</height>
            </size>
           </property>
+          <property name="font">
+           <font>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
           <property name="toolTip">
            <string>Aktuelle Messung stoppen</string>
           </property>
@@ -969,6 +1099,11 @@
         </item>
         <item>
          <widget class="Line" name="line_3">
+          <property name="font">
+           <font>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
           <property name="orientation">
            <enum>Qt::Orientation::Vertical</enum>
           </property>
@@ -978,6 +1113,11 @@
          <widget class="QPushButton" name="buttonReset">
           <property name="enabled">
            <bool>false</bool>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>11</pointsize>
+           </font>
           </property>
           <property name="text">
            <string>Reset</string>
@@ -990,6 +1130,11 @@
     </item>
     <item row="0" column="1">
      <widget class="Line" name="line">
+      <property name="font">
+       <font>
+        <pointsize>11</pointsize>
+       </font>
+      </property>
       <property name="frameShadow">
        <enum>QFrame::Shadow::Plain</enum>
       </property>
@@ -1013,7 +1158,7 @@
         </property>
         <property name="font">
          <font>
-          <pointsize>13</pointsize>
+          <pointsize>11</pointsize>
          </font>
         </property>
         <property name="title">
@@ -1034,6 +1179,11 @@
          </property>
          <item row="3" column="0">
           <widget class="Line" name="line_2">
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+            </font>
+           </property>
            <property name="frameShadow">
             <enum>QFrame::Shadow::Plain</enum>
            </property>
@@ -1050,6 +1200,11 @@
              <verstretch>10</verstretch>
             </sizepolicy>
            </property>
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+            </font>
+           </property>
            <property name="currentIndex">
             <number>0</number>
            </property>
@@ -1065,6 +1220,11 @@
                </property>
                <item>
                 <spacer name="horizontalSpacer">
+                 <property name="font">
+                  <font>
+                   <pointsize>11</pointsize>
+                  </font>
+                 </property>
                  <property name="orientation">
                   <enum>Qt::Orientation::Horizontal</enum>
                  </property>
@@ -1078,6 +1238,11 @@
                </item>
                <item>
                 <widget class="QLabel" name="label_19">
+                 <property name="font">
+                  <font>
+                   <pointsize>11</pointsize>
+                  </font>
+                 </property>
                  <property name="text">
                   <string>Max. Plot Punkte</string>
                  </property>
@@ -1085,6 +1250,11 @@
                </item>
                <item>
                 <widget class="QSpinBox" name="sPlotpoints">
+                 <property name="font">
+                  <font>
+                   <pointsize>11</pointsize>
+                  </font>
+                 </property>
                  <property name="minimum">
                   <number>10</number>
                  </property>
@@ -1104,6 +1274,11 @@
                </item>
                <item>
                 <widget class="QCheckBox" name="autoScroll">
+                 <property name="font">
+                  <font>
+                   <pointsize>11</pointsize>
+                  </font>
+                 </property>
                  <property name="text">
                   <string>Auto Scroll</string>
                  </property>
@@ -1114,6 +1289,11 @@
                </item>
                <item>
                 <widget class="QPushButton" name="buttonAutoRange">
+                 <property name="font">
+                  <font>
+                   <pointsize>11</pointsize>
+                  </font>
+                 </property>
                  <property name="text">
                   <string>x/y Limits anpassen</string>
                  </property>
@@ -1128,6 +1308,11 @@
                  <horstretch>0</horstretch>
                  <verstretch>0</verstretch>
                 </sizepolicy>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
                </property>
               </widget>
              </item>
@@ -1300,6 +1485,11 @@
                <height>100</height>
               </size>
              </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>Voriges Zählergebnis</string>
              </property>
@@ -1328,6 +1518,11 @@
                <height>70</height>
               </size>
              </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="frameShape">
               <enum>QFrame::Shape::Box</enum>
              </property>
@@ -1343,6 +1538,11 @@
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
              </property>
              <property name="text">
               <string>Aktuelle GM-Parameter</string>
@@ -1365,6 +1565,11 @@
                  <verstretch>0</verstretch>
                 </sizepolicy>
                </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
+               </property>
                <property name="value">
                 <number>0</number>
                </property>
@@ -1384,6 +1589,11 @@
                  <height>0</height>
                 </size>
                </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
+               </property>
                <property name="text">
                 <string>99999 s</string>
                </property>
@@ -1399,6 +1609,11 @@
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>Status:</string>
              </property>
@@ -1409,6 +1624,11 @@
            </item>
            <item row="0" column="1" rowspan="4">
             <widget class="Line" name="line_4">
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="orientation">
               <enum>Qt::Orientation::Vertical</enum>
              </property>
@@ -1436,6 +1656,11 @@
                  <height>20</height>
                 </size>
                </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
+               </property>
                <property name="styleSheet">
                 <string notr="true">background-color: rgb(255, 11, 3); border: 0px; padding: 4px; border-radius: 10px</string>
                </property>
@@ -1454,6 +1679,11 @@
                  <horstretch>0</horstretch>
                  <verstretch>0</verstretch>
                 </sizepolicy>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
                </property>
                <property name="text">
                 <string>unknown</string>
@@ -1482,6 +1712,11 @@
                <height>70</height>
               </size>
              </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="frameShape">
               <enum>QFrame::Shape::Box</enum>
              </property>
@@ -1504,6 +1739,11 @@
                <height>100</height>
               </size>
              </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>Aktuelles Zählergebnis</string>
              </property>
@@ -1524,6 +1764,11 @@
                  <width>130</width>
                  <height>0</height>
                 </size>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
                </property>
                <property name="text">
                 <string>GM-Spannung / V</string>
@@ -1553,6 +1798,11 @@
                  <height>50</height>
                 </size>
                </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
+               </property>
                <property name="toolTip">
                 <string>Aktuelle GM-Spannung</string>
                </property>
@@ -1568,6 +1818,11 @@
                  <width>130</width>
                  <height>0</height>
                 </size>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
                </property>
                <property name="text">
                 <string>Zähldauer / s</string>
@@ -1597,6 +1852,11 @@
                  <height>50</height>
                 </size>
                </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
+               </property>
                <property name="toolTip">
                 <string>Aktuelle eingestellte Zähldauer. 999 für unendllich</string>
                </property>
@@ -1618,6 +1878,11 @@
                  <width>130</width>
                  <height>0</height>
                 </size>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
                </property>
                <property name="text">
                 <string>Abfragemodus</string>
@@ -1647,6 +1912,11 @@
                  <height>50</height>
                 </size>
                </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
+               </property>
                <property name="toolTip">
                 <string>Aktuell eingestellter Abfragemodus der Zählergebnisse</string>
                </property>
@@ -1668,6 +1938,11 @@
                  <width>130</width>
                  <height>20</height>
                 </size>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
                </property>
                <property name="text">
                 <string>Zähl-Modus</string>
@@ -1697,6 +1972,11 @@
                  <height>50</height>
                 </size>
                </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
+               </property>
                <property name="toolTip">
                 <string>Aktuell eingestellter Zählmodus</string>
                </property>
@@ -1718,6 +1998,11 @@
                  <width>130</width>
                  <height>20</height>
                 </size>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
                </property>
                <property name="text">
                 <string>Firmware-Version</string>
@@ -1747,6 +2032,11 @@
                  <height>50</height>
                 </size>
                </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
+               </property>
                <property name="toolTip">
                 <string>GM-Zähler Firmware</string>
                </property>
@@ -1762,6 +2052,11 @@
                  <width>130</width>
                  <height>0</height>
                 </size>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
                </property>
                <property name="text">
                 <string>OpenBIS Code</string>
@@ -1785,6 +2080,11 @@
                  <height>50</height>
                 </size>
                </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
+               </property>
                <property name="text">
                 <string>unknown</string>
                </property>
@@ -1806,7 +2106,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1122</width>
+     <width>1163</width>
      <height>24</height>
     </rect>
    </property>
@@ -1913,7 +2213,7 @@
   </connection>
  </connections>
  <buttongroups>
-  <buttongroup name="groupQMode"/>
   <buttongroup name="groupMode"/>
+  <buttongroup name="groupQMode"/>
  </buttongroups>
 </ui>

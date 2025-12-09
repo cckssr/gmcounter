@@ -28,7 +28,10 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1122, 844)
+        MainWindow.resize(1163, 808)
+        font = QFont()
+        font.setPointSize(10)
+        MainWindow.setFont(font)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.gridLayout_5 = QGridLayout(self.centralwidget)
@@ -46,9 +49,9 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(self.settings.sizePolicy().hasHeightForWidth())
         self.settings.setSizePolicy(sizePolicy)
         self.settings.setMaximumSize(QSize(1000, 16777215))
-        font = QFont()
-        font.setPointSize(13)
-        self.settings.setFont(font)
+        font1 = QFont()
+        font1.setPointSize(11)
+        self.settings.setFont(font1)
         self.settings.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.formLayout = QFormLayout(self.settings)
         self.formLayout.setObjectName(u"formLayout")
@@ -64,6 +67,7 @@ class Ui_MainWindow(object):
         sizePolicy1.setVerticalStretch(0)
         sizePolicy1.setHeightForWidth(self.mode_label.sizePolicy().hasHeightForWidth())
         self.mode_label.setSizePolicy(sizePolicy1)
+        self.mode_label.setFont(font1)
 
         self.formLayout.setWidget(0, QFormLayout.ItemRole.LabelRole, self.mode_label)
 
@@ -78,6 +82,7 @@ class Ui_MainWindow(object):
         self.sModeSingle.setObjectName(u"sModeSingle")
         sizePolicy.setHeightForWidth(self.sModeSingle.sizePolicy().hasHeightForWidth())
         self.sModeSingle.setSizePolicy(sizePolicy)
+        self.sModeSingle.setFont(font1)
         self.sModeSingle.setChecked(True)
 
         self.sMode.addWidget(self.sModeSingle)
@@ -90,6 +95,7 @@ class Ui_MainWindow(object):
         sizePolicy2.setVerticalStretch(0)
         sizePolicy2.setHeightForWidth(self.sModeMulti.sizePolicy().hasHeightForWidth())
         self.sModeMulti.setSizePolicy(sizePolicy2)
+        self.sModeMulti.setFont(font1)
 
         self.sMode.addWidget(self.sModeMulti)
 
@@ -101,6 +107,7 @@ class Ui_MainWindow(object):
         sizePolicy1.setHeightForWidth(self.label_10.sizePolicy().hasHeightForWidth())
         self.label_10.setSizePolicy(sizePolicy1)
         self.label_10.setMinimumSize(QSize(0, 20))
+        self.label_10.setFont(font1)
         self.label_10.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_10)
@@ -116,6 +123,7 @@ class Ui_MainWindow(object):
         self.sQModeMan.setEnabled(False)
         sizePolicy.setHeightForWidth(self.sQModeMan.sizePolicy().hasHeightForWidth())
         self.sQModeMan.setSizePolicy(sizePolicy)
+        self.sQModeMan.setFont(font1)
         self.sQModeMan.setChecked(False)
 
         self.sQueryMode.addWidget(self.sQModeMan)
@@ -129,6 +137,7 @@ class Ui_MainWindow(object):
         sizePolicy3.setVerticalStretch(0)
         sizePolicy3.setHeightForWidth(self.sQModeAuto.sizePolicy().hasHeightForWidth())
         self.sQModeAuto.setSizePolicy(sizePolicy3)
+        self.sQModeAuto.setFont(font1)
         self.sQModeAuto.setChecked(True)
 
         self.sQueryMode.addWidget(self.sQModeAuto)
@@ -143,6 +152,7 @@ class Ui_MainWindow(object):
         sizePolicy4.setVerticalStretch(0)
         sizePolicy4.setHeightForWidth(self.duration_label.sizePolicy().hasHeightForWidth())
         self.duration_label.setSizePolicy(sizePolicy4)
+        self.duration_label.setFont(font1)
 
         self.formLayout.setWidget(2, QFormLayout.ItemRole.LabelRole, self.duration_label)
 
@@ -159,6 +169,7 @@ class Ui_MainWindow(object):
         sizePolicy5.setVerticalStretch(0)
         sizePolicy5.setHeightForWidth(self.sDuration.sizePolicy().hasHeightForWidth())
         self.sDuration.setSizePolicy(sizePolicy5)
+        self.sDuration.setFont(font1)
 
         self.formLayout.setWidget(2, QFormLayout.ItemRole.FieldRole, self.sDuration)
 
@@ -171,6 +182,7 @@ class Ui_MainWindow(object):
         self.volt_label.setSizePolicy(sizePolicy6)
         self.volt_label.setMinimumSize(QSize(0, 100))
         self.volt_label.setMaximumSize(QSize(16777215, 100))
+        self.volt_label.setFont(font1)
 
         self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.volt_label)
 
@@ -186,6 +198,7 @@ class Ui_MainWindow(object):
         sizePolicy7.setHeightForWidth(self.sVoltage.sizePolicy().hasHeightForWidth())
         self.sVoltage.setSizePolicy(sizePolicy7)
         self.sVoltage.setMinimumSize(QSize(0, 40))
+        self.sVoltage.setFont(font1)
         self.sVoltage.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.UpDownArrows)
         self.sVoltage.setMinimum(300)
         self.sVoltage.setMaximum(700)
@@ -203,6 +216,7 @@ class Ui_MainWindow(object):
         self.voltDial.setSizePolicy(sizePolicy8)
         self.voltDial.setMinimumSize(QSize(100, 100))
         self.voltDial.setMaximumSize(QSize(100, 100))
+        self.voltDial.setFont(font1)
         self.voltDial.setMinimum(300)
         self.voltDial.setMaximum(700)
         self.voltDial.setSingleStep(5)
@@ -218,6 +232,7 @@ class Ui_MainWindow(object):
         self.buttonSetting = QPushButton(self.settings)
         self.buttonSetting.setObjectName(u"buttonSetting")
         self.buttonSetting.setEnabled(True)
+        self.buttonSetting.setFont(font1)
         self.buttonSetting.setAutoDefault(False)
 
         self.formLayout.setWidget(4, QFormLayout.ItemRole.SpanningRole, self.buttonSetting)
@@ -243,7 +258,7 @@ class Ui_MainWindow(object):
         sizePolicy9.setHeightForWidth(self.groupBox.sizePolicy().hasHeightForWidth())
         self.groupBox.setSizePolicy(sizePolicy9)
         self.groupBox.setMinimumSize(QSize(0, 50))
-        self.groupBox.setFont(font)
+        self.groupBox.setFont(font1)
         self.groupBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.groupBox.setFlat(False)
         self.groupBox.setCheckable(False)
@@ -256,6 +271,7 @@ class Ui_MainWindow(object):
         self.formLayout_2.setContentsMargins(-1, -1, 0, 0)
         self.label_6 = QLabel(self.groupBox)
         self.label_6.setObjectName(u"label_6")
+        self.label_6.setFont(font1)
 
         self.formLayout_2.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_6)
 
@@ -294,6 +310,7 @@ class Ui_MainWindow(object):
         sizePolicy10.setVerticalStretch(0)
         sizePolicy10.setHeightForWidth(self.radSample.sizePolicy().hasHeightForWidth())
         self.radSample.setSizePolicy(sizePolicy10)
+        self.radSample.setFont(font1)
         self.radSample.setEditable(True)
         self.radSample.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
 
@@ -301,6 +318,7 @@ class Ui_MainWindow(object):
 
         self.label_7 = QLabel(self.groupBox)
         self.label_7.setObjectName(u"label_7")
+        self.label_7.setFont(font1)
 
         self.formLayout_2.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_7)
 
@@ -332,6 +350,7 @@ class Ui_MainWindow(object):
         self.groupLetter.setObjectName(u"groupLetter")
         sizePolicy10.setHeightForWidth(self.groupLetter.sizePolicy().hasHeightForWidth())
         self.groupLetter.setSizePolicy(sizePolicy10)
+        self.groupLetter.setFont(font1)
         self.groupLetter.setMaxCount(24)
         self.groupLetter.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
 
@@ -339,11 +358,13 @@ class Ui_MainWindow(object):
 
         self.label_20 = QLabel(self.groupBox)
         self.label_20.setObjectName(u"label_20")
+        self.label_20.setFont(font1)
 
         self.formLayout_2.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label_20)
 
         self.label_5 = QLabel(self.groupBox)
         self.label_5.setObjectName(u"label_5")
+        self.label_5.setFont(font1)
 
         self.formLayout_2.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_5)
 
@@ -351,6 +372,7 @@ class Ui_MainWindow(object):
         self.suffix.setObjectName(u"suffix")
         sizePolicy10.setHeightForWidth(self.suffix.sizePolicy().hasHeightForWidth())
         self.suffix.setSizePolicy(sizePolicy10)
+        self.suffix.setFont(font1)
         self.suffix.setText(u"")
         self.suffix.setMaxLength(20)
 
@@ -358,6 +380,7 @@ class Ui_MainWindow(object):
 
         self.sampleDistance = QDoubleSpinBox(self.groupBox)
         self.sampleDistance.setObjectName(u"sampleDistance")
+        self.sampleDistance.setFont(font1)
         self.sampleDistance.setMaximum(19999.000000000000000)
 
         self.formLayout_2.setWidget(2, QFormLayout.ItemRole.FieldRole, self.sampleDistance)
@@ -375,6 +398,7 @@ class Ui_MainWindow(object):
         self.buttonSave.setSizePolicy(sizePolicy11)
         self.buttonSave.setMinimumSize(QSize(100, 30))
         self.buttonSave.setMaximumSize(QSize(1000, 40))
+        self.buttonSave.setFont(font1)
 
         self.verticalLayout.addWidget(self.buttonSave)
 
@@ -389,6 +413,7 @@ class Ui_MainWindow(object):
         sizePolicy12.setHeightForWidth(self.autoSave.sizePolicy().hasHeightForWidth())
         self.autoSave.setSizePolicy(sizePolicy12)
         self.autoSave.setMaximumSize(QSize(850, 16777215))
+        self.autoSave.setFont(font1)
         self.autoSave.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.autoSave.setChecked(True)
         self.autoSave.setTristate(False)
@@ -409,6 +434,7 @@ class Ui_MainWindow(object):
         self.buttonStart.setEnabled(False)
         self.buttonStart.setMinimumSize(QSize(75, 30))
         self.buttonStart.setMaximumSize(QSize(500, 40))
+        self.buttonStart.setFont(font1)
 
         self.horizontalLayout.addWidget(self.buttonStart)
 
@@ -417,11 +443,13 @@ class Ui_MainWindow(object):
         self.buttonStop.setEnabled(False)
         self.buttonStop.setMinimumSize(QSize(75, 30))
         self.buttonStop.setMaximumSize(QSize(500, 40))
+        self.buttonStop.setFont(font1)
 
         self.horizontalLayout.addWidget(self.buttonStop)
 
         self.line_3 = QFrame(self.centralwidget)
         self.line_3.setObjectName(u"line_3")
+        self.line_3.setFont(font1)
         self.line_3.setFrameShape(QFrame.Shape.VLine)
         self.line_3.setFrameShadow(QFrame.Shadow.Sunken)
 
@@ -430,6 +458,7 @@ class Ui_MainWindow(object):
         self.buttonReset = QPushButton(self.centralwidget)
         self.buttonReset.setObjectName(u"buttonReset")
         self.buttonReset.setEnabled(False)
+        self.buttonReset.setFont(font1)
 
         self.horizontalLayout.addWidget(self.buttonReset)
 
@@ -441,6 +470,7 @@ class Ui_MainWindow(object):
 
         self.line = QFrame(self.centralwidget)
         self.line.setObjectName(u"line")
+        self.line.setFont(font1)
         self.line.setFrameShadow(QFrame.Shadow.Plain)
         self.line.setFrameShape(QFrame.Shape.VLine)
 
@@ -456,7 +486,7 @@ class Ui_MainWindow(object):
         sizePolicy13.setVerticalStretch(0)
         sizePolicy13.setHeightForWidth(self.gridGroupBox.sizePolicy().hasHeightForWidth())
         self.gridGroupBox.setSizePolicy(sizePolicy13)
-        self.gridGroupBox.setFont(font)
+        self.gridGroupBox.setFont(font1)
         self.gridGroupBox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.gridGroupBox.setFlat(False)
         self.gridLayout_2 = QGridLayout(self.gridGroupBox)
@@ -465,6 +495,7 @@ class Ui_MainWindow(object):
         self.gridLayout_2.setContentsMargins(-1, 12, -1, -1)
         self.line_2 = QFrame(self.gridGroupBox)
         self.line_2.setObjectName(u"line_2")
+        self.line_2.setFont(font1)
         self.line_2.setFrameShadow(QFrame.Shadow.Plain)
         self.line_2.setFrameShape(QFrame.Shape.HLine)
 
@@ -477,6 +508,7 @@ class Ui_MainWindow(object):
         sizePolicy14.setVerticalStretch(10)
         sizePolicy14.setHeightForWidth(self.tabWidget.sizePolicy().hasHeightForWidth())
         self.tabWidget.setSizePolicy(sizePolicy14)
+        self.tabWidget.setFont(font1)
         self.time = QWidget()
         self.time.setObjectName(u"time")
         self.gridLayout_6 = QGridLayout(self.time)
@@ -490,11 +522,13 @@ class Ui_MainWindow(object):
 
         self.label_19 = QLabel(self.time)
         self.label_19.setObjectName(u"label_19")
+        self.label_19.setFont(font1)
 
         self.horizontalLayout_8.addWidget(self.label_19)
 
         self.sPlotpoints = QSpinBox(self.time)
         self.sPlotpoints.setObjectName(u"sPlotpoints")
+        self.sPlotpoints.setFont(font1)
         self.sPlotpoints.setMinimum(10)
         self.sPlotpoints.setMaximum(100000)
         self.sPlotpoints.setSingleStep(10)
@@ -505,12 +539,14 @@ class Ui_MainWindow(object):
 
         self.autoScroll = QCheckBox(self.time)
         self.autoScroll.setObjectName(u"autoScroll")
+        self.autoScroll.setFont(font1)
         self.autoScroll.setChecked(True)
 
         self.horizontalLayout_8.addWidget(self.autoScroll)
 
         self.buttonAutoRange = QPushButton(self.time)
         self.buttonAutoRange.setObjectName(u"buttonAutoRange")
+        self.buttonAutoRange.setFont(font1)
 
         self.horizontalLayout_8.addWidget(self.buttonAutoRange)
 
@@ -524,6 +560,7 @@ class Ui_MainWindow(object):
         sizePolicy15.setVerticalStretch(0)
         sizePolicy15.setHeightForWidth(self.timePlot.sizePolicy().hasHeightForWidth())
         self.timePlot.setSizePolicy(sizePolicy15)
+        self.timePlot.setFont(font1)
 
         self.gridLayout_6.addWidget(self.timePlot, 1, 0, 1, 1)
 
@@ -641,6 +678,7 @@ class Ui_MainWindow(object):
         sizePolicy17.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
         self.label_4.setSizePolicy(sizePolicy17)
         self.label_4.setMaximumSize(QSize(16777215, 100))
+        self.label_4.setFont(font1)
         self.label_4.setAlignment(Qt.AlignmentFlag.AlignBottom|Qt.AlignmentFlag.AlignHCenter)
 
         self.gridLayout_3.addWidget(self.label_4, 2, 2, 1, 1)
@@ -651,6 +689,7 @@ class Ui_MainWindow(object):
         self.lastCount.setSizePolicy(sizePolicy12)
         self.lastCount.setMinimumSize(QSize(200, 70))
         self.lastCount.setMaximumSize(QSize(1000, 70))
+        self.lastCount.setFont(font1)
         self.lastCount.setFrameShape(QFrame.Shape.Box)
         self.lastCount.setFrameShadow(QFrame.Shadow.Raised)
 
@@ -660,6 +699,7 @@ class Ui_MainWindow(object):
         self.label_18.setObjectName(u"label_18")
         sizePolicy9.setHeightForWidth(self.label_18.sizePolicy().hasHeightForWidth())
         self.label_18.setSizePolicy(sizePolicy9)
+        self.label_18.setFont(font1)
         self.label_18.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.gridLayout_3.addWidget(self.label_18, 0, 0, 1, 1)
@@ -674,6 +714,7 @@ class Ui_MainWindow(object):
         sizePolicy18.setVerticalStretch(0)
         sizePolicy18.setHeightForWidth(self.progressBar.sizePolicy().hasHeightForWidth())
         self.progressBar.setSizePolicy(sizePolicy18)
+        self.progressBar.setFont(font1)
         self.progressBar.setValue(0)
 
         self.horizontalLayout_4.addWidget(self.progressBar)
@@ -683,6 +724,7 @@ class Ui_MainWindow(object):
         sizePolicy17.setHeightForWidth(self.progressTimer.sizePolicy().hasHeightForWidth())
         self.progressTimer.setSizePolicy(sizePolicy17)
         self.progressTimer.setMinimumSize(QSize(50, 0))
+        self.progressTimer.setFont(font1)
 
         self.horizontalLayout_4.addWidget(self.progressTimer)
 
@@ -693,12 +735,14 @@ class Ui_MainWindow(object):
         self.label_2.setObjectName(u"label_2")
         sizePolicy17.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
         self.label_2.setSizePolicy(sizePolicy17)
+        self.label_2.setFont(font1)
         self.label_2.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.gridLayout_3.addWidget(self.label_2, 0, 2, 1, 1)
 
         self.line_4 = QFrame(self.gridGroupBox)
         self.line_4.setObjectName(u"line_4")
+        self.line_4.setFont(font1)
         self.line_4.setFrameShape(QFrame.Shape.VLine)
         self.line_4.setFrameShadow(QFrame.Shadow.Sunken)
 
@@ -715,6 +759,7 @@ class Ui_MainWindow(object):
         self.statusLED.setSizePolicy(sizePolicy19)
         self.statusLED.setMinimumSize(QSize(20, 20))
         self.statusLED.setMaximumSize(QSize(20, 20))
+        self.statusLED.setFont(font1)
         self.statusLED.setStyleSheet(u"background-color: rgb(255, 11, 3); border: 0px; padding: 4px; border-radius: 10px")
         self.statusLED.setFrameShape(QFrame.Shape.Box)
         self.statusLED.setText(u"")
@@ -725,6 +770,7 @@ class Ui_MainWindow(object):
         self.statusText.setObjectName(u"statusText")
         sizePolicy17.setHeightForWidth(self.statusText.sizePolicy().hasHeightForWidth())
         self.statusText.setSizePolicy(sizePolicy17)
+        self.statusText.setFont(font1)
 
         self.horizontalLayout_2.addWidget(self.statusText)
 
@@ -737,6 +783,7 @@ class Ui_MainWindow(object):
         self.currentCount.setSizePolicy(sizePolicy12)
         self.currentCount.setMinimumSize(QSize(200, 70))
         self.currentCount.setMaximumSize(QSize(1000, 70))
+        self.currentCount.setFont(font1)
         self.currentCount.setFrameShape(QFrame.Shape.Box)
         self.currentCount.setFrameShadow(QFrame.Shadow.Raised)
 
@@ -747,6 +794,7 @@ class Ui_MainWindow(object):
         sizePolicy17.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
         self.label_3.setSizePolicy(sizePolicy17)
         self.label_3.setMaximumSize(QSize(16777215, 100))
+        self.label_3.setFont(font1)
         self.label_3.setAlignment(Qt.AlignmentFlag.AlignBottom|Qt.AlignmentFlag.AlignHCenter)
 
         self.gridLayout_3.addWidget(self.label_3, 2, 3, 1, 1)
@@ -757,6 +805,7 @@ class Ui_MainWindow(object):
         self.label_8 = QLabel(self.gridGroupBox)
         self.label_8.setObjectName(u"label_8")
         self.label_8.setMinimumSize(QSize(130, 0))
+        self.label_8.setFont(font1)
         self.label_8.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.formLayout_4.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_8)
@@ -767,6 +816,7 @@ class Ui_MainWindow(object):
         self.cVoltage.setSizePolicy(sizePolicy8)
         self.cVoltage.setMinimumSize(QSize(0, 30))
         self.cVoltage.setMaximumSize(QSize(120, 50))
+        self.cVoltage.setFont(font1)
         self.cVoltage.setDigitCount(3)
 
         self.formLayout_4.setWidget(0, QFormLayout.ItemRole.FieldRole, self.cVoltage)
@@ -774,6 +824,7 @@ class Ui_MainWindow(object):
         self.label_9 = QLabel(self.gridGroupBox)
         self.label_9.setObjectName(u"label_9")
         self.label_9.setMinimumSize(QSize(130, 0))
+        self.label_9.setFont(font1)
         self.label_9.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.formLayout_4.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_9)
@@ -784,6 +835,7 @@ class Ui_MainWindow(object):
         self.cDuration.setSizePolicy(sizePolicy8)
         self.cDuration.setMinimumSize(QSize(100, 30))
         self.cDuration.setMaximumSize(QSize(120, 50))
+        self.cDuration.setFont(font1)
         self.cDuration.setDigitCount(3)
 
         self.formLayout_4.setWidget(1, QFormLayout.ItemRole.FieldRole, self.cDuration)
@@ -793,6 +845,7 @@ class Ui_MainWindow(object):
         sizePolicy17.setHeightForWidth(self.query_label.sizePolicy().hasHeightForWidth())
         self.query_label.setSizePolicy(sizePolicy17)
         self.query_label.setMinimumSize(QSize(130, 0))
+        self.query_label.setFont(font1)
         self.query_label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.formLayout_4.setWidget(2, QFormLayout.ItemRole.LabelRole, self.query_label)
@@ -803,6 +856,7 @@ class Ui_MainWindow(object):
         self.cQueryMode.setSizePolicy(sizePolicy12)
         self.cQueryMode.setMinimumSize(QSize(0, 20))
         self.cQueryMode.setMaximumSize(QSize(120, 50))
+        self.cQueryMode.setFont(font1)
 
         self.formLayout_4.setWidget(2, QFormLayout.ItemRole.FieldRole, self.cQueryMode)
 
@@ -811,6 +865,7 @@ class Ui_MainWindow(object):
         sizePolicy17.setHeightForWidth(self.label_12.sizePolicy().hasHeightForWidth())
         self.label_12.setSizePolicy(sizePolicy17)
         self.label_12.setMinimumSize(QSize(130, 20))
+        self.label_12.setFont(font1)
         self.label_12.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.formLayout_4.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_12)
@@ -821,6 +876,7 @@ class Ui_MainWindow(object):
         self.cMode.setSizePolicy(sizePolicy12)
         self.cMode.setMinimumSize(QSize(0, 20))
         self.cMode.setMaximumSize(QSize(120, 50))
+        self.cMode.setFont(font1)
 
         self.formLayout_4.setWidget(3, QFormLayout.ItemRole.FieldRole, self.cMode)
 
@@ -829,6 +885,7 @@ class Ui_MainWindow(object):
         sizePolicy17.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
         self.label.setSizePolicy(sizePolicy17)
         self.label.setMinimumSize(QSize(130, 20))
+        self.label.setFont(font1)
         self.label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.formLayout_4.setWidget(4, QFormLayout.ItemRole.LabelRole, self.label)
@@ -839,12 +896,14 @@ class Ui_MainWindow(object):
         self.cVersion.setSizePolicy(sizePolicy12)
         self.cVersion.setMinimumSize(QSize(0, 20))
         self.cVersion.setMaximumSize(QSize(120, 50))
+        self.cVersion.setFont(font1)
 
         self.formLayout_4.setWidget(4, QFormLayout.ItemRole.FieldRole, self.cVersion)
 
         self.label_11 = QLabel(self.gridGroupBox)
         self.label_11.setObjectName(u"label_11")
         self.label_11.setMinimumSize(QSize(130, 0))
+        self.label_11.setFont(font1)
         self.label_11.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.formLayout_4.setWidget(5, QFormLayout.ItemRole.LabelRole, self.label_11)
@@ -854,6 +913,7 @@ class Ui_MainWindow(object):
         sizePolicy9.setHeightForWidth(self.cOpenbis.sizePolicy().hasHeightForWidth())
         self.cOpenbis.setSizePolicy(sizePolicy9)
         self.cOpenbis.setMaximumSize(QSize(120, 50))
+        self.cOpenbis.setFont(font1)
 
         self.formLayout_4.setWidget(5, QFormLayout.ItemRole.FieldRole, self.cOpenbis)
 
@@ -872,10 +932,11 @@ class Ui_MainWindow(object):
 
         self.gridLayout_5.addLayout(self.verticalLayout_3, 0, 2, 1, 1)
 
+        self.gridLayout_5.setColumnStretch(2, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1122, 24))
+        self.menubar.setGeometry(QRect(0, 0, 1163, 24))
         MainWindow.setMenuBar(self.menubar)
         self.statusBar = QStatusBar(MainWindow)
         self.statusBar.setObjectName(u"statusBar")

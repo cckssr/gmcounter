@@ -9,7 +9,7 @@
     },
 
     "debug": {
-      "level_default": "info"
+      "level_default": "verbose"
     },
 
     "plot": {

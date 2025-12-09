@@ -4,6 +4,7 @@
         "alert.ui",
         "control.ui",
         "connection.ui",
-        "mainwindow.ui"
+        "mainwindow.ui",
+        "stylesheet.qrc"
     ]
 }

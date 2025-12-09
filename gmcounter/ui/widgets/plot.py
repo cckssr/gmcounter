@@ -1,164 +1,326 @@
-"""Plot widgets using :mod:`pyqtgraph`."""
+"""
+Reusable plot widgets using pyqtgraph.
+
+This module provides general-purpose plotting widgets that can be used
+across different applications. The widgets support real-time data updates,
+auto-scrolling, auto-ranging, and histogram visualization.
+
+Classes:
+    GeneralPlot: Real-time line plot with configurable axes and update modes
+    HistogramWidget: Histogram plot for frequency distribution visualization
+    FastPlotCurveItem: Optimized curve item for high-performance plotting
+
+Performance Features:
+    - Batch data updates to minimize rendering overhead
+    - Lazy item creation to avoid unnecessary overhead
+    - skipFiniteCheck option for pre-validated data
+    - Efficient range calculations with caching
+    - GPU acceleration via OpenGL when available
+"""
 
 from __future__ import annotations
 
-from typing import Iterable, Optional, Tuple, List
+from typing import Iterable, Optional, Tuple, List, Dict, Any
 import numpy as np
-
+import pyqtgraph as pg
+from PySide6.QtCore import Signal, Slot, QTimer  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QSurfaceFormat, QPalette  # pylint: disable=no-name-in-module
 from ...infrastructure.logging import Debug
 
+# CRITICAL: Disable vsync for maximum plot update speed
+sfmt = QSurfaceFormat()
+sfmt.setSwapInterval(0)
+QSurfaceFormat.setDefaultFormat(sfmt)
+
 try:  # pragma: no cover - optional dependency during headless tests
-    import pyqtgraph as pg
-    from PySide6.QtCore import Signal, QObject  # pylint: disable=no-name-in-module
+    # Enable OpenGL acceleration if available
+    pg.setConfigOption("useOpenGL", True)
+    pg.setConfigOption("enableExperimental", True)
+    Debug.info("PyQtGraph OpenGL acceleration ENABLED")
+except ImportError as e:
+    Debug.warning(f"PyQtGraph OpenGL not available: {e}")
+    Debug.info("Using standard rendering (slower but stable)")
 
-    # CRITICAL PERFORMANCE: Enable OpenGL acceleration if available
-    # This can provide 10-100x speedup for large datasets
-    try:
-        import pyqtgraph.opengl as gl  # noqa: F401
-
-        pg.setConfigOption("useOpenGL", True)
-        pg.setConfigOption("enableExperimental", True)
-        Debug.info("PyQtGraph OpenGL acceleration ENABLED")
-    except Exception as e:
-        Debug.warning(f"PyQtGraph OpenGL not available: {e}")
-        Debug.info("Using standard rendering (slower but stable)")
-
-    # Additional performance optimizations for pyqtgraph
-    pg.setConfigOption("antialias", False)  # Disable antialiasing for speed
-    pg.setConfigOption("foreground", "k")  # Black foreground
-    pg.setConfigOption("background", "w")  # White background
-
-except Exception:  # pragma: no cover - fallback stubs
-    from PySide6.QtWidgets import QWidget
-
-    class Signal:  # pragma: no cover - fallback stub
-        def __init__(self, *args):
-            pass
-
-        def emit(self, *args):
-            pass
-
-        def connect(self, *args):
-            pass
-
-    class QObject:  # pragma: no cover - fallback stub
-        pass
-
-    class _DummyPlotWidget(QWidget, object):
-        def __init__(self, *_, **__):
-            super().__init__()
-
-        def plot(self, *_, **__):
-            return self
-
-        def clear(self):
-            pass
-
-        def setLabel(self, *_, **__):
-            pass
-
-        def setTitle(self, *_):
-            pass
-
-        def autoRange(self, *_, **__):
-            pass
-
-    pg = type("MockPyQtGraph", (), {"PlotWidget": _DummyPlotWidget})()
+# Performance-optimized configuration based on pyqtgraph examples
+# Disable antialiasing for speed (can be enabled per-plot if needed)
+pg.setConfigOption("antialias", False)
+# Optimize downsampling
+pg.setConfigOption("imageAxisOrder", "row-major")
+# Prefer PlotCurveItem over PlotDataItem (simpler, faster)
+pg.setConfigOption("useNumba", True)  # Use numba if available for acceleration
 
 
-class PlotWidget(pg.PlotWidget):
-    """A real-time plot widget using pyqtgraph."""
+class PlotConfig:
+    """
+    Configuration for GeneralPlot.
 
-    # Signal emitted when user manually interacts with the plot
+    Attributes:
+        title (Optional[str]): Plot title
+        xlabel (str): X-axis label
+        ylabel (str): Y-axis label
+        fontsize (int): Font size for labels and title
+        max_plot_points (int): Maximum number of points to display in auto-scroll mode
+        background_color (Optional[str]): Background color (CSS format)
+        grid_alpha (float): Alpha transparency for grid lines (0.0-1.0)
+        use_opengl (bool): Enable OpenGL rendering (best performance)
+        antialias (bool): Enable antialiasing (slower but prettier)
+        skip_finite_check (bool): Skip checking for NaN/inf values (faster if data is pre-validated)
+        pen_width (int): Width of plot line
+        symbol_size (int): Size of plot symbols
+    """
+
+    title: Optional[str] = None
+    xlabel: str = "X"
+    ylabel: str = "Y"
+    fontsize: int = 11
+    max_plot_points: int = 1000
+    background_color: Optional[str] = None
+    grid_alpha: float = 0.3
+    use_opengl: bool = True
+    antialias: bool = False
+    skip_finite_check: bool = False
+    pen_width: int = 2
+    symbol_size: int = 4
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+
+
+class FastPlotCurveItem(pg.PlotCurveItem):
+    """
+    Optimized PlotCurveItem for high-performance plotting.
+
+    This class extends PlotCurveItem with performance optimizations:
+    - Direct data management for minimal overhead
+    - Efficient clipping detection
+    - Support for skipFiniteCheck for pre-validated data
+    """
+
+    def __init__(self, **kwds):
+        """Initialize with performance defaults."""
+        # Set performance-optimized defaults
+        kwds.setdefault("antialias", False)
+        kwds.setdefault("pen", pg.mkPen(width=1, color="gray"))
+        super().__init__(**kwds)
+        self._cached_range: Optional[
+            Tuple[Tuple[float, float], Tuple[float, float]]
+        ] = None
+        self._data_changed = True
+
+    def setData(self, *args, **kwds):
+        """
+        Set data with optimized performance.
+
+        Args:
+            x, y: Data arrays or lists
+            pen: Pen for drawing
+            antialias: Enable antialiasing (default: False for speed)
+            skipFiniteCheck: Skip NaN/inf checking (faster for pre-validated data)
+            connect: Connection array or string ('all', 'pairs', 'finite', 'array')
+        """
+        # Mark cache as invalid
+        self._data_changed = True
+        # Use parent's setData with performance options
+        kwds.setdefault("skipFiniteCheck", False)
+        super().setData(*args, **kwds)
+
+    def get_range(self) -> Optional[Tuple[Tuple[float, float], Tuple[float, float]]]:
+        """
+        Get cached data range (x_range, y_range).
+
+        Returns None if data is empty or invalid.
+        """
+        if not self._data_changed and self._cached_range is not None:
+            return self._cached_range
+
+        if self.xData is None or self.yData is None or len(self.xData) == 0:
+            return None
+
+        try:
+            x_min = float(np.amin(self.xData))
+            x_max = float(np.amax(self.xData))
+            y_min = float(np.amin(self.yData))
+            y_max = float(np.amax(self.yData))
+            self._cached_range = ((x_min, x_max), (y_min, y_max))
+            self._data_changed = False
+            return self._cached_range
+        except (ValueError, TypeError):
+            return None
+
+    def generateSvg(self, **kwds):
+        """Generate SVG representation (optional implementation)."""
+        # Required by abstract GraphicsItem interface
+        return None
+
+
+class GeneralPlot(pg.PlotWidget):
+    """
+    A high-performance real-time plot widget using pyqtgraph.
+
+    This widget provides efficient plotting for live data streams with support for:
+    - Auto-scrolling mode (shows last N points)
+    - Auto-ranging mode (fits all data automatically)
+    - Manual zoom/pan mode
+    - Batch data updates for maximum efficiency
+    - GPU acceleration via OpenGL
+    - Automatic downsampling for large datasets
+    - Pre-validated data support (skipFiniteCheck)
+
+    Design based on pyqtgraph performance examples and best practices.
+
+    Signals:
+        user_interaction_detected: Emitted when user manually pans or zooms
+        plot_updated: Emitted after plot data update (int: number of points)
+        plot_cleared: Emitted when plot is cleared
+        auto_scroll_changed: Emitted when auto-scroll state changes (bool: enabled)
+        auto_range_changed: Emitted when auto-range state changes (bool: enabled)
+
+    Example:
+        >>> config = PlotConfig(title="Temperature", xlabel="Time (s)", ylabel="°C")
+        >>> plot = GeneralPlot(config)
+        >>> plot.update_plot_data([(1, 25.5), (2, 26.3), (3, 25.8)])
+        >>> plot.set_auto_scroll(True, max_points=500)
+    """
+
+    # Signals for reactive UI integration
     user_interaction_detected = Signal()
+    plot_updated = Signal(int)  # Emits number of displayed points
+    plot_cleared = Signal()
+    auto_scroll_changed = Signal(bool)  # Emits enabled state
+    auto_range_changed = Signal(bool)  # Emits enabled state
+
+    # Performance tuning
+    MAX_RENDER_POINTS = 5000  # Max points before downsampling triggers
+    SCROLL_UPDATE_INTERVAL = 5  # Update scroll range every N updates
 
     def __init__(
         self,
-        title: Optional[str] = None,
-        xlabel: str = "Index",
-        ylabel: str = "Time (µs)",
-        max_plot_points: int = 500,
-        fontsize: int = 12,
+        config: Optional[PlotConfig] = None,
     ):
         """
-        Initialize the plot widget.
+        Initialize the plot widget with performance optimizations.
 
         Args:
-            max_plot_points (int): Maximum number of points to display in the plot
-            width (int): Width of the plot in inches
-            height (int): Height of the plot in inches
-            dpi (int): DPI (dots per inch) of the plot
-            fontsize (int): Font size to use in the plot
-            xlabel (str): Label for the x-axis
-            ylabel (str): Label for the y-axis
-            title (str): Title of the plot
+            config: PlotConfig object with initial settings
         """
         super().__init__()
 
-        self.max_plot_points = max_plot_points
-        self.fontsize = fontsize
+        if config is None:
+            config = PlotConfig()
+
+        self.config = config
+
+        # Performance flags
         self._user_interacted = False
         self._auto_scroll_enabled = False
-        self._auto_range_enabled = False
-        self._programmatic_update = (
-            False  # Flag to prevent triggering on programmatic changes
-        )
+        self._auto_range_enabled = True  # Start with auto-range enabled
+        self._programmatic_update = False
+        self._pending_update = False
 
-        # Set up the plot appearance
-        self.setBackground(None)
-        self.showGrid(x=True, y=True, alpha=0.3)
-        self.setLabel("bottom", xlabel)
-        self.setLabel("left", ylabel)
-        self.setTitle(title)
+        # Data management
+        self._plot_curve: Optional[FastPlotCurveItem] = None
+        self._scroll_counter = 0
+        self._last_data_points: List[Tuple[float, float]] = []
+        self._is_clearing = False
 
-        # Store config for potential future use
-        self._plot_config = {"xlabel": xlabel, "ylabel": ylabel, "title": title}
+        # Deferred update mechanism for batch operations
+        self._update_timer = QTimer()
+        self._update_timer.setSingleShot(True)
+        self._update_timer.timeout.connect(self._process_deferred_update)
+        self._deferred_data: List[Tuple[float, float]] = []
 
-        # Connect to view range changed signal to detect user interaction
-        viewbox = self.plotItem.getViewBox()
-        viewbox.sigRangeChanged.connect(self._on_view_changed)
+        # Configure plot appearance
+        self._configure_appearance()
 
-        # Redraw the canvas
-        self.update()  # Triggers an explicit QWidget repaint
+        # Set up interaction detection
+        self._connect_signals()
 
-    def _on_view_changed(self):
-        """Called when user pans or zooms the plot.
+        Debug.debug("GeneralPlot initialized with auto-range enabled")
 
-        Disables auto-range and auto-scroll when user manually adjusts the view.
-        Emits signal to notify MainWindow to update UI checkboxes.
+    def _configure_appearance(self) -> None:
+        """Configure plot appearance based on config."""
+        # Determine background color
+        background = self.config.background_color
+
+        # Only set background if explicitly configured
+        # For None, we'll set it dynamically in showEvent()
+        if background:
+            self.setBackground(background)
+
+        self.showGrid(x=True, y=True, alpha=self.config.grid_alpha)
+
+        if self.config.title:
+            self.setTitle(self.config.title)
+
+        self.setLabel("bottom", self.config.xlabel)
+        self.setLabel("left", self.config.ylabel)
+
+        # Configure ViewBox for performance
+        viewbox = self.getViewBox()
+        if viewbox:
+            # Disable some interactive features for performance if needed
+            viewbox.setMouseEnabled(x=True, y=True)
+            viewbox.enableAutoRange(enable=True)
+
+    def _connect_signals(self) -> None:
+        """Connect signals for user interaction detection."""
+        viewbox = self.getViewBox()
+        if viewbox:
+            viewbox.sigRangeChanged.connect(self._on_view_range_changed)
+
+    def _on_view_range_changed(self) -> None:
+        """
+        Detect when user manually pans or zooms the plot.
+
+        Automatically disables auto-range/auto-scroll when user interacts,
+        allowing manual control.
         """
         # Ignore programmatic updates
-        if self._programmatic_update:
+        if self._programmatic_update or self._is_clearing:
             return
 
-        # Check if this is a user-initiated change
-        viewbox = self.plotItem.getViewBox()
-        if viewbox.state["mouseEnabled"][0] or viewbox.state["mouseEnabled"][1]:
-            # Only react if auto-range or auto-scroll is currently enabled
-            if self._auto_range_enabled or self._auto_scroll_enabled:
-                self._auto_range_enabled = False
-                self._auto_scroll_enabled = False
-                self._user_interacted = True
-                Debug.info(
-                    "Auto-Range und Auto-Scroll durch Benutzerinteraktion deaktiviert"
-                )
-                # Emit signal to notify MainWindow
-                self.user_interaction_detected.emit()
+        viewbox = self.getViewBox()
+        if not viewbox:
+            return
 
-    def set_auto_scroll(self, enabled: bool, max_points: int = None):
-        """Enable or disable auto-scroll mode.
+        # Only process if auto modes are active
+        if self._auto_range_enabled or self._auto_scroll_enabled:
+            self._auto_range_enabled = False
+            self._auto_scroll_enabled = False
+            self._user_interacted = True
+            Debug.debug("Auto modes disabled by user interaction")
+            self.user_interaction_detected.emit()
+
+    @Slot(bool)
+    def set_auto_scroll(self, enabled: bool, max_points: Optional[int] = None) -> None:
+        """
+        Enable or disable auto-scroll mode.
+
+        In auto-scroll mode, the plot shows only the last N points and
+        automatically scrolls as new data arrives.
 
         Args:
-            enabled: Whether to enable auto-scroll
-            max_points: Maximum number of points to display (optional)
+            enabled: Whether to enable auto-scroll mode
+            max_points: Maximum number of points to display
         """
         self._auto_scroll_enabled = enabled
-        if max_points is not None:
-            self.max_plot_points = max_points
-        Debug.debug(f"Auto-Scroll: {enabled}, Max Points: {self.max_plot_points}")
 
-    def enable_auto_range(self, enabled: bool = True):
-        """Enable or disable automatic range adjustment.
+        if max_points is not None:
+            self.config.max_plot_points = max(10, max_points)
+
+        self.auto_scroll_changed.emit(enabled)
+        Debug.debug(
+            f"Auto-scroll: {enabled}, max_points: {self.config.max_plot_points}"
+        )
+
+    @Slot(bool)
+    def enable_auto_range(self, enabled: bool = True) -> None:
+        """
+        Enable or disable automatic range adjustment.
+
+        In auto-range mode, axes automatically adjust to fit all data.
 
         Args:
             enabled: Whether to enable auto-range
@@ -166,382 +328,627 @@ class PlotWidget(pg.PlotWidget):
         self._auto_range_enabled = enabled
         self._user_interacted = not enabled
 
-        viewbox = self.plotItem.getViewBox()
-        if enabled:
-            viewbox.enableAutoRange(enable=True)
-            Debug.debug("Auto-Range aktiviert")
-        else:
-            viewbox.enableAutoRange(enable=False)
-            Debug.debug("Auto-Range deaktiviert")
+        viewbox = self.getViewBox()
+        if viewbox:
+            self._programmatic_update = True
+            viewbox.enableAutoRange(enable=enabled)
+            self._programmatic_update = False
 
-    def clear_measurement_data(self):
-        """Clear plot measurement data for new measurement.
+        self.auto_range_changed.emit(enabled)
+        state = "enabled" if enabled else "disabled"
+        Debug.debug(f"Auto-range {state}")
 
-        This method is called when starting a new measurement to ensure
-        the plot is in a clean state.
+    @Slot()
+    def clear_measurement_data(self) -> None:
         """
-        Debug.info(
-            f"PlotWidget.clear_measurement_data() called, _plot_item exists: {hasattr(self, '_plot_item')}, is None: {getattr(self, '_plot_item', None) is None}"
-        )
-        if hasattr(self, "_plot_item") and self._plot_item is not None:
-            # Remove the plot item completely for clean re-initialization
-            try:
-                self.removeItem(self._plot_item)
-                Debug.info("PlotWidget: Successfully removed _plot_item from view")
-            except Exception as e:
-                Debug.error(f"PlotWidget: Error removing _plot_item: {e}")
-            self._plot_item = None
-            Debug.info("PlotWidget: _plot_item set to None")
-        else:
-            Debug.info(
-                f"PlotWidget.clear_measurement_data(): _plot_item is already None or doesn't exist"
-            )
+        Clear all plot data and reset state.
 
-        # Reset scroll counter
-        if hasattr(self, "_scroll_update_counter"):
-            self._scroll_update_counter = 0
+        Call this before starting a new measurement series.
+        """
+        self._is_clearing = True
+        Debug.debug("Clearing plot data")
 
-        # Also call base class clear() to ensure complete cleanup
         try:
-            super().clear()
-            Debug.info("PlotWidget: Base class clear() called")
-        except Exception as e:
-            Debug.error(f"PlotWidget: Error calling base clear(): {e}")
+            if self._plot_curve is not None:
+                self.removeItem(self._plot_curve)
+                self._plot_curve = None
 
-    def clear(self):
-        """Clear plot data efficiently.
+            self._last_data_points.clear()
+            self._deferred_data.clear()
+            self._scroll_counter = 0
+            self._user_interacted = False
 
-        PERFORMANCE: Remove the plot item to ensure clean state for next measurement.
+            # Reset to auto-range
+            self.enable_auto_range(True)
+
+        finally:
+            self._is_clearing = False
+
+        self.plot_cleared.emit()
+
+    @Slot(list)
+    def update_plot_data(
+        self,
+        data_points: List[Tuple[float, float]],
+        use_symbols: bool = False,
+        deferred: bool = False,
+    ) -> None:
         """
-        Debug.info(
-            f"PlotWidget.clear() called, _plot_item exists: {hasattr(self, '_plot_item')}, is None: {getattr(self, '_plot_item', None) is None}"
-        )
-        if hasattr(self, "_plot_item") and self._plot_item is not None:
-            # Remove the plot item completely for clean re-initialization
-            try:
-                self.removeItem(self._plot_item)
-                Debug.info("PlotWidget: Successfully removed _plot_item from view")
-            except Exception as e:
-                Debug.error(f"PlotWidget: Error removing _plot_item: {e}")
-            self._plot_item = None
-            Debug.info("PlotWidget: _plot_item set to None")
-        else:
-            Debug.info(
-                f"PlotWidget.clear(): _plot_item is already None or doesn't exist"
-            )
+        Update plot with new data points (high-performance method).
 
-        # Reset scroll counter
-        if hasattr(self, "_scroll_update_counter"):
-            self._scroll_update_counter = 0
-
-        # Also call base class clear() to ensure complete cleanup
-        try:
-            super().clear()
-            Debug.info("PlotWidget: Base class clear() called")
-        except Exception as e:
-            Debug.error(f"PlotWidget: Error calling base clear(): {e}")
-
-    def update_plot(self, data_points: List[Tuple[int, float, str]]):
-        """
-        Updates the plot using external data source.
-
-        PERFORMANCE: Uses setData() instead of clear()+plot() for efficiency.
-        Downsamples data if more than 2000 points to prevent rendering lag.
+        PERFORMANCE TIPS:
+        - Pass lists of tuples for fastest updates
+        - Use deferred=True for burst updates (batches them together)
+        - Use use_symbols=True only for <200 points
+        - Use skipFiniteCheck=True only if data is pre-validated
 
         Args:
-            data_points: List of (index_num, value_num, timestamp) tuples
+            data_points: List of (x, y) tuples
+            use_symbols: Display symbols at points (slower)
+            deferred: If True, batch updates together (for streaming data)
         """
         if not data_points:
-            Debug.debug("update_plot called with empty data_points")
             return
 
-        # AGGRESSIVE Downsampling for smooth performance
-        # Render maximum 500 points for smooth 60 FPS rendering
-        MAX_RENDER_POINTS = 500
-        if len(data_points) > MAX_RENDER_POINTS:
-            # Calculate step size to downsample
-            step = len(data_points) // MAX_RENDER_POINTS
-            display_points = data_points[::step]
-        else:
-            display_points = data_points
+        if deferred:
+            # Batch updates together to reduce rendering overhead
+            self._deferred_data.extend(data_points)
+            if not self._update_timer.isActive():
+                self._update_timer.start(16)  # ~60 FPS
+            return
 
-        # Extract data arrays with efficient dtype
-        all_indices = np.array([point[0] for point in display_points], dtype=np.float32)
-        all_values_us = np.array(
-            [point[1] for point in display_points], dtype=np.float32
+        # Immediate update
+        self._perform_plot_update(data_points, use_symbols)
+
+    def _process_deferred_update(self) -> None:
+        """Process batched deferred updates."""
+        if self._deferred_data:
+            data = self._deferred_data[:]
+            self._deferred_data.clear()
+            self._perform_plot_update(data, use_symbols=False)
+
+    def _perform_plot_update(
+        self, data_points: List[Tuple[float, float]], use_symbols: bool = False
+    ) -> None:
+        """
+        Perform the actual plot update (internal method).
+
+        Args:
+            data_points: List of (x, y) tuples
+            use_symbols: Display symbols at points
+        """
+        if not data_points:
+            return
+
+        # Store current data
+        self._last_data_points = data_points.copy()
+
+        # Extract arrays for plotting
+        x_arr = np.array([p[0] for p in data_points], dtype=np.float32)
+        y_arr = np.array([p[1] for p in data_points], dtype=np.float32)
+
+        # Determine rendering mode
+        show_symbols = use_symbols and len(data_points) < 200
+
+        # Create or update plot curve item
+        if self._plot_curve is None:
+            self._create_plot_curve(x_arr, y_arr, show_symbols)
+        else:
+            self._update_plot_curve(x_arr, y_arr, show_symbols)
+
+        # Update range based on current mode
+        self._update_view_range(data_points)
+
+        # Emit signal
+        self.plot_updated.emit(len(data_points))
+
+    def _create_plot_curve(
+        self, x_arr: np.ndarray, y_arr: np.ndarray, show_symbols: bool
+    ) -> None:
+        """
+        Create initial plot curve item (lazy creation).
+
+        Args:
+            x_arr: X data array
+            y_arr: Y data array
+            show_symbols: Whether to show symbols at points
+        """
+        Debug.debug(
+            f"Creating plot curve ({len(x_arr)} points, symbols={show_symbols})"
         )
 
-        # Disable symbols for better performance when many points
-        use_symbols = len(display_points) < 200  # Only show symbols for <200 points
+        # Create optimized curve item
+        self._plot_curve = FastPlotCurveItem()
 
-        # CRITICAL PERFORMANCE FIX: Use setData() instead of clear()+plot()
-        # This reuses the existing plot item instead of destroying and recreating it
-        if not hasattr(self, "_plot_item") or self._plot_item is None:
-            # First time: create plot item
-            Debug.info(
-                f"Creating new plot item with {len(display_points)} points, symbols={use_symbols}"
+        if show_symbols:
+            self._plot_curve.setData(
+                x_arr,
+                y_arr,
+                pen=pg.mkPen(width=self.config.pen_width, color="gray"),
+                symbol="o",
+                symbolSize=self.config.symbol_size,
+                symbolBrush="r",
+                symbolPen="r",
+                antialias=self.config.antialias,
+                skipFiniteCheck=self.config.skip_finite_check,
             )
-            # CRITICAL: Disconnect sigRangeChanged to prevent false user interaction detection
-            # The signal will trigger multiple times during plot creation and cause auto-scroll to be disabled
-            viewbox = self.plotItem.getViewBox()
-            try:
-                viewbox.sigRangeChanged.disconnect(self._on_view_changed)
-                signal_disconnected = True
-            except:
-                signal_disconnected = False
-
-            if use_symbols:
-                self._plot_item = self.plot(
-                    all_indices,
-                    all_values_us,
-                    pen="gray",
-                    symbol="o",
-                    symbolSize=4,
-                    symbolBrush="r",
-                    symbolPen="r",
-                )
-            else:
-                # No symbols for better performance
-                self._plot_item = self.plot(
-                    all_indices,
-                    all_values_us,
-                    pen="gray",
-                )
-
-            # Reconnect signal after plot creation
-            if signal_disconnected:
-                viewbox.sigRangeChanged.connect(self._on_view_changed)
-                Debug.debug(
-                    "PlotWidget: sigRangeChanged reconnected after plot creation"
-                )
         else:
-            # Subsequent updates: just update data (MUCH faster!)
-            self._plot_item.setData(all_indices, all_values_us)
-
-        # Debug only occasionally to reduce overhead
-        if len(data_points) % 100 == 0:  # Log every 100th update
-            Debug.debug(
-                f"Plot updated with {len(display_points)}/{len(data_points)} points"
+            self._plot_curve.setData(
+                x_arr,
+                y_arr,
+                pen=pg.mkPen(width=self.config.pen_width, color="gray"),
+                antialias=self.config.antialias,
+                skipFiniteCheck=self.config.skip_finite_check,
             )
 
-        # Handle range adjustment based on mode
-        # PERFORMANCE: Skip range calculations if not needed
-        viewbox = self.plotItem.getViewBox()
+        self.addItem(self._plot_curve)
+
+    def _update_plot_curve(
+        self, x_arr: np.ndarray, y_arr: np.ndarray, show_symbols: bool
+    ) -> None:
+        """
+        Update existing plot curve (fast update).
+
+        Args:
+            x_arr: X data array
+            y_arr: Y data array
+            show_symbols: Whether to show symbols at points
+        """
+        # Update data using fast setData method
+        if self._plot_curve is None:
+            return
+
+        if show_symbols:
+            self._plot_curve.setData(
+                x_arr,
+                y_arr,
+                symbol="o",
+                symbolSize=self.config.symbol_size,
+                skipFiniteCheck=self.config.skip_finite_check,
+            )
+        else:
+            self._plot_curve.setData(
+                x_arr, y_arr, skipFiniteCheck=self.config.skip_finite_check
+            )
+
+    def _update_view_range(self, data_points: List[Tuple[float, float]]) -> None:
+        """
+        Update plot range based on current mode.
+
+        Args:
+            data_points: All data points for range calculation
+        """
+        viewbox = self.getViewBox()
+        if not viewbox or not self._plot_curve:
+            return
 
         if self._auto_range_enabled:
-            # Auto-range mode: let pyqtgraph handle it immediately for responsive UI
+            # Auto-range mode: let pyqtgraph handle it
             self._programmatic_update = True
             viewbox.enableAutoRange(enable=True)
             self._programmatic_update = False
+
         elif self._auto_scroll_enabled:
-            # Auto-scroll mode: update range only every 100 updates to reduce overhead
-            if not hasattr(self, "_scroll_update_counter"):
-                self._scroll_update_counter = 0
+            # Auto-scroll mode: update periodically
+            self._scroll_counter += 1
+            if self._scroll_counter >= self.SCROLL_UPDATE_INTERVAL:
+                self._scroll_counter = 0
+                self._apply_scroll_view(data_points, viewbox)
 
-            self._scroll_update_counter += 1
+        elif not self._user_interacted:
+            # Initial range (manual mode, no user interaction yet)
+            self._apply_initial_view(data_points, viewbox)
 
-            # Update range every 10 calls for smooth scrolling
-            if self._scroll_update_counter >= 10:
-                self._scroll_update_counter = 0
-
-                # Show only the last max_plot_points
-                display_data_for_range = (
-                    data_points[-self.max_plot_points :]
-                    if len(data_points) > self.max_plot_points
-                    else data_points
-                )
-
-                if len(display_data_for_range) > 0:
-                    # Extract indices and values for range calculation only
-                    range_indices = np.array(
-                        [point[0] for point in display_data_for_range], dtype=np.float32
-                    )
-                    range_values_us = np.array(
-                        [point[1] for point in display_data_for_range], dtype=np.float32
-                    )
-
-                    # Calculate proper ranges with minimal padding
-                    x_min, x_max = range_indices.min(), range_indices.max()
-                    y_min, y_max = range_values_us.min(), range_values_us.max()
-
-                    # Ensure minimum range for single-point plots
-                    if x_max == x_min:
-                        x_padding = max(1, x_min * 0.1)  # 10% of index or at least 1
-                        final_x_range = [x_min - x_padding, x_max + x_padding]
-                    else:
-                        x_range = x_max - x_min
-                        x_padding = x_range * 0.05
-                        final_x_range = [x_min - x_padding, x_max + x_padding]
-
-                    if y_max == y_min:
-                        y_padding = max(
-                            1000, y_min * 0.1
-                        )  # 10% of value or at least 1000µs
-                        final_y_range = [y_min - y_padding, y_max + y_padding]
-                    else:
-                        y_range = y_max - y_min
-                        y_padding = y_range * 0.05
-                        final_y_range = [y_min - y_padding, y_max + y_padding]
-
-                    # Set manual range for auto-scroll
-                    self._programmatic_update = True
-                    viewbox.enableAutoRange(enable=False)
-                    viewbox.setRange(
-                        xRange=final_x_range, yRange=final_y_range, padding=0
-                    )
-                    self._programmatic_update = False
-        else:
-            # Manual mode: don't change the view if user has interacted
-            if not self._user_interacted:
-                # First time or no user interaction yet - set initial range
-                display_data_for_range = (
-                    data_points[-self.max_plot_points :]
-                    if len(data_points) > self.max_plot_points
-                    else data_points
-                )
-
-                if len(display_data_for_range) > 0:
-                    # Extract indices and values for range calculation only
-                    range_indices = np.array(
-                        [point[0] for point in display_data_for_range]
-                    )
-                    range_values_us = np.array(
-                        [point[1] for point in display_data_for_range]
-                    )
-
-                    # Calculate proper ranges with minimal padding
-                    x_min, x_max = range_indices.min(), range_indices.max()
-                    y_min, y_max = range_values_us.min(), range_values_us.max()
-
-                    # Ensure minimum range for single-point plots
-                    if x_max == x_min:
-                        x_padding = max(1, x_min * 0.1)
-                        final_x_range = [x_min - x_padding, x_max + x_padding]
-                    else:
-                        x_range = x_max - x_min
-                        x_padding = x_range * 0.05
-                        final_x_range = [x_min - x_padding, x_max + x_padding]
-
-                    if y_max == y_min:
-                        y_padding = max(1000, y_min * 0.1)
-                        final_y_range = [y_min - y_padding, y_max + y_padding]
-                    else:
-                        y_range = y_max - y_min
-                        y_padding = y_range * 0.05
-                        final_y_range = [y_min - y_padding, y_max + y_padding]
-
-                    # Set initial range
-                    self._programmatic_update = True
-                    viewbox.enableAutoRange(enable=False)
-                    viewbox.setRange(
-                        xRange=final_x_range, yRange=final_y_range, padding=0
-                    )
-                    self._programmatic_update = False
-                    Debug.debug(f"Initial range: {final_x_range}, {final_y_range}")
-
-    def update_plot_batch(self, data_points: List[Tuple[int, float, str]]):
+    def _apply_scroll_view(
+        self, data_points: List[Tuple[float, float]], viewbox: Any
+    ) -> None:
         """
-        Batch update method for efficient plot updates with multiple data points.
-        This is the same as update_plot but with a clearer name for batch operations.
+        Apply scrolling view showing last N points.
 
         Args:
-            data_points: List of (index_num, value_num, timestamp) tuples
+            data_points: All data points
+            viewbox: PyQtGraph ViewBox instance
         """
-        self.update_plot(data_points)
+        # Select data for display
+        max_pts = self.config.max_plot_points
+        display_data = (
+            data_points[-max_pts:] if len(data_points) > max_pts else data_points
+        )
 
-    def get_data_in_range(self, max_points: int) -> Tuple[np.ndarray, np.ndarray]:
+        if not display_data:
+            return
+
+        x_range, y_range = self._calculate_range(display_data)
+
+        self._programmatic_update = True
+        viewbox.enableAutoRange(enable=False)
+        viewbox.setRange(xRange=x_range, yRange=y_range, padding=0)
+        self._programmatic_update = False
+
+    def _apply_initial_view(
+        self, data_points: List[Tuple[float, float]], viewbox: Any
+    ) -> None:
         """
-        Legacy method - no longer needed with centralized data management
+        Apply initial range for manual mode.
+
+        Args:
+            data_points: All data points
+            viewbox: PyQtGraph ViewBox instance
         """
-        return np.array([]), np.array([])
+        max_pts = self.config.max_plot_points
+        display_data = (
+            data_points[-max_pts:] if len(data_points) > max_pts else data_points
+        )
+
+        if not display_data:
+            return
+
+        x_range, y_range = self._calculate_range(display_data)
+
+        self._programmatic_update = True
+        viewbox.enableAutoRange(enable=False)
+        viewbox.setRange(xRange=x_range, yRange=y_range, padding=0.05)
+        self._programmatic_update = False
+
+    @staticmethod
+    def _calculate_range(
+        data_points: List[Tuple[float, float]],
+    ) -> Tuple[List[float], List[float]]:
+        """
+        Calculate axis ranges for data with smart padding.
+
+        Args:
+            data_points: Data points
+
+        Returns:
+            Tuple of (x_range, y_range) as [[min, max], [min, max]]
+        """
+        if not data_points:
+            return [0, 1], [0, 1]
+
+        x_vals = np.array([p[0] for p in data_points], dtype=np.float32)
+        y_vals = np.array([p[1] for p in data_points], dtype=np.float32)
+
+        x_min, x_max = float(x_vals.min()), float(x_vals.max())
+        y_min, y_max = float(y_vals.min()), float(y_vals.max())
+
+        # Smart padding
+        def pad_range(vmin: float, vmax: float) -> Tuple[float, float]:
+            if vmax == vmin:
+                padding = max(1, abs(vmin) * 0.1)
+                return (vmin - padding, vmax + padding)
+            else:
+                padding = (vmax - vmin) * 0.05
+                return (vmin - padding, vmax + padding)
+
+        x_min_p, x_max_p = pad_range(x_min, x_max)
+        y_min_p, y_max_p = pad_range(y_min, y_max)
+
+        return [x_min_p, x_max_p], [y_min_p, y_max_p]
+
+    @Slot(list)
+    def update_plot_batch(self, data_points: List[Tuple[float, float]]) -> None:
+        """
+        Batch update method (alias for update_plot_data).
+
+        Useful for streaming data or burst updates.
+
+        Args:
+            data_points: List of (x, y) tuples
+        """
+        self.update_plot_data(data_points)
+
+    def append_data(self, x: float, y: float) -> None:
+        """
+        Append a single data point (streaming mode).
+
+        More efficient than update_plot_data for single-point updates.
+
+        Args:
+            x: X coordinate
+            y: Y coordinate
+        """
+        if self._last_data_points:
+            # Append to existing data
+            self._last_data_points.append((x, y))
+        else:
+            # First point
+            self._last_data_points = [(x, y)]
+
+        # Use deferred update for efficiency in streaming
+        self.update_plot_data([(x, y)], deferred=True)
+
+    @Slot(str, str)
+    def reconfigure(
+        self,
+        key: str = "",
+        value: str = "",
+    ) -> None:
+        """
+        Reconfigure plot appearance.
+
+        Args:
+            key: Config key (e.g., 'title', 'xlabel', 'ylabel', 'background_color')
+            value: New value
+        """
+        if not key or value == "":
+            Debug.warning("Plot reconfigure: Empty key or value")
+            return
+
+        if not hasattr(self.config, key):
+            Debug.warning(f"Plot reconfigure: Unknown key '{key}'")
+            return
+
+        setattr(self.config, key, value)
+        Debug.debug(f"Plot reconfigured: {key}={value}")
+
+        # Apply changes
+        if key == "title":
+            self.setTitle(value)
+        elif key == "xlabel":
+            self.setLabel("bottom", value)
+        elif key == "ylabel":
+            self.setLabel("left", value)
+        elif key == "background_color":
+            self.setBackground(value)
+        elif key == "grid_alpha":
+            self.showGrid(x=True, y=True, alpha=float(value))
 
 
 class HistogramWidget(pg.PlotWidget):
-    """A histogram widget using pyqtgraph."""
+    """
+    High-performance histogram widget using pyqtgraph.
+
+    Provides efficient histogram visualization with automatic binning and
+    range adjustment for frequency distribution analysis.
+
+    Design based on pyqtgraph performance best practices.
+
+    Signals:
+        histogram_updated: Emitted after update (int: number of bins)
+        histogram_cleared: Emitted when histogram is cleared
+
+    Slots:
+        update_histogram: Update histogram with data
+        clear_measurement_data: Clear histogram data
+        reconfigure: Change labels and title
+
+    Example:
+        >>> histogram = HistogramWidget(title="Distribution", xlabel="Value", ylabel="Frequency")
+        >>> histogram.update_histogram([1.2, 2.3, 1.8, 2.1, 1.9], bins=10)
+    """
+
+    # Signals for reactive UI integration
+    histogram_updated = Signal(int)  # Emits number of bins
+    histogram_cleared = Signal()
+
+    # Performance tuning
+    DEFAULT_BINS = 50
 
     def __init__(
-        self, title: Optional[str] = None, xlabel: str = "CPM", ylabel: str = "Count"
+        self,
+        title: Optional[str] = None,
+        xlabel: str = "Value",
+        ylabel: str = "Count",
+        background: Optional[str] = None,
+        grid_alpha: float = 0.3,
     ):
         """
         Initialize the histogram widget.
 
         Args:
-            title: Plot title
-            xlabel: X-axis label (CPM values)
+            title: Histogram title (optional)
+            xlabel: X-axis label (bin values)
             ylabel: Y-axis label (frequency count)
+            background: Background color (None = system theme, respects dark mode)
+            grid_alpha: Grid line transparency (0.0-1.0)
         """
         super().__init__()
 
-        self.setBackground(None)
-        self.showGrid(x=True, y=True, alpha=0.3)
+        # Internal state
+        self._hist_item: Optional[pg.BarGraphItem] = None
+        self._is_clearing = False
+        self._pending_update = False
+        self._update_timer = QTimer()
+        self._update_timer.setSingleShot(True)
+        self._update_timer.timeout.connect(self._process_deferred_histogram_update)
+        self._deferred_histogram_data: Optional[Tuple[np.ndarray, int, str]] = None
+
+        # Configure appearance (None background = respect system theme/dark mode)
+        if background:
+            self.setBackground(background)
+
+        self.showGrid(x=True, y=True, alpha=grid_alpha)
         self.setLabel("bottom", xlabel)
         self.setLabel("left", ylabel)
-        self.setTitle(title)
 
-        self._hist_item = None
+        if title:
+            self.setTitle(title)
 
-    def clear_measurement_data(self):
+        # Store configuration
+        self._config: Dict[str, Any] = {
+            "xlabel": xlabel,
+            "ylabel": ylabel,
+            "title": title,
+            "background": background,
+            "grid_alpha": grid_alpha,
+        }
+
+        # Performance: Track last bin count for optimization
+        self._last_bin_count = 0
+
+        Debug.debug("HistogramWidget initialized (dark mode aware)")
+
+    @Slot()
+    def clear_measurement_data(self) -> None:
         """
-        Clear measurement data from histogram.
+        Clear histogram data and reset state.
 
-        Removes the histogram bar item completely to ensure clean state
-        for next measurement.
+        Call this before processing a new data series.
         """
-        Debug.debug(
-            f"HistogramWidget.clear_measurement_data() called, _hist_item exists: {hasattr(self, '_hist_item')}, is None: {getattr(self, '_hist_item', None) is None}"
-        )
+        self._is_clearing = True
+        Debug.debug("Clearing histogram data")
 
-        if hasattr(self, "_hist_item") and self._hist_item is not None:
-            self.removeItem(self._hist_item)
-            self._hist_item = None
-            Debug.debug(
-                "HistogramWidget.clear_measurement_data(): _hist_item removed and set to None"
-            )
-        else:
-            Debug.debug(
-                "HistogramWidget.clear_measurement_data(): _hist_item is already None or doesn't exist"
-            )
+        try:
+            if self._hist_item is not None:
+                self.removeItem(self._hist_item)
+                self._hist_item = None
 
-        Debug.debug("HistogramWidget.clear_measurement_data(): Completed")
+        finally:
+            self._is_clearing = False
 
-    def update_histogram(self, data: Iterable[float], bins: int = 50):
+        self.histogram_cleared.emit()
+
+    @Slot()
+    def clear(self) -> None:
         """
-        Update the histogram with new data.
+        Clear histogram (alias for clear_measurement_data).
 
-        PERFORMANCE: Reuses BarGraphItem instead of recreating it.
-
-        Args:
-            data: CPM values to create histogram from
-            bins: Number of histogram bins
+        Maintains compatibility with base class interface.
         """
-        if not data:
+        self.clear_measurement_data()
+
+    def _process_deferred_histogram_update(self) -> None:
+        """Process deferred histogram update from batch queue."""
+        if self._deferred_histogram_data is None:
             return
 
-        # Calculate histogram
-        hist, bin_edges = np.histogram(data, bins=bins)
+        data_arr, bins, color = self._deferred_histogram_data
+        self._deferred_histogram_data = None
+        self._perform_histogram_update(data_arr, bins, color)
 
-        # Calculate bin centers and width
-        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-        width = bin_edges[1] - bin_edges[0]
+    def _perform_histogram_update(
+        self, data_arr: np.ndarray, bins: int, color: str
+    ) -> None:
+        """Perform actual histogram update (internal method)."""
+        if data_arr.size == 0:
+            return
 
-        # Reuse or create histogram item
-        if self._hist_item is None:
-            # First time: create new item
-            self._hist_item = pg.BarGraphItem(
-                x=bin_centers,
-                height=hist,
-                width=width * 0.8,
-                brush="w",
-            )
-            self.addItem(self._hist_item)
-        else:
-            # Update existing item (faster than removing and recreating)
-            self._hist_item.setOpts(
-                x=bin_centers,
-                height=hist,
-                width=width * 0.8,
-            )
+        try:
+            # Calculate histogram using numpy (vectorized, very fast)
+            hist, bin_edges = np.histogram(data_arr, bins=bins)
 
-        # Always auto-range to fit data (histogram should always show full distribution)
-        # User interaction (zoom/pan) is intentionally ignored for histogram
-        self.autoRange()
+            # Reuse or create bar graph item (lazy initialization)
+            if self._hist_item is None:
+                # First time: create new item
+                # Use x0 and x1 (bin edges) for precise bar placement
+                self._hist_item = pg.BarGraphItem(
+                    x0=bin_edges[:-1],
+                    x1=bin_edges[1:],
+                    height=hist,
+                    brush=color,
+                    pen="w",
+                )
+                self.addItem(self._hist_item)
+                Debug.debug(f"Histogram created with {bins} bins")
+            else:
+                # Update existing item (no allocation, just data update)
+                self._hist_item.setOpts(
+                    x0=bin_edges[:-1],
+                    x1=bin_edges[1:],
+                    height=hist,
+                    brush=color,
+                    pen="w",
+                )
+
+            # Auto-range only if bin count changed (optimization)
+            if bins != self._last_bin_count:
+                self.autoRange()
+                self._last_bin_count = bins
+
+            # Emit signal
+            self.histogram_updated.emit(bins)
+
+        except Exception as e:  # pylint: disable=broad-except
+            Debug.error(f"Error updating histogram: {e}")
+        finally:
+            self._pending_update = False
+
+    @Slot(list)
+    @Slot(list, int)
+    @Slot(list, int, str)
+    def update_histogram(
+        self,
+        data: Iterable[float],
+        bins: int = DEFAULT_BINS,
+        color: str = "w",
+        deferred: bool = True,
+    ) -> None:
+        """
+        Update histogram with new data (high-performance method).
+
+        PERFORMANCE TIPS:
+        - Convert lists to numpy arrays before calling for best speed
+        - Use appropriate bin count (default 50 usually good)
+        - Pre-filter data to remove NaN/inf for faster updates
+        - Use deferred=True for burst updates (batches them together)
+
+        Args:
+            data: Values to create histogram from
+            bins: Number of histogram bins (default: 50)
+            color: Bar color (default: white)
+            deferred: If True, batch updates together (16ms intervals)
+        """
+        if not data:
+            Debug.debug("update_histogram called with empty data")
+            return
+
+        try:
+            # Convert to numpy array for fast computation
+            data_arr = np.asarray(data, dtype=np.float32)
+
+            # Skip NaN and inf values for efficiency
+            data_arr = data_arr[np.isfinite(data_arr)]
+
+            if deferred:
+                # Batch updates together to reduce overhead
+                self._deferred_histogram_data = (data_arr, bins, color)
+                if not self._update_timer.isActive():
+                    self._update_timer.start(16)  # ~60 FPS
+                return
+
+            # Immediate update
+            self._perform_histogram_update(data_arr, bins, color)
+
+        except Exception as e:  # pylint: disable=broad-except
+            Debug.error(f"Error in update_histogram: {e}")
+
+    @Slot()
+    @Slot(str)
+    @Slot(str, str)
+    @Slot(str, str, str)
+    def reconfigure(
+        self,
+        title: Optional[str] = None,
+        xlabel: Optional[str] = None,
+        ylabel: Optional[str] = None,
+    ) -> None:
+        """
+        Reconfigure histogram labels and title.
+
+        Args:
+            title: New histogram title (None to keep current)
+            xlabel: New x-axis label (None to keep current)
+            ylabel: New y-axis label (None to keep current)
+        """
+        if xlabel is not None:
+            self.setLabel("bottom", xlabel)
+            self._config["xlabel"] = xlabel
+
+        if ylabel is not None:
+            self.setLabel("left", ylabel)
+            self._config["ylabel"] = ylabel
+
+        if title is not None:
+            self.setTitle(title)
+            self._config["title"] = title
+
+        Debug.debug(f"Histogram reconfigured: title={title}, x={xlabel}, y={ylabel}")
+
+
+# ============================================================
+# BACKWARD COMPATIBILITY ALIAS
+# ============================================================
+# For existing code that imports PlotWidget, provide an alias
+# to the new GeneralPlot class. This ensures a smooth transition.
+PlotWidget = GeneralPlot

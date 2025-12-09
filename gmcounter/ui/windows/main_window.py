@@ -10,7 +10,7 @@ from PySide6.QtCore import QTimer, Qt  # pylint: disable=no-name-in-module
 import gmcounter
 from ...infrastructure.device_manager import DeviceManager
 from ...ui.controllers.control import ControlWidget
-from ..widgets.plot import PlotWidget, HistogramWidget
+from ..widgets.plot import GeneralPlot, HistogramWidget, PlotConfig
 from ...infrastructure.logging import Debug
 from ...infrastructure.config import import_config
 from ...helper_classes_compat import Statusbar
@@ -145,14 +145,29 @@ class MainWindow(QMainWindow):
 
     def _setup_plot(self):
         """Initialise the plot widget."""
-        self.plot = PlotWidget(
-            max_plot_points=CONFIG["plot"]["max_points"],
-            fontsize=self.ui.timePlot.fontInfo().pixelSize(),
+        background_color = (
+            self.ui.timePlot.palette().color(self.ui.timePlot.backgroundRole()).name()
+        )
+        # Time plot
+        time_plot_config = PlotConfig(
             xlabel=CONFIG["plot"]["x_label"],
             ylabel=CONFIG["plot"]["y_label"],
+            max_plot_points=CONFIG["plot"]["max_points"],
+            background_color=background_color,
+            fontsize=self.ui.timePlot.fontInfo().pixelSize() + 1,
+        )
+
+        self.plot = GeneralPlot(
+            config=time_plot_config,
         )
         QVBoxLayout(self.ui.timePlot).addWidget(self.plot)
 
+        hist_plot_config = PlotConfig(
+            xlabel=CONFIG["histogram"]["x_label"],
+            ylabel=CONFIG["histogram"]["y_label"],
+            background_color=background_color,
+            fontsize=self.ui.timePlot.fontInfo().pixelSize(),
+        )
         # Histogram plot
         self.histogram = HistogramWidget(
             xlabel=CONFIG["histogram"]["x_label"],
@@ -504,6 +519,16 @@ class MainWindow(QMainWindow):
             index: Index of the data point.
             value: Measured value.
         """
+        # CRITICAL: Only process data if measurement is active OR if we're still
+        # processing a batch from the end of the measurement
+        # Device may continue sending data briefly after measurement stop,
+        # but we should still accept data that belongs to the same batch
+        if not self.is_measuring:
+            # Measurement has stopped - only accept data if we're still processing the batch
+            # (queue is not empty = data belongs to the same batch)
+            if self.data_controller.data_queue.empty():
+                return
+
         # Use the fast queue-based method for better performance
         self.data_controller.add_data_point_fast(index, value)
 
