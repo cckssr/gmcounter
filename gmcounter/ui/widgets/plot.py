@@ -483,23 +483,25 @@ class HistogramWidget(pg.PlotWidget):
     def clear_measurement_data(self):
         """
         Clear measurement data from histogram.
-        
+
         Removes the histogram bar item completely to ensure clean state
         for next measurement.
         """
         Debug.debug(
             f"HistogramWidget.clear_measurement_data() called, _hist_item exists: {hasattr(self, '_hist_item')}, is None: {getattr(self, '_hist_item', None) is None}"
         )
-        
+
         if hasattr(self, "_hist_item") and self._hist_item is not None:
             self.removeItem(self._hist_item)
             self._hist_item = None
-            Debug.debug("HistogramWidget.clear_measurement_data(): _hist_item removed and set to None")
+            Debug.debug(
+                "HistogramWidget.clear_measurement_data(): _hist_item removed and set to None"
+            )
         else:
             Debug.debug(
                 "HistogramWidget.clear_measurement_data(): _hist_item is already None or doesn't exist"
             )
-        
+
         Debug.debug("HistogramWidget.clear_measurement_data(): Completed")
 
     def update_histogram(self, data: Iterable[float], bins: int = 50):

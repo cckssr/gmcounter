@@ -88,7 +88,7 @@ class MainWindow(QMainWindow):
             CONFIG["messages"]["connected"].format(self.device_manager.port),
             CONFIG["colors"]["green"],
         )
-        
+
         # Set initial status indicator
         self._update_status_indicator("Bereit", "green")
 
@@ -542,7 +542,7 @@ class MainWindow(QMainWindow):
 
             # Switch to Histogram tab (index 1) since plot is disabled
             self.ui.tabWidget.setCurrentIndex(1)
-            
+
             self._update_status_indicator("High-Speed", "orange")
 
             Debug.info(
@@ -566,7 +566,7 @@ class MainWindow(QMainWindow):
 
     def _update_status_indicator(self, status: str, color: str = None):
         """Update statusLED and statusText to reflect current state.
-        
+
         Args:
             status: Status text to display ("Bereit", "Messung", "High-Speed", "Gestoppt")
             color: LED color ("green", "blue", "orange", "red", "yellow")
@@ -579,7 +579,7 @@ class MainWindow(QMainWindow):
             "Gestoppt": "rgb(255, 215, 0)",  # Yellow
             "Fehler": "rgb(255, 11, 3)",  # Red
         }
-        
+
         if color is None:
             led_color = status_colors.get(status, "rgb(128, 128, 128)")  # Gray default
         else:
@@ -593,15 +593,15 @@ class MainWindow(QMainWindow):
                 "gray": "rgb(128, 128, 128)",
             }
             led_color = color_map.get(color, "rgb(128, 128, 128)")
-        
+
         # Update LED
         self.ui.statusLED.setStyleSheet(
             f"background-color: {led_color}; border: 0px; padding: 4px; border-radius: 10px"
         )
-        
+
         # Update text
         self.ui.statusText.setText(status)
-        
+
         Debug.debug(f"Status indicator updated: {status} ({led_color})")
 
     def _update_statistics(self):
