@@ -3,6 +3,8 @@
 import json
 import sys
 from pathlib import Path
+from importlib.resources import files
+from .logging import Debug
 
 
 def import_config(language: str = "de") -> dict:
@@ -15,7 +17,6 @@ def import_config(language: str = "de") -> dict:
     Returns:
         dict: The configuration dictionary.
     """
-    from .logging import Debug
 
     # Mögliche Pfade für config.json (in Prioritätsreihenfolge)
     # WICHTIG: Dateipfade haben Vorrang vor Package-Resources,
@@ -41,14 +42,12 @@ def import_config(language: str = "de") -> dict:
     # FALLBACK: Falls keine Datei gefunden, nutze importlib.resources (Package-Ressource)
     try:
         if sys.version_info >= (3, 9):
-            from importlib.resources import files
-
             package_config = files("gmcounter").joinpath("config.json")
             if hasattr(package_config, "read_text"):
                 config = json.loads(package_config.read_text(encoding="utf-8"))
                 Debug.debug("Config loaded from package resources (fallback).")
                 return config.get(language, config.get("de", {}))
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         Debug.debug(f"Failed to load config from package resources: {e}")
 
     Debug.error("config.json not found. Please ensure it exists in the project root.")
