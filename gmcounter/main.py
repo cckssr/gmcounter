@@ -17,6 +17,7 @@ from .infrastructure.logging import Debug
 from .ui.dialogs.connection import ConnectionWindow
 from .ui.windows.main_window import MainWindow
 from .infrastructure.config import import_config
+
 # from .ui.resources.stylesheet import apply_stylesheet
 
 # If executed as a script (package context missing), ensure the repo root is on
@@ -52,7 +53,10 @@ def main():
         case _:
             debug_level = Debug.DEBUG_OFF
 
-    Debug.init(debug_level=debug_level, app_name=CONFIG["application"]["name"])
+    # Debug.init(debug_level=debug_level, app_name=CONFIG["application"]["name"])
+    Debug.init(
+        debug_level=Debug.DEBUG_INFO, app_name=CONFIG["application"]["name"]
+    )  # FIXME: Windows logging level fixen
 
     # Globalen Exception-Handler registrieren
     sys.excepthook = Debug.exception_hook

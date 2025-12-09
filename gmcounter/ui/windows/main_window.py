@@ -224,7 +224,7 @@ class MainWindow(QMainWindow):
 
         # Check auto-save setting (checkbox is for UI only, backup always runs)
         self.ui.autoSave.setChecked(
-            True
+            False
         )  # Show as enabled since backup is always active
         self.ui.autoSave.toggled.connect(self._change_auto_save)
 

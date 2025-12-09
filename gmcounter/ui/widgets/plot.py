@@ -79,8 +79,8 @@ class PlotConfig:
     use_opengl: bool = True
     antialias: bool = False
     skip_finite_check: bool = False
-    pen_width: int = 2
-    symbol_size: int = 4
+    pen_width: int = 5
+    symbol_size: int = 10
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
@@ -467,8 +467,8 @@ class GeneralPlot(pg.PlotWidget):
                 pen=pg.mkPen(width=self.config.pen_width, color="gray"),
                 symbol="o",
                 symbolSize=self.config.symbol_size,
-                symbolBrush="r",
-                symbolPen="r",
+                symbolBrush=pg.mkBrush("red"),
+                symbolPen=pg.mkPen("red"),
                 antialias=self.config.antialias,
                 skipFiniteCheck=self.config.skip_finite_check,
             )

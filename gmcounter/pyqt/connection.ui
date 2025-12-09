@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>516</width>
-    <height>480</height>
+    <width>550</width>
+    <height>500</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,14 +18,14 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>500</width>
-    <height>480</height>
+    <width>550</width>
+    <height>500</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>516</width>
-    <height>480</height>
+    <width>550</width>
+    <height>510</height>
    </size>
   </property>
   <property name="font">
@@ -78,7 +78,7 @@
       </font>
      </property>
      <property name="text">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Einen Port und passende Baud-Rate auswählen und mit &amp;quot;Öffnen&amp;quot; verbinden. &lt;/p&gt;&lt;p&gt;&lt;span style=&quot; color:#ff9300;&quot;&gt;Besonderheit Windows:&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Geräteinformationen werden nicht korrekt dargestellt. Meistens ist es der letzte &amp;quot;COM&amp;quot; Port. &lt;/p&gt;&lt;p align=&quot;right&quot;&gt;Ansonsten: &lt;/p&gt;&lt;p align=&quot;right&quot;&gt;GM-Zähler abstecken, Liste aktualisieren, Zähler anstecken, Liste aktualisieren, &lt;br/&gt;Neuen Port auswählen&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Einen Port und passende Baud-Rate auswählen und mit &amp;quot;Öffnen&amp;quot; verbinden. &lt;/p&gt;&lt;p&gt;&lt;span style=&quot; color:#ff9300;&quot;&gt;Besonderheit Windows:&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Geräteinformationen werden nicht korrekt dargestellt. Meistens ist es der letzte &amp;quot;COM&amp;quot; Port. &lt;/p&gt;&lt;p&gt;Ansonsten: &lt;/p&gt;&lt;p&gt;GM-Zähler abstecken, Liste aktualisieren, Zähler anstecken, Liste aktualisieren, &lt;br/&gt;Neuen Port auswählen&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
      <property name="textFormat">
       <enum>Qt::TextFormat::RichText</enum>
