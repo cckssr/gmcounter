@@ -24,14 +24,14 @@ class Ui_Dialog(object):
     def setupUi(self, Dialog):
         if not Dialog.objectName():
             Dialog.setObjectName(u"Dialog")
-        Dialog.resize(516, 480)
+        Dialog.resize(550, 500)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Maximum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(Dialog.sizePolicy().hasHeightForWidth())
         Dialog.setSizePolicy(sizePolicy)
-        Dialog.setMinimumSize(QSize(500, 480))
-        Dialog.setMaximumSize(QSize(516, 480))
+        Dialog.setMinimumSize(QSize(550, 500))
+        Dialog.setMaximumSize(QSize(550, 510))
         font = QFont()
         font.setPointSize(12)
         Dialog.setFont(font)
@@ -252,7 +252,7 @@ class Ui_Dialog(object):
 
     def retranslateUi(self, Dialog):
         Dialog.setWindowTitle(QCoreApplication.translate("Dialog", u"Verbindung herstellen", None))
-        self.label_5.setText(QCoreApplication.translate("Dialog", u"<html><head/><body><p>Einen Port und passende Baud-Rate ausw\u00e4hlen und mit &quot;\u00d6ffnen&quot; verbinden. </p><p><span style=\" color:#ff9300;\">Besonderheit Windows:</span></p><p>Ger\u00e4teinformationen werden nicht korrekt dargestellt. Meistens ist es der letzte &quot;COM&quot; Port. </p><p align=\"right\">Ansonsten: </p><p align=\"right\">GM-Z\u00e4hler abstecken, Liste aktualisieren, Z\u00e4hler anstecken, Liste aktualisieren, <br/>Neuen Port ausw\u00e4hlen</p></body></html>", None))
+        self.label_5.setText(QCoreApplication.translate("Dialog", u"<html><head/><body><p>Einen Port und passende Baud-Rate ausw\u00e4hlen und mit &quot;\u00d6ffnen&quot; verbinden. </p><p><span style=\" color:#ff9300;\">Besonderheit Windows:</span></p><p>Ger\u00e4teinformationen werden nicht korrekt dargestellt. Meistens ist es der letzte &quot;COM&quot; Port. </p><p>Ansonsten: </p><p>GM-Z\u00e4hler abstecken, Liste aktualisieren, Z\u00e4hler anstecken, Liste aktualisieren, <br/>Neuen Port ausw\u00e4hlen</p></body></html>", None))
 #if QT_CONFIG(tooltip)
         self.comboSerial.setToolTip(QCoreApplication.translate("Dialog", u"<html><head/><body><p>Kommunikation mit dem Arduino erfolgt \u00fcber die serielle Schnittstelle. </p><p>Wenn Arduino nicht erkannt wird, die Verbindung pr\u00fcfen und evtl. Treiber installieren.</p></body></html>", None))
 #endif // QT_CONFIG(tooltip)
