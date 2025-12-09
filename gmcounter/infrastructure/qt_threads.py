@@ -160,7 +160,8 @@ class DataAcquisitionThread(QThread):
                     elapsed = time.time() - self._measurement_start_time
                     if elapsed > self.START_MARKER_TIMEOUT:
                         Debug.error(
-                            f"Start marker not detected within {self.START_MARKER_TIMEOUT}s - aborting measurement"
+                            f"Start marker not detected within {self.START_MARKER_TIMEOUT}s \
+                                - aborting measurement"
                         )
                         self.connection_lost.emit()
                         break
@@ -168,7 +169,8 @@ class DataAcquisitionThread(QThread):
                 # Read available bytes using read_fast method
                 raw_data = device.read_fast(max_bytes=4096, timeout_ms=1500)
                 Debug.debug(
-                    f"Thread: read_fast() returned: {type(raw_data)} with length {len(raw_data) if raw_data else 0}"
+                    f"Thread: read_fast() returned: {type(raw_data)} \
+                        with length {len(raw_data) if raw_data else 0}"
                 )
 
                 if raw_data:
@@ -188,7 +190,8 @@ class DataAcquisitionThread(QThread):
                         # Found start marker - discard everything before and including it
                         discarded_bytes = marker_pos + len(start_marker)
                         Debug.info(
-                            f">>> MEASUREMENT START MARKER detected, discarding {discarded_bytes} bytes of accumulated data"
+                            f">>> MEASUREMENT START MARKER detected, discarding \
+                                {discarded_bytes} bytes of accumulated data"
                         )
                         byte_buffer = byte_buffer[discarded_bytes:]
                         self._first_data_received = True
