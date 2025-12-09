@@ -94,7 +94,7 @@ except Exception:  # ImportError or missing Qt libraries
 
     Qt = _Qt()
 
-from ..widgets.plot import PlotWidget, HistogramWidget
+from ..widgets.plot import GeneralPlot, HistogramWidget
 from ...infrastructure.logging import Debug
 from ...infrastructure.config import import_config
 from ...helper_classes_compat import (
@@ -124,7 +124,7 @@ class DataController(QObject):
 
     def __init__(
         self,
-        plot_widget: PlotWidget,
+        plot_widget: GeneralPlot,
         display_widget: Optional[QLCDNumber] = None,
         histogram_widget: Optional[HistogramWidget] = None,
         stat_display: Optional[List[QLineEdit]] = None,
@@ -305,8 +305,16 @@ class DataController(QObject):
             self._histogram_update_timer.stop()
             self._histogram_update_timer = None
 
-        # Restart regular GUI updates (will be started in clear_data or automatically)
-        # Don't restart here to avoid conflicts with clear_data()
+        # ✅ FIX: Restart regular GUI updates (plot, table, etc.)
+        # Dies stellt sicher, dass Plot-Updates wiederaufgenommen werden
+        # nachdem HIGH_SPEED_MODE endet
+        if self.gui_update_timer is not None and not self.gui_update_timer.isActive():
+            self.gui_update_timer.start(UPDATE_INTERVAL)
+            Debug.info(
+                f"GUI update timer restarted after HIGH_SPEED_MODE deactivation "
+                f"(interval={UPDATE_INTERVAL}ms)"
+            )
+
         Debug.debug("HIGH_SPEED_MODE cleanup complete")
 
     def _check_high_speed_mode(self, batch_size: int, current_time: float) -> None:
@@ -460,16 +468,13 @@ class DataController(QObject):
             # Update plot widget with all current data points
             # Only update plot if we have data to show
             if self.plot and len(self.gui_data_points) > 0:
-                # Always use batch update for better performance
+                # Always use deferred (batched) update for better performance
                 # Pass only the last N points to reduce rendering overhead
                 Debug.debug(
                     f"Updating plot with {len(self.gui_data_points)} gui_data_points"
                 )
-                if hasattr(self.plot, "update_plot_batch"):
-                    self.plot.update_plot_batch(self.gui_data_points)
-                else:
-                    # Fallback - use standard method but with full dataset
-                    self.plot.update_plot(self.gui_data_points)
+                # Use new high-performance update_plot_data method with deferred batching
+                self.plot.update_plot_data(self.gui_data_points, deferred=True)
             else:
                 if self.plot:
                     Debug.debug(

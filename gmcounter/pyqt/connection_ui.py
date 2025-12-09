@@ -24,19 +24,25 @@ class Ui_Dialog(object):
     def setupUi(self, Dialog):
         if not Dialog.objectName():
             Dialog.setObjectName(u"Dialog")
-        Dialog.resize(600, 480)
+        Dialog.resize(516, 480)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Maximum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(Dialog.sizePolicy().hasHeightForWidth())
         Dialog.setSizePolicy(sizePolicy)
-        Dialog.setMinimumSize(QSize(600, 480))
-        Dialog.setMaximumSize(QSize(600, 500))
+        Dialog.setMinimumSize(QSize(500, 480))
+        Dialog.setMaximumSize(QSize(516, 480))
+        font = QFont()
+        font.setPointSize(12)
+        Dialog.setFont(font)
         Dialog.setSizeGripEnabled(True)
         self.gridLayout = QGridLayout(Dialog)
         self.gridLayout.setObjectName(u"gridLayout")
         self.buttonBox = QDialogButtonBox(Dialog)
         self.buttonBox.setObjectName(u"buttonBox")
+        font1 = QFont()
+        font1.setPointSize(11)
+        self.buttonBox.setFont(font1)
         self.buttonBox.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
         self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Cancel|QDialogButtonBox.StandardButton.Open)
@@ -51,6 +57,7 @@ class Ui_Dialog(object):
         sizePolicy1.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
         self.label_5.setSizePolicy(sizePolicy1)
         self.label_5.setMaximumSize(QSize(700, 500))
+        self.label_5.setFont(font1)
         self.label_5.setTextFormat(Qt.TextFormat.RichText)
         self.label_5.setWordWrap(False)
         self.label_5.setMargin(0)
@@ -77,6 +84,7 @@ class Ui_Dialog(object):
         self.comboSerial.setMinimumSize(QSize(300, 40))
         self.comboSerial.setMaximumSize(QSize(16777215, 60))
         self.comboSerial.setBaseSize(QSize(0, 0))
+        self.comboSerial.setFont(font1)
         self.comboSerial.setFrame(True)
 
         self.horizontalLayout.addWidget(self.comboSerial)
@@ -90,6 +98,7 @@ class Ui_Dialog(object):
         self.buttonRefreshSerial.setSizePolicy(sizePolicy3)
         self.buttonRefreshSerial.setMinimumSize(QSize(0, 40))
         self.buttonRefreshSerial.setMaximumSize(QSize(35, 40))
+        self.buttonRefreshSerial.setFont(font1)
         icon = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.ViewRefresh))
         self.buttonRefreshSerial.setIcon(icon)
 
@@ -109,6 +118,7 @@ class Ui_Dialog(object):
         sizePolicy4.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
         self.label_4.setSizePolicy(sizePolicy4)
         self.label_4.setMinimumSize(QSize(90, 20))
+        self.label_4.setFont(font1)
         self.label_4.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.horizontalLayout_3.addWidget(self.label_4)
@@ -132,6 +142,7 @@ class Ui_Dialog(object):
         sizePolicy2.setHeightForWidth(self.comboBox.sizePolicy().hasHeightForWidth())
         self.comboBox.setSizePolicy(sizePolicy2)
         self.comboBox.setMinimumSize(QSize(0, 40))
+        self.comboBox.setFont(font1)
 
         self.horizontalLayout_3.addWidget(self.comboBox)
 
@@ -143,6 +154,7 @@ class Ui_Dialog(object):
 
         self.line = QFrame(Dialog)
         self.line.setObjectName(u"line")
+        self.line.setFont(font1)
         self.line.setFrameShape(QFrame.Shape.HLine)
         self.line.setFrameShadow(QFrame.Shadow.Sunken)
 
@@ -156,6 +168,7 @@ class Ui_Dialog(object):
         self.label = QLabel(Dialog)
         self.label.setObjectName(u"label")
         self.label.setMinimumSize(QSize(90, 0))
+        self.label.setFont(font1)
         self.label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.formLayout.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label)
@@ -168,6 +181,7 @@ class Ui_Dialog(object):
         sizePolicy5.setVerticalStretch(0)
         sizePolicy5.setHeightForWidth(self.device_address.sizePolicy().hasHeightForWidth())
         self.device_address.setSizePolicy(sizePolicy5)
+        self.device_address.setFont(font1)
         self.device_address.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         self.device_address.setMouseTracking(False)
         self.device_address.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
@@ -181,6 +195,7 @@ class Ui_Dialog(object):
         self.label_2 = QLabel(Dialog)
         self.label_2.setObjectName(u"label_2")
         self.label_2.setMinimumSize(QSize(90, 0))
+        self.label_2.setFont(font1)
         self.label_2.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_2)
@@ -188,6 +203,7 @@ class Ui_Dialog(object):
         self.device_name = QLineEdit(Dialog)
         self.device_name.setObjectName(u"device_name")
         self.device_name.setEnabled(True)
+        self.device_name.setFont(font1)
         self.device_name.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         self.device_name.setFrame(False)
         self.device_name.setReadOnly(True)
@@ -197,6 +213,7 @@ class Ui_Dialog(object):
         self.label_3 = QLabel(Dialog)
         self.label_3.setObjectName(u"label_3")
         self.label_3.setMinimumSize(QSize(90, 0))
+        self.label_3.setFont(font1)
         self.label_3.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.formLayout.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label_3)
@@ -204,6 +221,7 @@ class Ui_Dialog(object):
         self.device_desc = QLineEdit(Dialog)
         self.device_desc.setObjectName(u"device_desc")
         self.device_desc.setEnabled(True)
+        self.device_desc.setFont(font1)
         self.device_desc.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         self.device_desc.setFrame(False)
         self.device_desc.setReadOnly(True)
@@ -216,6 +234,7 @@ class Ui_Dialog(object):
         self.status_msg = QLabel(Dialog)
         self.status_msg.setObjectName(u"status_msg")
         self.status_msg.setMinimumSize(QSize(0, 30))
+        self.status_msg.setFont(font1)
         self.status_msg.setWordWrap(True)
 
         self.gridLayout.addWidget(self.status_msg, 1, 0, 1, 1)
@@ -233,7 +252,7 @@ class Ui_Dialog(object):
 
     def retranslateUi(self, Dialog):
         Dialog.setWindowTitle(QCoreApplication.translate("Dialog", u"Verbindung herstellen", None))
-        self.label_5.setText(QCoreApplication.translate("Dialog", u"<html><head/><body><p>Einen Port und passende Baud-Rate ausw\u00e4hlen und mit &quot;\u00d6ffnen&quot; verbinden. </p><p>Besonderheit Windows: </p><p>Ger\u00e4teinformationen werden nicht korrekt dargestellt. Meistens ist es der letzte &quot;COM&quot; Port. </p><p align=\"right\">Ansonsten: </p><p align=\"right\">GM-Z\u00e4hler abstecken, Liste aktualisieren, Z\u00e4hler anstecken, Liste aktualisieren, <br/>Neuen Port ausw\u00e4hlen</p></body></html>", None))
+        self.label_5.setText(QCoreApplication.translate("Dialog", u"<html><head/><body><p>Einen Port und passende Baud-Rate ausw\u00e4hlen und mit &quot;\u00d6ffnen&quot; verbinden. </p><p><span style=\" color:#ff9300;\">Besonderheit Windows:</span></p><p>Ger\u00e4teinformationen werden nicht korrekt dargestellt. Meistens ist es der letzte &quot;COM&quot; Port. </p><p align=\"right\">Ansonsten: </p><p align=\"right\">GM-Z\u00e4hler abstecken, Liste aktualisieren, Z\u00e4hler anstecken, Liste aktualisieren, <br/>Neuen Port ausw\u00e4hlen</p></body></html>", None))
 #if QT_CONFIG(tooltip)
         self.comboSerial.setToolTip(QCoreApplication.translate("Dialog", u"<html><head/><body><p>Kommunikation mit dem Arduino erfolgt \u00fcber die serielle Schnittstelle. </p><p>Wenn Arduino nicht erkannt wird, die Verbindung pr\u00fcfen und evtl. Treiber installieren.</p></body></html>", None))
 #endif // QT_CONFIG(tooltip)

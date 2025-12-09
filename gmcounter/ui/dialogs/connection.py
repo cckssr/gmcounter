@@ -47,6 +47,7 @@ class ConnectionWindow(QDialog):
         parent: Optional[QWidget] = None,
         demo_mode: bool = False,
         default_device: str = "None",
+        measurement_state=None,
     ):
         """
         Initializes the connection window.
@@ -55,8 +56,9 @@ class ConnectionWindow(QDialog):
             parent (QWidget, optional): Parent widget for the dialog. Defaults to None.
             demo_mode (bool, optional): If True, uses a mock port for demonstration purposes.
             default_device (str, optional): The default device to connect to. Defaults to "None".
+            measurement_state (optional): MeasurementStateService to reuse from disconnected manager.
         """
-        self.device_manager = DeviceManager()
+        self.device_manager = DeviceManager(measurement_state=measurement_state)
         # Connect status_update signal to our status_message slot
         self.device_manager.status_update.connect(self.status_message)
         self.connection_successful = False
@@ -199,9 +201,21 @@ class ConnectionWindow(QDialog):
             self.ports.append(
                 [port_info["device"], port_info["name"], port_info["description"]]
             )  # Store port info for later use
-            # Check if the port matches the default device
-            if self.default_device in port_info["description"] and arduino_index == -1:
+
+            # Check if the port matches the default device (exact match on device path)
+            if self.default_device == port_info["device"] and arduino_index == -1:
                 arduino_index = i + int(self.demo_mode)
+                Debug.info(
+                    f"Default device found at index {arduino_index}: {port_info['device']}"
+                )
+            # Fallback: check if default device appears in description
+            elif (
+                self.default_device in port_info["description"] and arduino_index == -1
+            ):
+                arduino_index = i + int(self.demo_mode)
+                Debug.info(
+                    f"Default device found by description at index {arduino_index}: {port_info['device']}"
+                )
 
         Debug.debug(f"Available ports updated: {self.ports}")
         # Add ports to the combo box
@@ -211,7 +225,12 @@ class ConnectionWindow(QDialog):
         # Setze Arduino-Port als vorausgewählt, wenn gefunden
         if arduino_index != -1:
             self.combo.setCurrentIndex(arduino_index)
+            Debug.info(f"Set default device at combo index {arduino_index}")
             self._update_port_description()
+        else:
+            Debug.warning(
+                f"Default device {self.default_device} not found in available ports"
+            )
 
     def _update_port_description(self):
         """
@@ -312,3 +331,19 @@ class ConnectionWindow(QDialog):
         # Fallback, if no role matched
         Debug.error("No valid role selected, rejecting dialog")
         return False
+
+    def closeEvent(self, event):
+        """Handle window close event - cleanup signals.
+
+        ✅ FIX: Disconnect signals to prevent lingering connections
+        that could cause issues after dialog is closed.
+        """
+        # Disconnect status_update signal to avoid dangling connections
+        try:
+            self.device_manager.status_update.disconnect(self.status_message)
+        except (RuntimeError, TypeError):
+            # Signal was not connected, which is fine
+            pass
+
+        Debug.debug("ConnectionWindow signals disconnected on close")
+        super().closeEvent(event)

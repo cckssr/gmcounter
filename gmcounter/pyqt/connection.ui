@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
+    <width>516</width>
     <height>480</height>
    </rect>
   </property>
@@ -18,15 +18,20 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>600</width>
+    <width>500</width>
     <height>480</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>600</width>
-    <height>500</height>
+    <width>516</width>
+    <height>480</height>
    </size>
+  </property>
+  <property name="font">
+   <font>
+    <pointsize>12</pointsize>
+   </font>
   </property>
   <property name="windowTitle">
    <string>Verbindung herstellen</string>
@@ -37,6 +42,11 @@
   <layout class="QGridLayout" name="gridLayout">
    <item row="8" column="0">
     <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+      </font>
+     </property>
      <property name="focusPolicy">
       <enum>Qt::FocusPolicy::StrongFocus</enum>
      </property>
@@ -62,8 +72,13 @@
        <height>500</height>
       </size>
      </property>
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+      </font>
+     </property>
      <property name="text">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Einen Port und passende Baud-Rate auswählen und mit &amp;quot;Öffnen&amp;quot; verbinden. &lt;/p&gt;&lt;p&gt;Besonderheit Windows: &lt;/p&gt;&lt;p&gt;Geräteinformationen werden nicht korrekt dargestellt. Meistens ist es der letzte &amp;quot;COM&amp;quot; Port. &lt;/p&gt;&lt;p align=&quot;right&quot;&gt;Ansonsten: &lt;/p&gt;&lt;p align=&quot;right&quot;&gt;GM-Zähler abstecken, Liste aktualisieren, Zähler anstecken, Liste aktualisieren, &lt;br/&gt;Neuen Port auswählen&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Einen Port und passende Baud-Rate auswählen und mit &amp;quot;Öffnen&amp;quot; verbinden. &lt;/p&gt;&lt;p&gt;&lt;span style=&quot; color:#ff9300;&quot;&gt;Besonderheit Windows:&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Geräteinformationen werden nicht korrekt dargestellt. Meistens ist es der letzte &amp;quot;COM&amp;quot; Port. &lt;/p&gt;&lt;p align=&quot;right&quot;&gt;Ansonsten: &lt;/p&gt;&lt;p align=&quot;right&quot;&gt;GM-Zähler abstecken, Liste aktualisieren, Zähler anstecken, Liste aktualisieren, &lt;br/&gt;Neuen Port auswählen&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
      <property name="textFormat">
       <enum>Qt::TextFormat::RichText</enum>
@@ -118,6 +133,11 @@
            <height>0</height>
           </size>
          </property>
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+          </font>
+         </property>
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Kommunikation mit dem Arduino erfolgt über die serielle Schnittstelle. &lt;/p&gt;&lt;p&gt;Wenn Arduino nicht erkannt wird, die Verbindung prüfen und evtl. Treiber installieren.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
@@ -148,6 +168,11 @@
            <width>35</width>
            <height>40</height>
           </size>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+          </font>
          </property>
          <property name="toolTip">
           <string>Die Liste der Ports aktualisieren</string>
@@ -181,6 +206,11 @@
            <height>20</height>
           </size>
          </property>
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+          </font>
+         </property>
          <property name="text">
           <string>Baud Rate</string>
          </property>
@@ -202,6 +232,11 @@
            <width>0</width>
            <height>40</height>
           </size>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+          </font>
          </property>
          <property name="currentIndex">
           <number>12</number>
@@ -284,6 +319,11 @@
    </item>
    <item row="2" column="0">
     <widget class="Line" name="line">
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+      </font>
+     </property>
      <property name="orientation">
       <enum>Qt::Orientation::Horizontal</enum>
      </property>
@@ -308,6 +348,11 @@
          <height>0</height>
         </size>
        </property>
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string>Adresse</string>
        </property>
@@ -326,6 +371,11 @@
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
+       </property>
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
        </property>
        <property name="cursor">
         <cursorShape>ArrowCursor</cursorShape>
@@ -358,6 +408,11 @@
          <height>0</height>
         </size>
        </property>
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string>Name</string>
        </property>
@@ -370,6 +425,11 @@
       <widget class="QLineEdit" name="device_name">
        <property name="enabled">
         <bool>true</bool>
+       </property>
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
        </property>
        <property name="cursor">
         <cursorShape>ArrowCursor</cursorShape>
@@ -390,6 +450,11 @@
          <height>0</height>
         </size>
        </property>
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string>Beschreibung</string>
        </property>
@@ -402,6 +467,11 @@
       <widget class="QLineEdit" name="device_desc">
        <property name="enabled">
         <bool>true</bool>
+       </property>
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
        </property>
        <property name="cursor">
         <cursorShape>ArrowCursor</cursorShape>
@@ -426,6 +496,11 @@
        <width>0</width>
        <height>30</height>
       </size>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+      </font>
      </property>
      <property name="text">
       <string/>

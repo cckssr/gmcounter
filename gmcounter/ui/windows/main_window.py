@@ -9,8 +9,9 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
 from PySide6.QtCore import QTimer, Qt  # pylint: disable=no-name-in-module
 import gmcounter
 from ...infrastructure.device_manager import DeviceManager
+from ...core.reconnect_service import ConnectionRetryService
 from ...ui.controllers.control import ControlWidget
-from ..widgets.plot import PlotWidget, HistogramWidget
+from ..widgets.plot import GeneralPlot, HistogramWidget, PlotConfig
 from ...infrastructure.logging import Debug
 from ...infrastructure.config import import_config
 from ...helper_classes_compat import Statusbar
@@ -65,6 +66,14 @@ class MainWindow(QMainWindow):
         self._elapsed_seconds = 0
         self._measurement_timer: QTimer | None = None
 
+        # Reconnection service
+        self.reconnect_service = ConnectionRetryService(
+            max_attempts=CONFIG.get("connection", {}).get("max_retry_attempts", 5),
+            initial_delay_ms=CONFIG.get("connection", {}).get(
+                "initial_retry_delay_ms", 500
+            ),
+        )
+
         # Initialize status bar for user feedback
         self.statusbar = Statusbar(self.ui.statusBar)
         self.statusbar.temp_message(CONFIG["messages"]["app_init"])
@@ -92,6 +101,9 @@ class MainWindow(QMainWindow):
         # Set initial status indicator
         self._update_status_indicator("Bereit", "green")
 
+        # Maximize window on startup
+        self.showMaximized()
+
     #
     # 1. INITIALIZATION AND SETUP
     #
@@ -113,6 +125,11 @@ class MainWindow(QMainWindow):
         )
         self.device_manager.status_update.connect(self.statusbar.temp_message)
         self.device_manager.device_info_received.connect(self._update_device_info)
+
+        # Connect connection loss signal to handle unexpected disconnections
+        self.device_manager.connection_lost.connect(
+            self._handle_connection_lost, Qt.ConnectionType.QueuedConnection
+        )
 
         # Ensure the acquisition thread forwards data to this window. When the
         # connection dialog created the DeviceManager the acquisition thread may
@@ -145,14 +162,29 @@ class MainWindow(QMainWindow):
 
     def _setup_plot(self):
         """Initialise the plot widget."""
-        self.plot = PlotWidget(
-            max_plot_points=CONFIG["plot"]["max_points"],
-            fontsize=self.ui.timePlot.fontInfo().pixelSize(),
+        background_color = (
+            self.ui.timePlot.palette().color(self.ui.timePlot.backgroundRole()).name()
+        )
+        # Time plot
+        time_plot_config = PlotConfig(
             xlabel=CONFIG["plot"]["x_label"],
             ylabel=CONFIG["plot"]["y_label"],
+            max_plot_points=CONFIG["plot"]["max_points"],
+            background_color=background_color,
+            fontsize=self.ui.timePlot.fontInfo().pixelSize() + 1,
+        )
+
+        self.plot = GeneralPlot(
+            config=time_plot_config,
         )
         QVBoxLayout(self.ui.timePlot).addWidget(self.plot)
 
+        hist_plot_config = PlotConfig(
+            xlabel=CONFIG["histogram"]["x_label"],
+            ylabel=CONFIG["histogram"]["y_label"],
+            background_color=background_color,
+            fontsize=self.ui.timePlot.fontInfo().pixelSize(),
+        )
         # Histogram plot
         self.histogram = HistogramWidget(
             xlabel=CONFIG["histogram"]["x_label"],
@@ -379,6 +411,21 @@ class MainWindow(QMainWindow):
         # Stoppe automatisches Backup
         self.backup_timer.stop()
 
+        # ✅ FIX: Stoppe GUI Update Timer nach Messung
+        # Dies verhindert, dass die Queue noch nach Stop
+        # geleert wird und unnötige GUI-Updates erfolgen
+        if (
+            hasattr(self.data_controller, "gui_update_timer")
+            and self.data_controller.gui_update_timer is not None
+        ):
+            was_running = self.data_controller.gui_update_timer.isActive()
+            if was_running:
+                self.data_controller.gui_update_timer.stop()
+                Debug.info(
+                    "GUI update timer stopped after measurement - "
+                    "queue processing suspended"
+                )
+
         # Markiere Messung als ungespeichert, wenn Daten vorhanden sind
         if self.data_controller.get_csv_data():
             self.save_service.mark_unsaved()
@@ -393,6 +440,236 @@ class MainWindow(QMainWindow):
         Debug.info("Measurement stopped, statusbar updated")
         # Auto-save is handled by backup timer, not here
         # The periodic auto_backup via SaveService takes care of incremental backups
+
+    def _handle_connection_lost(self):
+        """Handle unexpected device disconnection.
+
+        Automatically attempts reconnection, then shows connection dialog if needed.
+        This slot is called from the acquisition thread (via QueuedConnection).
+        """
+        Debug.error("MainWindow: handling connection loss")
+
+        # Stop measurement if active
+        was_measuring = self.is_measuring
+        if self.is_measuring:
+            self._stop_measurement()
+
+        # ✅ FIX: Stop control update timer immediately on disconnect
+        # This prevents config polling (which tries to read from disconnected device)
+        # and stops the queue from being refilled
+        if (
+            hasattr(self, "control_update_timer")
+            and self.control_update_timer is not None
+        ):
+            if self.control_update_timer.isActive():
+                self.control_update_timer.stop()
+                Debug.info(
+                    "Control update timer stopped - no config polling during disconnect"
+                )
+
+        # Update UI to show disconnection
+        self._set_ui_idle_state()
+        self.statusbar.temp_message(
+            "Gerät wurde unerwartet getrennt! Versuche automatische Wiederverbindung...",
+            CONFIG["colors"]["orange"],
+            duration=0,
+        )
+        self._update_status_indicator("Wiederverbindung...", "orange")
+
+        # Attempt automatic reconnection after brief delay to let UI update
+        QTimer.singleShot(500, self._attempt_automatic_reconnection)
+
+    def _attempt_automatic_reconnection(self):
+        """Attempt automatic reconnection to the previously connected device.
+
+        If automatic reconnection fails, shows the connection dialog
+        to allow the user to manually reconnect.
+        """
+        Debug.info("Attempting automatic reconnection...")
+
+        try:
+            # ✅ FIX: Use reconnect service with exponential backoff
+            # This ensures proper delays between retry attempts (500ms → 750ms → 1125ms → etc.)
+            def reconnect_callback(message: str, color: str):
+                self.statusbar.temp_message(
+                    message, CONFIG["colors"].get(color, "orange"), duration=0
+                )
+
+            if self.reconnect_service.attempt_reconnect(
+                reconnect_fn=self.device_manager.attempt_automatic_reconnect,
+                status_callback=reconnect_callback,
+            ):
+                # Success!
+                Debug.info("Automatic reconnection successful")
+
+                # ✅ CRITICAL FIX: Re-initialize control widget with the (already updated) device_manager
+                # This ensures control.get_settings() uses the newly connected device
+                self.control = ControlWidget(device_manager=self.device_manager)
+                Debug.info(
+                    "Control widget re-initialized with reconnected device manager"
+                )
+
+                # ✅ FIX: Restart control update timer after successful reconnection
+                if (
+                    hasattr(self, "control_update_timer")
+                    and self.control_update_timer is not None
+                ):
+                    if not self.control_update_timer.isActive():
+                        self.control_update_timer.start(
+                            CONFIG["timers"]["control_update_interval"]
+                        )
+                        Debug.info(
+                            "Control update timer restarted after automatic reconnection"
+                        )
+
+                self.statusbar.temp_message(
+                    f"Wiederverbunden mit {self.device_manager.port}",
+                    CONFIG["colors"]["green"],
+                    duration=3000,
+                )
+                self._update_status_indicator("Verbunden", "green")
+                return
+        except Exception as e:
+            Debug.error(f"Exception during automatic reconnection: {e}")
+
+        # Automatic reconnection failed - show connection dialog
+        Debug.warning("Automatic reconnection failed - showing connection dialog")
+
+        # Show dialog with slight delay to ensure UI has processed previous updates
+        QTimer.singleShot(300, self._show_connection_dialog_on_disconnect)
+
+    def _show_connection_dialog_on_disconnect(self):
+        """Show the connection dialog after a disconnection.
+
+        Disables the main window and allows user to reconnect to the device.
+        """
+        Debug.info("Showing connection dialog for manual reconnection")
+
+        # Only show dialog if we're not measuring (measurement should have been stopped already)
+        if self.is_measuring:
+            Debug.warning(
+                "Measurement still active - waiting for it to complete before showing dialog"
+            )
+            QTimer.singleShot(200, self._show_connection_dialog_on_disconnect)
+            return
+
+        # Disable main window to prevent interaction while reconnecting
+        self.setEnabled(False)
+
+        # Update status message
+        self.statusbar.temp_message(
+            "Bitte überprüfen Sie die USB-Verbindung und versuchen Sie erneut, sich zu verbinden.",
+            CONFIG["colors"]["orange"],
+            duration=0,
+        )
+
+        # Create and show connection dialog for the same port
+        from ...ui.dialogs.connection import ConnectionWindow
+
+        connection_dialog = ConnectionWindow(
+            parent=self,
+            demo_mode=CONFIG["gm_counter"]["demo_mode"],
+            default_device=self.device_manager.port,  # Try to reconnect to same port
+            measurement_state=self.device_manager.measurement_state,  # Reuse measurement state
+        )
+
+        if connection_dialog.exec():
+            if connection_dialog.connection_successful:
+                # Reconnection successful - update device manager
+                new_device_manager = connection_dialog.device_manager
+                Debug.info(f"Reconnected to {new_device_manager.port}")
+
+                # ✅ FIX: Disconnect old signals BEFORE replacing device_manager
+                # Dies verhindert mehrfache Signal-Verbindungen
+                self.device_manager.data_received.disconnect(self.handle_data)
+                self.device_manager.connection_lost.disconnect(
+                    self._handle_connection_lost
+                )
+
+                # Update our device manager reference
+                self.device_manager = new_device_manager
+
+                # Reconnect signals (fresh start ohne Duplikate)
+                self.device_manager.data_received.connect(
+                    self.handle_data, Qt.ConnectionType.QueuedConnection
+                )
+                self.device_manager.status_update.connect(self.statusbar.temp_message)
+                self.device_manager.device_info_received.connect(
+                    self._update_device_info
+                )
+                self.device_manager.connection_lost.connect(
+                    self._handle_connection_lost, Qt.ConnectionType.QueuedConnection
+                )
+
+                # ✅ CRITICAL FIX: Re-initialize control widget with NEW device_manager
+                # This ensures control.get_settings() uses the newly connected device,
+                # not the old dead connection
+                self.control = ControlWidget(device_manager=self.device_manager)
+                Debug.info("Control widget re-initialized with new device manager")
+
+                # ✅ FIX: Restart control update timer after successful reconnection
+                if (
+                    hasattr(self, "control_update_timer")
+                    and self.control_update_timer is not None
+                ):
+                    if not self.control_update_timer.isActive():
+                        self.control_update_timer.start(
+                            CONFIG["timers"]["control_update_interval"]
+                        )
+                        Debug.info("Control update timer restarted after reconnection")
+
+                # Re-enable main window
+                self.setEnabled(True)
+                self.statusbar.temp_message(
+                    f"Wiederverbunden mit {self.device_manager.port}",
+                    CONFIG["colors"]["green"],
+                    duration=3000,
+                )
+                self._update_status_indicator("Verbunden", "green")
+                Debug.info("Reconnection dialog completed successfully")
+            else:
+                # Reconnection failed in dialog
+                self.setEnabled(True)
+                self.statusbar.temp_message(
+                    "Wiederverbindung fehlgeschlagen.",
+                    CONFIG["colors"]["red"],
+                    duration=0,
+                )
+                self._update_status_indicator("Getrennt", "red")
+                MessageHelper.show_error(
+                    self,
+                    "Wiederverbindung fehlgeschlagen.\n\n"
+                    "Die Anwendung kann ohne Geräteverbindung nicht fortgesetzt werden.",
+                    "Verbindungsfehler",
+                )
+                Debug.warning("Reconnection failed in dialog")
+        else:
+            # User cancelled dialog
+            self.setEnabled(True)
+            self.statusbar.temp_message(
+                "Wiederverbindung abgebrochen.",
+                CONFIG["colors"]["red"],
+                duration=0,
+            )
+            self._update_status_indicator("Getrennt", "red")
+            MessageHelper.show_error(
+                self,
+                "Wiederverbindung abgebrochen.\n\n"
+                "Die Anwendung kann ohne Geräteverbindung nicht fortgesetzt werden.",
+                "Verbindung erforderlich",
+            )
+            Debug.info("User cancelled reconnection dialog")
+
+    def _attempt_reconnection(self):
+        """[DEPRECATED] Use _attempt_automatic_reconnection instead."""
+        Debug.warning(
+            "_attempt_reconnection called - delegating to _attempt_automatic_reconnection"
+        )
+        self._attempt_automatic_reconnection()
+
+    def _run_reconnection_with_retry(self, reconnect_fn, status_callback):
+        """[DEPRECATED] Old retry logic - no longer used."""
+        Debug.debug("_run_reconnection_with_retry called but is deprecated")
 
     def _save_measurement(self):
         """Manually save the current measurement data using a file dialog."""
@@ -504,6 +781,16 @@ class MainWindow(QMainWindow):
             index: Index of the data point.
             value: Measured value.
         """
+        # CRITICAL: Only process data if measurement is active OR if we're still
+        # processing a batch from the end of the measurement
+        # Device may continue sending data briefly after measurement stop,
+        # but we should still accept data that belongs to the same batch
+        if not self.is_measuring:
+            # Measurement has stopped - only accept data if we're still processing the batch
+            # (queue is not empty = data belongs to the same batch)
+            if self.data_controller.data_queue.empty():
+                return
+
         # Use the fast queue-based method for better performance
         self.data_controller.add_data_point_fast(index, value)
 

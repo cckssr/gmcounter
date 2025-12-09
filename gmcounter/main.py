@@ -17,7 +17,7 @@ from .infrastructure.logging import Debug
 from .ui.dialogs.connection import ConnectionWindow
 from .ui.windows.main_window import MainWindow
 from .infrastructure.config import import_config
-from .ui.resources.stylesheet import apply_stylesheet
+# from .ui.resources.stylesheet import apply_stylesheet
 
 # If executed as a script (package context missing), ensure the repo root is on
 # sys.path and set __package__ so relative imports below work correctly.

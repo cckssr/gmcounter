@@ -26,13 +26,13 @@ class StatusBarManager:
             statusbar: QStatusBar widget to manage
         """
         self.statusbar = statusbar
-        self.old_state: list[str] = []
+        self.old_state: list[str] = []  # [currentMessage, styleSheet]
         self._save_state()
 
     def show_message(
         self, message: str, backcolor: str = "", duration: int = 0
     ) -> None:
-        """Display a temporary message on the status bar.
+        """Display a (temporary) message on the status bar.
 
         Args:
             message: Message to display
@@ -44,7 +44,7 @@ class StatusBarManager:
 
         if duration != 0:
             self.statusbar.showMessage(message, duration)
-            Debug.info(f"Statusbar message: {message} with duration: {duration}")
+            Debug.debug(f"Statusbar message: {message} with duration: {duration}")
             # reset to old state after duration
             QTimer.singleShot(
                 duration, lambda: self.statusbar.setStyleSheet(self.old_state[1])
@@ -54,12 +54,13 @@ class StatusBarManager:
             )
         else:
             self.statusbar.showMessage(message)
-            Debug.info(f"Permanent Statusbar message: {message}")
+            Debug.debug(f"Permanent Statusbar message: {message}")
 
     def add_permanent_widget(
         self, message: str, index: int = 0, backcolor: str = ""
     ) -> None:
         """Add a permanent message widget to the status bar.
+        This message or widget will remain in the status bar until removed.
 
         Args:
             message: Message to display
@@ -71,7 +72,7 @@ class StatusBarManager:
         label = QLabel()
         label.setText(message)
         self.statusbar.insertPermanentWidget(index, label)
-        Debug.info(f"Permanent Statusbar message: {message} at index: {index}")
+        Debug.debug(f"Permanent Statusbar message: {message} at index: {index}")
 
     def _update_statusbar_style(self, backcolor: str) -> str:
         """Update the style of the status bar.
@@ -80,22 +81,24 @@ class StatusBarManager:
             backcolor: Background color to apply
 
         Returns:
-            New style string
+            str: New style sheet for the status bar as string
         """
         self._save_state()
 
         if backcolor:
             if "background-color:" in self.old_state[1]:
                 # if old style had backcolor, replace it with the new one
-                new_style = self.old_state[1].replace(
-                    re.search(r"background-color:\s*[^;]+;", self.old_state[1]).group(
-                        0
-                    ),
-                    f"background-color: {backcolor};",
-                )
-                Debug.info(
-                    f"Statusbar background color updated: {self.old_state[1]} -> {new_style}"
-                )
+                match = re.search(r"background-color:\s*[^;]+;", self.old_state[1])
+                if match:
+                    new_style = self.old_state[1].replace(
+                        match.group(0),
+                        f"background-color: {backcolor};",
+                    )
+                    Debug.debug(
+                        f"Statusbar background color updated: {self.old_state[1]} -> {new_style}"
+                    )
+                else:
+                    new_style = self.old_state[1]
             else:
                 # otherwise append the new backcolor
                 new_style = self.old_state[1] + f"background-color: {backcolor};"

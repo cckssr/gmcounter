@@ -28,6 +28,12 @@ class Arduino:
     Manages serial connection and data exchange with hardware.
     """
 
+    # Class constants
+    BINARY_PACKET_START_BYTE = 0xAA
+    DEFAULT_PACKET_SIZE = 6
+    DEFAULT_READ_TIMEOUT = 1.0
+    FAST_READ_TIMEOUT_MS = 100
+
     def __init__(self, port: str, baudrate: int = 115200, timeout: float = 1.0):
         """
         Initialize Arduino connection.
@@ -161,7 +167,7 @@ class Arduino:
                                 f"Command resent after reconnect: {repr(cmd_to_send.strip())}"
                             )
                             return True
-                        except Exception as retry_error:
+                        except Exception as retry_error:  # pylint: disable=broad-except
                             Debug.error(
                                 f"Failed to resend command after reconnect: {retry_error}"
                             )
@@ -169,12 +175,12 @@ class Arduino:
                     else:
                         Debug.error("Reconnection failed")
                         return False
-                except Exception as reconnect_error:
+                except Exception as reconnect_error:  # pylint: disable=broad-except
                     Debug.error(f"Error during reconnection attempt: {reconnect_error}")
                     return False
 
             return False
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             Debug.error(f"Unexpected error sending command: {e}", exc_info=True)
             return False
 
@@ -270,12 +276,15 @@ class Arduino:
         except serial.SerialException as e:
             Debug.error(f"Serial read error: {e}", exc_info=True)
             return None
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             Debug.error(f"Unexpected error in read_value: {e}", exc_info=True)
             return None
 
     def _skip_binary_packets(
-        self, timeout_remaining: float, packet_size: int = 6, start_byte: int = 0xAA
+        self,
+        timeout_remaining: float,
+        packet_size: int = DEFAULT_PACKET_SIZE,
+        start_byte: int = BINARY_PACKET_START_BYTE,
     ) -> Optional[str]:
         """Skip binary packets and return the first text character found.
 
@@ -304,7 +313,7 @@ class Arduino:
             if peek[0] == start_byte:
                 try:
                     self.serial.read(packet_size - 1)
-                except Exception:
+                except Exception:  # pylint: disable=broad-except
                     pass
                 continue
 
@@ -367,7 +376,11 @@ class Arduino:
                     if self.serial.in_waiting == 0:
                         break
 
-    def read_text_response(self, timeout: float = 1.0, packet_size: int = 6) -> str:
+    def read_text_response(
+        self,
+        timeout: float = DEFAULT_READ_TIMEOUT,
+        packet_size: int = DEFAULT_PACKET_SIZE,
+    ) -> str:
         """
         Reads a complete text response from the Arduino, handling multiple lines
         and filtering out binary data.
@@ -407,7 +420,7 @@ class Arduino:
             Debug.debug(f"Text response: '{response}'")
             return response
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             Debug.error(f"Error in read_text_response: {e}", exc_info=True)
             return ""
 
@@ -446,7 +459,7 @@ class Arduino:
     def read_fast(
         self,
         max_bytes: int = 1024,
-        timeout_ms: int = 100,
+        timeout_ms: int = FAST_READ_TIMEOUT_MS,
         delimiter: Optional[bytes] = None,
     ) -> Optional[bytes]:
         """
@@ -485,7 +498,7 @@ class Arduino:
         except serial.SerialException as e:
             Debug.error(f"Serial error in fast read: {e}", exc_info=True)
             return None
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             Debug.error(f"Unexpected error in fast read: {e}", exc_info=True)
             return None
         finally:
@@ -512,7 +525,7 @@ class Arduino:
         self,
         delimiter: bytes = b"\n",
         max_buffer: int = 4096,
-        timeout: float = 2.0,
+        timeout: float = DEFAULT_READ_TIMEOUT,
     ) -> Optional[bytes]:
         """
         Read bytes until a delimiter is encountered.
@@ -568,7 +581,7 @@ class Arduino:
             )
             return bytes(buffer) if buffer else None
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             Debug.error(f"Error reading until delimiter: {e}", exc_info=True)
             return None
 
@@ -610,7 +623,7 @@ class Arduino:
 
             return True
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             Debug.error(f"Error flushing input buffer: {e}", exc_info=True)
             return False
 
@@ -739,7 +752,7 @@ class GMCounter(Arduino):
 
         try:
             if request:
-                Debug.info("Requesting data from GMCounter...")
+                Debug.debug("Requesting data from GMCounter...")
                 if not self.send_command("b2"):
                     Debug.error("Failed to send data request command")
                     return data_template
@@ -755,11 +768,14 @@ class GMCounter(Arduino):
 
             # Parse comma-separated values
             Debug.debug(f"Parsing data line: '{line}'")
+            if not isinstance(line, str):
+                Debug.info("Received data is not a string")
+                return data_template
             data = self._parse_csv_line(line, data_template)
             Debug.debug(f"Parsed data: {data}")
             return data
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             Debug.error(f"Error in get_data: {e}", exc_info=True)
             return data_template
 
@@ -846,7 +862,7 @@ class GMCounter(Arduino):
             # Cache the result
             self._device_info_cache = info.copy()
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             Debug.error(f"Error getting information: {e}", exc_info=True)
 
         return info

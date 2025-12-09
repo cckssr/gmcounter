@@ -1,5 +1,33 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""!/usr/bin/env python
+Logging and debugging utility module for the GM Counter application.
+
+This module provides a centralized Debug class that handles logging to both console
+and file outputs with configurable debug levels. It supports systematic logging of
+errors and program flow, and can globally handle unhandled exceptions.
+
+Features:
+    - Multiple debug levels (OFF, ERROR, INFO, VERBOSE)
+    - Dual output to console and file with customizable formatters
+    - Automatic caller information tracking (class and function names)
+    - Platform-independent temporary directory handling
+    - Global exception hook for unhandled exceptions
+    - UTF-8 encoded log file output
+
+Debug Levels:
+    - DEBUG_OFF (0): No debug output
+    - DEBUG_ERROR (1): Only errors are shown
+    - DEBUG_INFO (2): Errors and important information are shown
+    - DEBUG_VERBOSE (3): All information is shown, including caller details
+
+Usage:
+    Import the Debug class and initialize it before use:
+
+    Debug.init(debug_level=Debug.DEBUG_VERBOSE, log_dir="/path/to/logs")
+    Debug.info("Application started")
+
+    To handle global exceptions:
+    sys.excepthook = Debug.exception_hook
+"""
 
 import logging
 import os
@@ -84,7 +112,7 @@ class Debug:
                 try:
                     os.makedirs(log_directory)
                     print(f"Log directory created: {log_directory}")
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     print(f"Error creating log directory: {e}")
                     return
 
