@@ -51,6 +51,7 @@
       "demo_mode": true,
       "default_arduino": "UNO",
       "default_voltage": 500,
+      "voltage_warning_threshold": 650,
       "count_time_map": {
         "0": 999,
         "1": 1,
@@ -120,7 +121,8 @@
       "unsaved_data_end": "Sie haben ungespeicherte Messdaten. Möchten Sie diese verwerfen, bevor Sie die Applikation beenden?",
       "connection_failed": "Verbindung zum Gerät fehlgeschlagen. Anwendung wird beendet.",
       "auto_save_enabled": "Automatisches Speichern ist aktiviert. Messdaten werden automatisch gespeichert, wenn die Messung endet.",
-      "auto_save_disabled": "Automatisches Speichern ist deaktiviert. Sie müssen die Messdaten manuell speichern."
+      "auto_save_disabled": "Automatisches Speichern ist deaktiviert. Sie müssen die Messdaten manuell speichern.",
+      "voltage_warning": "Warnung: Die Betriebsspannung des GM-Zählers ist hoch ({} V). Nicht dauerhaft verwenden."
     }
   }
 }

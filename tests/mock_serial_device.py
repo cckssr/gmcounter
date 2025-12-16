@@ -43,6 +43,7 @@ class MockGMCounter:
         self.next_pulse_time = 0
         self._next_pulse_interval = 0.0  # Das nächste zufällige Intervall
         self._stream_mode = 0  # Stream-Modus (0=aus, 1=bei Messung, etc.)
+        self._start_marker_pending = False  # Flag: Start-Marker muss gesendet werden
         Debug.info(f"MockGMCounter für Port {port} initialisiert")
         print(
             f"Baudrate: {self.baudrate}, timeout: {self.timeout:2f}, max_tick: {self.max_tick:6f}"
@@ -104,13 +105,15 @@ class MockGMCounter:
             self._last_count = self._count
             self._count = 0
             self._measurement_start_time = time.time()
+            self._start_marker_pending = True  # Signal that start marker should be sent
 
             # Generiere das erste zufällige Intervall
             self._next_pulse_interval = random.uniform(self._min_tick, self.max_tick)
             self.next_pulse_time = time.time() + self._next_pulse_interval
 
             Debug.info(
-                f"MockGMCounter: Zählung gestartet. Erstes Intervall: {self._next_pulse_interval:.6f}s"
+                f"MockGMCounter: Zählung gestartet. Start-Marker wird gesendet. "
+                f"Erstes Intervall: {self._next_pulse_interval:.6f}s"
             )
         elif not value and self._counting:  # Stop counting
             self._counting = False
@@ -292,6 +295,13 @@ def main(device_class=MockGMCounter):
                 except (OSError, ValueError) as e:
                     print(f"Fehler: {e}")
                     break
+
+            # Check if start marker needs to be sent (measurement just started)
+            if mock_device._start_marker_pending:
+                start_marker = b"\xff\xff\xff\xff\xff\xff"
+                print(f"Sende Start-Marker: 0x{start_marker.hex()}")
+                os.write(master, start_marker)
+                mock_device._start_marker_pending = False
 
             # Spontane Daten vom Gerät verarbeiten
             spontaneous_data = mock_device.tick()

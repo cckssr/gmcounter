@@ -53,10 +53,7 @@ def main():
         case _:
             debug_level = Debug.DEBUG_OFF
 
-    # Debug.init(debug_level=debug_level, app_name=CONFIG["application"]["name"])
-    Debug.init(
-        debug_level=Debug.DEBUG_INFO, app_name=CONFIG["application"]["name"]
-    )  # FIXME: Windows logging level fixen
+    Debug.init(debug_level=debug_level, app_name=CONFIG["application"]["name"])
 
     # Globalen Exception-Handler registrieren
     sys.excepthook = Debug.exception_hook
