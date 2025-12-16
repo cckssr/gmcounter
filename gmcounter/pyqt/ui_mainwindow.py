@@ -217,6 +217,7 @@ class Ui_MainWindow(object):
         self.voltDial.setMinimumSize(QSize(100, 100))
         self.voltDial.setMaximumSize(QSize(100, 100))
         self.voltDial.setFont(font1)
+        self.voltDial.setStyleSheet(u"QDial {color: rgb(255, 38, 0);}")
         self.voltDial.setMinimum(300)
         self.voltDial.setMaximum(700)
         self.voltDial.setSingleStep(5)

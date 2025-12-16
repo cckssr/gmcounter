@@ -92,6 +92,9 @@ class MainWindow(QMainWindow):
         # Initial update of the UI
         self._update_control_display()
 
+        # Apply current GUI settings to the GM counter on successful connection
+        self._apply_settings()
+
         # Show success message
         self.statusbar.temp_message(
             CONFIG["messages"]["connected"].format(self.device_manager.port),
@@ -102,7 +105,10 @@ class MainWindow(QMainWindow):
         self._update_status_indicator("Bereit", "green")
 
         # Maximize window on startup
-        self.showMaximized()
+        screen = self.screen()
+        geometry = screen.availableGeometry()
+        self.setGeometry(geometry)
+        self.show()
 
     #
     # 1. INITIALIZATION AND SETUP
@@ -239,6 +245,9 @@ class MainWindow(QMainWindow):
 
         # Connect plot's user interaction signal
         self.plot.user_interaction_detected.connect(self._handle_plot_user_interaction)
+
+        # Connect voltage spinbox change
+        self.ui.sVoltage.valueChanged.connect(self._handle_voltage_change)
 
         # Initialize auto-scroll if checkbox is already checked
         if self.ui.autoScroll.isChecked():
@@ -928,6 +937,25 @@ class MainWindow(QMainWindow):
             if self._elapsed_seconds >= self.ui.progressBar.maximum():
                 self._stop_measurement()
         # For infinite measurements: progressBar stays in indeterminate mode (animates automatically)
+
+    def _handle_voltage_change(self, value: int):
+        """Handle changes to the voltage spinbox.
+
+        Args:
+            value: New voltage value.
+        """
+        voltage_warning_threshold = CONFIG["gm_counter"]["voltage_warning_threshold"]
+
+        if value > voltage_warning_threshold:
+            self.ui.sVoltage.setStyleSheet("background-color: orange;")
+            self.statusbar.temp_message(
+                CONFIG["messages"]["voltage_warning"].format(value),
+                CONFIG["colors"]["orange"],
+                duration=3000,
+            )
+        else:
+            self.ui.sVoltage.setStyleSheet("")  # Reset to default
+            # Debug.debug(f"Voltage set to safe level: {value} V")
 
     #
     # 3. DEVICE CONTROL

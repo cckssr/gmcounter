@@ -24,7 +24,7 @@ from typing import Iterable, Optional, Tuple, List, Dict, Any
 import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import Signal, Slot, QTimer  # pylint: disable=no-name-in-module
-from PySide6.QtGui import QSurfaceFormat, QPalette  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QSurfaceFormat  # pylint: disable=no-name-in-module
 from ...infrastructure.logging import Debug
 
 # CRITICAL: Disable vsync for maximum plot update speed
@@ -102,7 +102,9 @@ class FastPlotCurveItem(pg.PlotCurveItem):
         """Initialize with performance defaults."""
         # Set performance-optimized defaults
         kwds.setdefault("antialias", False)
-        kwds.setdefault("pen", pg.mkPen(width=1, color="gray"))
+        kwds.setdefault(
+            "pen", pg.mkPen(width=1, color="#0099FF")
+        )  # Cyan - visible on Windows
         super().__init__(**kwds)
         self._cached_range: Optional[
             Tuple[Tuple[float, float], Tuple[float, float]]
@@ -428,7 +430,8 @@ class GeneralPlot(pg.PlotWidget):
         y_arr = np.array([p[1] for p in data_points], dtype=np.float32)
 
         # Determine rendering mode
-        show_symbols = use_symbols and len(data_points) < 200
+        # Increased threshold to 1000 points for better visibility on Windows
+        show_symbols = use_symbols and len(data_points) < 1000
 
         # Create or update plot curve item
         if self._plot_curve is None:
@@ -464,11 +467,11 @@ class GeneralPlot(pg.PlotWidget):
             self._plot_curve.setData(
                 x_arr,
                 y_arr,
-                pen=pg.mkPen(width=self.config.pen_width, color="gray"),
+                pen=pg.mkPen(width=self.config.pen_width, color="#0099FF"),  # Cyan line
                 symbol="o",
                 symbolSize=self.config.symbol_size,
-                symbolBrush=pg.mkBrush("red"),
-                symbolPen=pg.mkPen("red"),
+                symbolBrush=pg.mkBrush("#FF3333"),  # Bright red symbols
+                symbolPen=pg.mkPen("#FF3333", width=2),  # Bright red border
                 antialias=self.config.antialias,
                 skipFiniteCheck=self.config.skip_finite_check,
             )
@@ -476,7 +479,7 @@ class GeneralPlot(pg.PlotWidget):
             self._plot_curve.setData(
                 x_arr,
                 y_arr,
-                pen=pg.mkPen(width=self.config.pen_width, color="gray"),
+                pen=pg.mkPen(width=self.config.pen_width, color="#0099FF"),  # Cyan line
                 antialias=self.config.antialias,
                 skipFiniteCheck=self.config.skip_finite_check,
             )
@@ -626,18 +629,6 @@ class GeneralPlot(pg.PlotWidget):
 
         return [x_min_p, x_max_p], [y_min_p, y_max_p]
 
-    @Slot(list)
-    def update_plot_batch(self, data_points: List[Tuple[float, float]]) -> None:
-        """
-        Batch update method (alias for update_plot_data).
-
-        Useful for streaming data or burst updates.
-
-        Args:
-            data_points: List of (x, y) tuples
-        """
-        self.update_plot_data(data_points)
-
     def append_data(self, x: float, y: float) -> None:
         """
         Append a single data point (streaming mode).
@@ -703,6 +694,7 @@ class HistogramWidget(pg.PlotWidget):
     range adjustment for frequency distribution analysis.
 
     Design based on pyqtgraph performance best practices.
+    Uses PlotConfig for consistent configuration with GeneralPlot.
 
     Signals:
         histogram_updated: Emitted after update (int: number of bins)
@@ -714,7 +706,8 @@ class HistogramWidget(pg.PlotWidget):
         reconfigure: Change labels and title
 
     Example:
-        >>> histogram = HistogramWidget(title="Distribution", xlabel="Value", ylabel="Frequency")
+        >>> config = PlotConfig(title="Distribution", xlabel="Value", ylabel="Frequency")
+        >>> histogram = HistogramWidget(config=config)
         >>> histogram.update_histogram([1.2, 2.3, 1.8, 2.1, 1.9], bins=10)
     """
 
@@ -727,6 +720,7 @@ class HistogramWidget(pg.PlotWidget):
 
     def __init__(
         self,
+        config: Optional[PlotConfig] = None,
         title: Optional[str] = None,
         xlabel: str = "Value",
         ylabel: str = "Count",
@@ -736,14 +730,42 @@ class HistogramWidget(pg.PlotWidget):
         """
         Initialize the histogram widget.
 
+        Supports both new (PlotConfig) and legacy parameter styles for backward compatibility.
+
         Args:
-            title: Histogram title (optional)
-            xlabel: X-axis label (bin values)
-            ylabel: Y-axis label (frequency count)
-            background: Background color (None = system theme, respects dark mode)
-            grid_alpha: Grid line transparency (0.0-1.0)
+            config: PlotConfig object with histogram settings (preferred)
+            title: Histogram title (optional, legacy parameter)
+            xlabel: X-axis label (bin values, legacy parameter)
+            ylabel: Y-axis label (frequency count, legacy parameter)
+            background: Background color (None = system theme, legacy parameter)
+            grid_alpha: Grid line transparency (0.0-1.0, legacy parameter)
         """
         super().__init__()
+
+        # Handle both new PlotConfig style and legacy parameters
+        if config is None:
+            # Legacy parameter style: create PlotConfig from individual parameters
+            self.config = PlotConfig(
+                title=title,
+                xlabel=xlabel,
+                ylabel=ylabel,
+                background_color=background,
+                grid_alpha=grid_alpha,
+            )
+        else:
+            # New PlotConfig style: use provided config
+            self.config = config
+            # Override with explicit parameters if provided
+            if title is not None:
+                self.config.title = title
+            if xlabel != "Value":
+                self.config.xlabel = xlabel
+            if ylabel != "Count":
+                self.config.ylabel = ylabel
+            if background is not None:
+                self.config.background_color = background
+            if grid_alpha != 0.3:
+                self.config.grid_alpha = grid_alpha
 
         # Internal state
         self._hist_item: Optional[pg.BarGraphItem] = None
@@ -754,30 +776,35 @@ class HistogramWidget(pg.PlotWidget):
         self._update_timer.timeout.connect(self._process_deferred_histogram_update)
         self._deferred_histogram_data: Optional[Tuple[np.ndarray, int, str]] = None
 
-        # Configure appearance (None background = respect system theme/dark mode)
-        if background:
-            self.setBackground(background)
-
-        self.showGrid(x=True, y=True, alpha=grid_alpha)
-        self.setLabel("bottom", xlabel)
-        self.setLabel("left", ylabel)
-
-        if title:
-            self.setTitle(title)
-
-        # Store configuration
-        self._config: Dict[str, Any] = {
-            "xlabel": xlabel,
-            "ylabel": ylabel,
-            "title": title,
-            "background": background,
-            "grid_alpha": grid_alpha,
-        }
-
         # Performance: Track last bin count for optimization
         self._last_bin_count = 0
 
-        Debug.debug("HistogramWidget initialized (dark mode aware)")
+        # Configure appearance (matches GeneralPlot pattern)
+        self._configure_appearance()
+
+        Debug.debug("HistogramWidget initialized (dark mode aware, PlotConfig unified)")
+
+    def _configure_appearance(self) -> None:
+        """Configure histogram appearance based on config (matches GeneralPlot pattern)."""
+        # Configure background (None = respect system theme/dark mode)
+        if self.config.background_color:
+            self.setBackground(self.config.background_color)
+
+        # Configure grid
+        self.showGrid(x=True, y=True, alpha=self.config.grid_alpha)
+
+        # Configure labels
+        self.setLabel("bottom", self.config.xlabel)
+        self.setLabel("left", self.config.ylabel)
+
+        # Configure title
+        if self.config.title:
+            self.setTitle(self.config.title)
+
+        Debug.debug(
+            f"Histogram appearance configured: title={self.config.title}, "
+            f"alpha={self.config.grid_alpha}"
+        )
 
     @Slot()
     def clear_measurement_data(self) -> None:
@@ -798,15 +825,6 @@ class HistogramWidget(pg.PlotWidget):
             self._is_clearing = False
 
         self.histogram_cleared.emit()
-
-    @Slot()
-    def clear(self) -> None:
-        """
-        Clear histogram (alias for clear_measurement_data).
-
-        Maintains compatibility with base class interface.
-        """
-        self.clear_measurement_data()
 
     def _process_deferred_histogram_update(self) -> None:
         """Process deferred histogram update from batch queue."""
@@ -864,8 +882,6 @@ class HistogramWidget(pg.PlotWidget):
         finally:
             self._pending_update = False
 
-    @Slot(list)
-    @Slot(list, int)
     @Slot(list, int, str)
     def update_histogram(
         self,
@@ -913,37 +929,54 @@ class HistogramWidget(pg.PlotWidget):
         except Exception as e:  # pylint: disable=broad-except
             Debug.error(f"Error in update_histogram: {e}")
 
-    @Slot()
-    @Slot(str)
     @Slot(str, str)
-    @Slot(str, str, str)
     def reconfigure(
         self,
-        title: Optional[str] = None,
-        xlabel: Optional[str] = None,
-        ylabel: Optional[str] = None,
+        key: str = "",
+        value: str = "",
     ) -> None:
         """
-        Reconfigure histogram labels and title.
+        Reconfigure histogram appearance (unified with GeneralPlot pattern).
 
         Args:
-            title: New histogram title (None to keep current)
-            xlabel: New x-axis label (None to keep current)
-            ylabel: New y-axis label (None to keep current)
+            key: Config key (e.g., 'title', 'xlabel', 'ylabel', 'background_color', 'grid_alpha')
+            value: New value
+
+        Legacy signature still supported:
+            reconfigure(title=..., xlabel=..., ylabel=...)
         """
-        if xlabel is not None:
-            self.setLabel("bottom", xlabel)
-            self._config["xlabel"] = xlabel
+        # Handle legacy signature: reconfigure(title, xlabel, ylabel)
+        # In this case, key will be title and value might be unused
+        if key and not value and isinstance(key, str) and key != "":
+            # Legacy call: reconfigure(title_value)
+            self.config.title = key
+            self.setTitle(key)
+            Debug.debug(f"Histogram reconfigured (legacy): title={key}")
+            return
 
-        if ylabel is not None:
-            self.setLabel("left", ylabel)
-            self._config["ylabel"] = ylabel
+        # New unified signature
+        if not key or value == "":
+            Debug.warning("Histogram reconfigure: Empty key or value")
+            return
 
-        if title is not None:
-            self.setTitle(title)
-            self._config["title"] = title
+        if not hasattr(self.config, key):
+            Debug.warning(f"Histogram reconfigure: Unknown key '{key}'")
+            return
 
-        Debug.debug(f"Histogram reconfigured: title={title}, x={xlabel}, y={ylabel}")
+        setattr(self.config, key, value)
+        Debug.debug(f"Histogram reconfigured: {key}={value}")
+
+        # Apply changes
+        if key == "title":
+            self.setTitle(value)
+        elif key == "xlabel":
+            self.setLabel("bottom", value)
+        elif key == "ylabel":
+            self.setLabel("left", value)
+        elif key == "background_color":
+            self.setBackground(value)
+        elif key == "grid_alpha":
+            self.showGrid(x=True, y=True, alpha=float(value))
 
 
 # ============================================================

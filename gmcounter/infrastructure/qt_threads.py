@@ -157,12 +157,18 @@ class DataAcquisitionThread(QThread):
                     self._measurement_start_time = time.time()
 
                 # Check if start marker timeout has been reached
+                # NOTE: Mock devices may not send start marker - only timeout for real hardware
                 if not self._first_data_received:
                     elapsed = time.time() - self._measurement_start_time
-                    if elapsed > self.START_MARKER_TIMEOUT:
+                    # For demo mode, disable timeout or use longer timeout
+                    # since mock device may not send proper start marker
+                    is_demo_mode = getattr(self.manager.device, 'is_mock_device', False)
+                    timeout = 30.0 if is_demo_mode else self.START_MARKER_TIMEOUT
+                    
+                    if elapsed > timeout:
                         Debug.error(
-                            f"Start marker not detected within {self.START_MARKER_TIMEOUT}s \
-                                - aborting measurement"
+                            f"Start marker not detected within {timeout}s "
+                            f"(demo_mode={is_demo_mode}) - aborting measurement"
                         )
                         self.connection_lost.emit()
                         break

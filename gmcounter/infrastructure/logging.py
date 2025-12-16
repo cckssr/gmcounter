@@ -64,7 +64,7 @@ class Debug:
     logger = None
 
     @classmethod
-    def init(cls, debug_level=DEBUG_OFF, log_dir=None, app_name="Application"):
+    def init(cls, debug_level=DEBUG_LEVEL, log_dir=None, app_name="Application"):
         """
         Initialise the logger with the specified debug level and log directory.
         If no log directory is specified, a platform-specific temp directory is used.
