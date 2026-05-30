@@ -120,12 +120,10 @@ plot.enable_auto_range(True)           # ✓ Gleiche Signatur, perfekt!
 ## Known Issues / Edge Cases
 
 1. **HIGH_SPEED_MODE Histogram**: Nutzt separate 2-Sekunden-Timer in DataController
-
    - `_update_histogram_only()` wird aufgerufen, wenn HIGH_SPEED_MODE aktiv ist
    - Histogram-Updates sind unabhängig vom Plot-Update-Timing
 
 2. **Deferred Updates**: Bei sehr schnellen Updates kann es zu Backlog kommen
-
    - Standard 16ms Batch sollte für 10kHz ausreichen
    - Bei Problemen: `_update_timer.start(8)` für 8ms Batching anpassen
 

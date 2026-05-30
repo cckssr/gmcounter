@@ -140,17 +140,14 @@ gmcounter/
    ```
 
 3. **Imports aktualisieren:**
-
    - In `main.py`: Neue Import-Pfade verwenden
    - In Tests: Neue Struktur berücksichtigen
 
 4. **`control.py` entfernen:**
-
    - Funktionalität ist jetzt in `core/services.py` (`DeviceControlService`)
    - UI-Teil sollte in `ui/widgets/control_widget.py`
 
 5. **`data_controller.py` aufteilen:**
-
    - Queue-Logik → `infrastructure/data_queue.py`
    - Datenverarbeitung → `core/services.py`
    - UI-Updates → `ui/widgets/data_display.py`
