@@ -24,7 +24,9 @@ class GMCounterAdapter(SerialDevice):
 
     is_mock_device: bool = False
 
-    def __init__(self, port: str, baudrate: int = 1000000, timeout: float = 1.0) -> None:
+    def __init__(
+        self, port: str, baudrate: int = 1000000, timeout: float = 1.0
+    ) -> None:
         super().__init__(port, baudrate, timeout)
         self._device_info_cache: Optional[Dict[str, str]] = None
 
