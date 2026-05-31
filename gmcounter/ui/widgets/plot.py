@@ -1,5 +1,4 @@
-"""
-Reusable plot widgets using pyqtgraph.
+"""Reusable plot widgets using pyqtgraph.
 
 This module provides general-purpose plotting widgets that can be used
 across different applications. The widgets support real-time data updates,
@@ -51,8 +50,7 @@ pg.setConfigOption("useNumba", True)  # Use numba if available for acceleration
 
 
 class PlotConfig:
-    """
-    Configuration for GeneralPlot.
+    """Configuration for GeneralPlot.
 
     Attributes:
         title (Optional[str]): Plot title
@@ -89,8 +87,7 @@ class PlotConfig:
 
 
 class FastPlotCurveItem(pg.PlotCurveItem):
-    """
-    Optimized PlotCurveItem for high-performance plotting.
+    """Optimized PlotCurveItem for high-performance plotting.
 
     This class extends PlotCurveItem with performance optimizations:
     - Direct data management for minimal overhead
@@ -112,8 +109,7 @@ class FastPlotCurveItem(pg.PlotCurveItem):
         self._data_changed = True
 
     def setData(self, *args, **kwds):
-        """
-        Set data with optimized performance.
+        """Set data with optimized performance.
 
         Args:
             x, y: Data arrays or lists
@@ -129,8 +125,7 @@ class FastPlotCurveItem(pg.PlotCurveItem):
         super().setData(*args, **kwds)
 
     def get_range(self) -> Optional[Tuple[Tuple[float, float], Tuple[float, float]]]:
-        """
-        Get cached data range (x_range, y_range).
+        """Get cached data range (x_range, y_range).
 
         Returns None if data is empty or invalid.
         """
@@ -158,8 +153,7 @@ class FastPlotCurveItem(pg.PlotCurveItem):
 
 
 class GeneralPlot(pg.PlotWidget):
-    """
-    A high-performance real-time plot widget using pyqtgraph.
+    """A high-performance real-time plot widget using pyqtgraph.
 
     This widget provides efficient plotting for live data streams with support for:
     - Auto-scrolling mode (shows last N points)
@@ -201,8 +195,7 @@ class GeneralPlot(pg.PlotWidget):
         self,
         config: Optional[PlotConfig] = None,
     ):
-        """
-        Initialize the plot widget with performance optimizations.
+        """Initialize the plot widget with performance optimizations.
 
         Args:
             config: PlotConfig object with initial settings
@@ -273,8 +266,7 @@ class GeneralPlot(pg.PlotWidget):
             viewbox.sigRangeChanged.connect(self._on_view_range_changed)
 
     def _on_view_range_changed(self) -> None:
-        """
-        Detect when user manually pans or zooms the plot.
+        """Detect when user manually pans or zooms the plot.
 
         Automatically disables auto-range/auto-scroll when user interacts,
         allowing manual control.
@@ -297,8 +289,7 @@ class GeneralPlot(pg.PlotWidget):
 
     @Slot(bool)
     def set_auto_scroll(self, enabled: bool, max_points: Optional[int] = None) -> None:
-        """
-        Enable or disable auto-scroll mode.
+        """Enable or disable auto-scroll mode.
 
         In auto-scroll mode, the plot shows only the last N points and
         automatically scrolls as new data arrives.
@@ -319,8 +310,7 @@ class GeneralPlot(pg.PlotWidget):
 
     @Slot(bool)
     def enable_auto_range(self, enabled: bool = True) -> None:
-        """
-        Enable or disable automatic range adjustment.
+        """Enable or disable automatic range adjustment.
 
         In auto-range mode, axes automatically adjust to fit all data.
 
@@ -342,8 +332,7 @@ class GeneralPlot(pg.PlotWidget):
 
     @Slot()
     def clear_measurement_data(self) -> None:
-        """
-        Clear all plot data and reset state.
+        """Clear all plot data and reset state.
 
         Call this before starting a new measurement series.
         """
@@ -375,8 +364,7 @@ class GeneralPlot(pg.PlotWidget):
         use_symbols: bool = False,
         deferred: bool = False,
     ) -> None:
-        """
-        Update plot with new data points (high-performance method).
+        """Update plot with new data points (high-performance method).
 
         PERFORMANCE TIPS:
         - Pass lists of tuples for fastest updates
@@ -412,8 +400,7 @@ class GeneralPlot(pg.PlotWidget):
     def _perform_plot_update(
         self, data_points: List[Tuple[float, float]], use_symbols: bool = False
     ) -> None:
-        """
-        Perform the actual plot update (internal method).
+        """Perform the actual plot update (internal method).
 
         Args:
             data_points: List of (x, y) tuples
@@ -448,8 +435,7 @@ class GeneralPlot(pg.PlotWidget):
     def _create_plot_curve(
         self, x_arr: np.ndarray, y_arr: np.ndarray, show_symbols: bool
     ) -> None:
-        """
-        Create initial plot curve item (lazy creation).
+        """Create initial plot curve item (lazy creation).
 
         Args:
             x_arr: X data array
@@ -489,8 +475,7 @@ class GeneralPlot(pg.PlotWidget):
     def _update_plot_curve(
         self, x_arr: np.ndarray, y_arr: np.ndarray, show_symbols: bool
     ) -> None:
-        """
-        Update existing plot curve (fast update).
+        """Update existing plot curve (fast update).
 
         Args:
             x_arr: X data array
@@ -515,8 +500,7 @@ class GeneralPlot(pg.PlotWidget):
             )
 
     def _update_view_range(self, data_points: List[Tuple[float, float]]) -> None:
-        """
-        Update plot range based on current mode.
+        """Update plot range based on current mode.
 
         Args:
             data_points: All data points for range calculation
@@ -545,8 +529,7 @@ class GeneralPlot(pg.PlotWidget):
     def _apply_scroll_view(
         self, data_points: List[Tuple[float, float]], viewbox: Any
     ) -> None:
-        """
-        Apply scrolling view showing last N points.
+        """Apply scrolling view showing last N points.
 
         Args:
             data_points: All data points
@@ -571,8 +554,7 @@ class GeneralPlot(pg.PlotWidget):
     def _apply_initial_view(
         self, data_points: List[Tuple[float, float]], viewbox: Any
     ) -> None:
-        """
-        Apply initial range for manual mode.
+        """Apply initial range for manual mode.
 
         Args:
             data_points: All data points
@@ -597,8 +579,7 @@ class GeneralPlot(pg.PlotWidget):
     def _calculate_range(
         data_points: List[Tuple[float, float]],
     ) -> Tuple[List[float], List[float]]:
-        """
-        Calculate axis ranges for data with smart padding.
+        """Calculate axis ranges for data with smart padding.
 
         Args:
             data_points: Data points
@@ -630,8 +611,7 @@ class GeneralPlot(pg.PlotWidget):
         return [x_min_p, x_max_p], [y_min_p, y_max_p]
 
     def append_data(self, x: float, y: float) -> None:
-        """
-        Append a single data point (streaming mode).
+        """Append a single data point (streaming mode).
 
         More efficient than update_plot_data for single-point updates.
 
@@ -655,8 +635,7 @@ class GeneralPlot(pg.PlotWidget):
         key: str = "",
         value: str = "",
     ) -> None:
-        """
-        Reconfigure plot appearance.
+        """Reconfigure plot appearance.
 
         Args:
             key: Config key (e.g., 'title', 'xlabel', 'ylabel', 'background_color')
@@ -687,8 +666,7 @@ class GeneralPlot(pg.PlotWidget):
 
 
 class HistogramWidget(pg.PlotWidget):
-    """
-    High-performance histogram widget using pyqtgraph.
+    """High-performance histogram widget using pyqtgraph.
 
     Provides efficient histogram visualization with automatic binning and
     range adjustment for frequency distribution analysis.
@@ -706,7 +684,9 @@ class HistogramWidget(pg.PlotWidget):
         reconfigure: Change labels and title
 
     Example:
-        >>> config = PlotConfig(title="Distribution", xlabel="Value", ylabel="Frequency")
+        >>> config = PlotConfig(
+        ...     title="Distribution", xlabel="Value", ylabel="Frequency"
+        ... )
         >>> histogram = HistogramWidget(config=config)
         >>> histogram.update_histogram([1.2, 2.3, 1.8, 2.1, 1.9], bins=10)
     """
@@ -727,8 +707,7 @@ class HistogramWidget(pg.PlotWidget):
         background: Optional[str] = None,
         grid_alpha: float = 0.3,
     ):
-        """
-        Initialize the histogram widget.
+        """Initialize the histogram widget.
 
         Supports both new (PlotConfig) and legacy parameter styles for backward compatibility.
 
@@ -808,8 +787,7 @@ class HistogramWidget(pg.PlotWidget):
 
     @Slot()
     def clear_measurement_data(self) -> None:
-        """
-        Clear histogram data and reset state.
+        """Clear histogram data and reset state.
 
         Call this before processing a new data series.
         """
@@ -890,8 +868,7 @@ class HistogramWidget(pg.PlotWidget):
         color: str = "w",
         deferred: bool = True,
     ) -> None:
-        """
-        Update histogram with new data (high-performance method).
+        """Update histogram with new data (high-performance method).
 
         PERFORMANCE TIPS:
         - Convert lists to numpy arrays before calling for best speed
@@ -935,8 +912,7 @@ class HistogramWidget(pg.PlotWidget):
         key: str = "",
         value: str = "",
     ) -> None:
-        """
-        Reconfigure histogram appearance (unified with GeneralPlot pattern).
+        """Reconfigure histogram appearance (unified with GeneralPlot pattern).
 
         Args:
             key: Config key (e.g., 'title', 'xlabel', 'ylabel', 'background_color', 'grid_alpha')

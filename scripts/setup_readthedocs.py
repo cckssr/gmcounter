@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Build-Skript für Read the Docs Dokumentation
-Dieses Skript erstellt die Sphinx-Dokumentation für das HRNGGUI-Projekt
+Dieses Skript erstellt die Sphinx-Dokumentation für das GMCounter-Projekt
 """
 
 import os
@@ -112,7 +112,7 @@ def check_readthedocs_config():
 
 def main():
     """Hauptfunktion"""
-    print("🎯 Read the Docs Setup für HRNGGUI")
+    print("🎯 Read the Docs Setup für GMCounter")
     print("=" * 50)
 
     # Argument parsing

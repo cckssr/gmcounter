@@ -1,10 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-"""
-GMCounter - Hauptprogramm für die Geiger-Müller Counter GUI-Anwendung.
-"""
-
+"""GMCounter - Hauptprogramm für die Geiger-Müller Counter GUI-Anwendung."""
 
 import sys
 import os
@@ -37,8 +31,8 @@ CONFIG = import_config()
 
 
 def main():
-    """
-    Haupteinstiegspunkt der Anwendung.
+    """Haupteinstiegspunkt der Anwendung.
+
     Initialisiert das Debug-System, startet die Verbindungsdialog
     und erstellt das Hauptfenster.
     """

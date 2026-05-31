@@ -1,7 +1,7 @@
-HRNGGUI Dokumentation
+GMCounter Dokumentation
 =====================
 
-HRNGGUI ist eine grafische Oberfläche für einen auf Geiger-Müller-Zählröhren
+GMCounter ist eine grafische Oberfläche für einen auf Geiger-Müller-Zählröhren
 basierenden Zufallszahlengenerator. Sie zeichnet Impulszeiten auf, wertet diese
 statistisch aus und ermöglicht den Export in verschiedene Formate.
 
@@ -34,6 +34,6 @@ Project info
 
 * **Author:** Cedric Kessler
 * **License:** MIT
-* **Source:** https://github.com/cckssr/HRNGGUI
+* **Source:** https://github.com/cckssr/GMCounter
 
 *** End of file

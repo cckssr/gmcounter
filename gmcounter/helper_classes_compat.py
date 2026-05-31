@@ -1,5 +1,4 @@
-"""
-DEPRECATED: This module is being phased out.
+"""DEPRECATED: This module is being phased out.
 
 Please use the new modular structure:
 - SaveManager → gmcounter.core.services.SaveService
@@ -19,7 +18,6 @@ from .ui.common.dialogs import (
     show_warning,
     show_error,
     ask_question,
-    ask_save_file,
 )
 from .core.utils import (
     sanitize_subterm_for_folder,
@@ -30,12 +28,10 @@ from .infrastructure.config import import_config
 
 # For backwards compatibility
 from PySide6.QtWidgets import QWidget
-from .infrastructure.logging import Debug
 
 
 class MessageHelper:
-    """
-    DEPRECATED: Use gmcounter.ui.common.dialogs functions instead.
+    """DEPRECATED: Use gmcounter.ui.common.dialogs functions instead.
 
     Kept for backwards compatibility.
     """

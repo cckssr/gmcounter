@@ -111,7 +111,7 @@ jobs:
           tag_name: v${{ steps.get_version.outputs.version }}
           name: Release v${{ steps.get_version.outputs.version }}
           body: |
-            ## HRNGGUI v${{ steps.get_version.outputs.version }}
+            ## GMCounter v${{ steps.get_version.outputs.version }}
             
             ### Installation
             

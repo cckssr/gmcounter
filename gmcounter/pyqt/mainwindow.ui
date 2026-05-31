@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1243</width>
-    <height>749</height>
+    <width>1280</width>
+    <height>929</height>
    </rect>
   </property>
   <property name="font">
@@ -2147,8 +2147,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1243</width>
-     <height>24</height>
+     <width>1280</width>
+     <height>39</height>
     </rect>
    </property>
   </widget>
@@ -2254,7 +2254,7 @@
   </connection>
  </connections>
  <buttongroups>
-  <buttongroup name="groupQMode"/>
   <buttongroup name="groupMode"/>
+  <buttongroup name="groupQMode"/>
  </buttongroups>
 </ui>

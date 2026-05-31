@@ -23,7 +23,8 @@ def test_data_separation():
 
     # DataController mit sehr kleinem history_limit für den Test
     controller = DataController(
-        plot_widget=MockPlotWidget(), max_history=3  # Sehr klein für den Test
+        plot_widget=MockPlotWidget(),
+        max_history=3,  # Sehr klein für den Test
     )
 
     print(
@@ -45,15 +46,15 @@ def test_data_separation():
     print(f"CSV-Datenzeilen (Header + Daten): {len(csv_data)}")
 
     # Bestätige die erwarteten Ergebnisse
-    assert (
-        len(full_data) == 10
-    ), f"Vollständige Daten sollten 10 Punkte haben, hat {len(full_data)}"
-    assert (
-        data_info["gui_data_points"] == 3
-    ), f"GUI-Daten sollten 3 Punkte haben (limit), hat {data_info['gui_data_points']}"
-    assert (
-        len(csv_data) == 11
-    ), f"CSV sollte 11 Zeilen haben (Header + 10 Daten), hat {len(csv_data)}"
+    assert len(full_data) == 10, (
+        f"Vollständige Daten sollten 10 Punkte haben, hat {len(full_data)}"
+    )
+    assert data_info["gui_data_points"] == 3, (
+        f"GUI-Daten sollten 3 Punkte haben (limit), hat {data_info['gui_data_points']}"
+    )
+    assert len(csv_data) == 11, (
+        f"CSV sollte 11 Zeilen haben (Header + 10 Daten), hat {len(csv_data)}"
+    )
 
     print("✅ Alle Datenpunkte werden für Export gespeichert")
     print("✅ GUI-Daten sind korrekt auf max_history limitiert")
@@ -62,12 +63,12 @@ def test_data_separation():
     # Zeige die Inhalte zur Verifizierung
     print("\nVollständige Exportdaten:")
     for i, (idx, val) in enumerate(full_data):
-        print(f"  {i+1}: Index={idx}, Value={val}")
+        print(f"  {i + 1}: Index={idx}, Value={val}")
 
     print(f"\nGUI-limitierte Daten (nur die letzten {data_info['max_history_limit']}):")
     gui_data = data_info["gui_points_for_display"]
     for i, (idx, val) in enumerate(gui_data):
-        print(f"  {i+1}: Index={idx}, Value={val}")
+        print(f"  {i + 1}: Index={idx}, Value={val}")
 
     print("\n=== Test erfolgreich: Datentrennung funktioniert korrekt! ===")
 

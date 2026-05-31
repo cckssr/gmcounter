@@ -1,10 +1,11 @@
-"""Business logic services - NO Qt dependencies allowed."""
+# Layer: core — pure Python, zero Qt/serial/vendor SDK imports.
 
 import csv
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 from .models import MeasurementSession, MeasurementPoint, DeviceSettings
 from .utils import (
@@ -12,20 +13,23 @@ from .utils import (
     sanitize_subterm_for_folder,
     create_group_name,
 )
-from ..infrastructure.logging import Debug
+
+_log = logging.getLogger(__name__)
 
 
 class MeasurementService:
-    """Service for managing measurement sessions."""
+    """Lifecycle management for a single MeasurementSession."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.current_session: Optional[MeasurementSession] = None
         self._unsaved = False
 
     def start_session(
-        self, radioactive_sample: str = "", subterm: str = "", group: str = ""
+        self,
+        radioactive_sample: str = "",
+        subterm: str = "",
+        group: str = "",
     ) -> MeasurementSession:
-        """Start a new measurement session."""
         self.current_session = MeasurementSession(
             points=[],
             start_time=datetime.now(),
@@ -34,62 +38,58 @@ class MeasurementService:
             group=group,
         )
         self._unsaved = False
-        Debug.info("New measurement session started")
+        _log.info("New measurement session started")
         return self.current_session
 
     def stop_session(self) -> Optional[MeasurementSession]:
-        """Stop the current measurement session."""
         if self.current_session:
             self.current_session.end_time = datetime.now()
             self._unsaved = True
-            Debug.info(
-                f"Measurement session stopped with {self.current_session.count} points"
+            _log.info(
+                "Measurement session stopped with %d points",
+                self.current_session.count,
             )
         return self.current_session
 
-    def add_point(self, index: int, value: float, timestamp: str):
-        """Add a measurement point to the current session."""
+    def add_point(self, index: int, value: float, timestamp: str) -> None:
         if not self.current_session:
-            Debug.warning("No active session - creating one")
+            _log.warning("No active session — creating one")
             self.start_session()
-
         point = MeasurementPoint(index=index, value=value, timestamp=timestamp)
-        self.current_session.points.append(point)
+        self.current_session.points.append(point)  # type: ignore[union-attr]
         self._unsaved = True
 
-    def clear_session(self):
-        """Clear the current session."""
+    def clear_session(self) -> None:
         self.current_session = None
         self._unsaved = False
-        Debug.info("Measurement session cleared")
+        _log.info("Measurement session cleared")
 
     def has_unsaved_data(self) -> bool:
-        """Check if there is unsaved data."""
         return self._unsaved and self.current_session is not None
 
-    def mark_saved(self):
-        """Mark current data as saved."""
+    def mark_saved(self) -> None:
         self._unsaved = False
 
-    def get_data_as_list(self) -> List[List[str]]:
-        """Export current session data as list of rows for CSV."""
+    def get_data_as_list(self) -> list[list[str]]:
         if not self.current_session:
             return []
-
         data = [["Index", "Value (µs)", "Timestamp"]]
-        for point in self.current_session.points:
-            data.append([str(point.index), str(point.value), point.timestamp])
+        for p in self.current_session.points:
+            data.append([str(p.index), str(p.value), p.timestamp])
         return data
 
 
 class SaveService:
-    """Service for saving measurement data - NO Qt dependencies."""
+    """Write measurement data to CSV + _MD.json sidecar on disk.
+
+    No Qt imports — byte-level I/O only.
+    """
 
     def __init__(
         self,
         base_dir: Optional[Path | str] = None,
         tk_designation: str = "TKXX",
-    ):
+    ) -> None:
         if base_dir is None:
             base_dir = Path.home() / "Documents" / "GMCounter"
         if isinstance(base_dir, str):
@@ -98,30 +98,29 @@ class SaveService:
         self.base_dir = Path(base_dir)
         self.tk_designation = tk_designation
         self.index = 0
-        self._backup_counter = 0  # Counter for backup file numbering
-        self._unsaved = False  # Track unsaved data state
+        self._backup_counter = 0
+        self._unsaved = False
 
-        Debug.info(f"Using base directory for saving: {self.base_dir}")
+        _log.info("SaveService base dir: %s", self.base_dir)
         try:
             self.base_dir.mkdir(parents=True, exist_ok=True)
         except Exception as exc:
-            Debug.error(f"Failed to create base directory {self.base_dir}: {exc}")
+            _log.error("Failed to create base dir %s: %s", self.base_dir, exc)
+
+    # ------------------------------------------------------------------
+    # Unsaved-state tracking
 
     def has_unsaved(self) -> bool:
-        """Check if there is unsaved data.
-
-        Returns:
-            bool: True if there is unsaved data, False otherwise.
-        """
         return self._unsaved
 
-    def mark_saved(self):
-        """Mark current data as saved."""
+    def mark_saved(self) -> None:
         self._unsaved = False
 
-    def mark_unsaved(self):
-        """Mark current data as unsaved."""
+    def mark_unsaved(self) -> None:
         self._unsaved = True
+
+    # ------------------------------------------------------------------
+    # Filename / path composition
 
     def generate_filename(
         self,
@@ -131,26 +130,12 @@ class SaveService:
         suffix: str = "",
         extension: str = ".csv",
     ) -> str:
-        """Generate a standard file name with Dropbox-compatible folder path.
-
-        The folder follows the Dropbox naming convention:
-        <Day><Group><TK>-<Subterm> (e.g., "MoATK08-Mueller")
-
-        Args:
-            rad_sample: Sample identifier to include in the file name.
-            group_letter: Group letter to include in the file name.
-            subterm: Subgroup term to include in folder name.
-            suffix: Optional suffix (``-run1`` etc.).
-            extension: File extension including leading dot.
-
-        Returns:
-            Generated file name with folder path.
-        """
+        """Compose a Dropbox-compatible relative path for saving."""
         if not rad_sample:
-            Debug.error("Radioactive sample name cannot be empty.")
+            _log.error("Radioactive sample name cannot be empty")
             return ""
         if not group_letter:
-            Debug.error("Group letter cannot be empty.")
+            _log.error("Group letter cannot be empty")
             return ""
 
         timestamp = datetime.now().strftime("%Y_%m_%d")
@@ -158,16 +143,17 @@ class SaveService:
             suffix = "-" + suffix
         self.index += 1
 
-        # Create Dropbox-compatible folder name
-        sanitized_subterm = ""
-        if subterm:
-            sanitized_subterm = sanitize_subterm_for_folder(subterm, max_length=20)
-        folder_name = create_dropbox_foldername(
-            group_letter, self.tk_designation, sanitized_subterm
+        sanitized = (
+            sanitize_subterm_for_folder(subterm, max_length=20) if subterm else ""
         )
-
+        folder = create_dropbox_foldername(
+            group_letter, self.tk_designation, sanitized or None
+        )
         filename = f"{timestamp}-{self.index:02d}-{rad_sample}{suffix}{extension}"
-        return f"{folder_name}/{filename}"
+        return f"{folder}/{filename}"
+
+    # ------------------------------------------------------------------
+    # Metadata builder
 
     def create_metadata(
         self,
@@ -176,286 +162,178 @@ class SaveService:
         group: str,
         sample: str,
         subterm: str = "",
-        extra: dict | None = None,
+        extra: Optional[dict] = None,
     ) -> dict:
-        """Create metadata dictionary following basic Dublin Core fields."""
+        """Build a Dublin-Core-style metadata dict."""
         group_name = (
             group if group and len(str(group)) > 1 else create_group_name(group)
         )
-        metadata = {
+        meta = {
             "dc:date": start.strftime("%Y-%m-%d"),
             "dc:creator": group_name,
             "dc:title": sample,
             "start_time": start.isoformat(),
             "end_time": end.isoformat(),
             "radioactive_sample": sample,
-            "subgroup": subterm if subterm else "",
+            "subgroup": subterm or "",
         }
         if extra:
-            metadata.update(extra)
-        return metadata
+            meta.update(extra)
+        return meta
+
+    # ------------------------------------------------------------------
+    # Writers
 
     def save_measurement(
-        self, file_name: str, data: List[List[str]], metadata: dict
+        self,
+        file_name: str,
+        data: list[list[str]],
+        metadata: dict,
     ) -> Path:
-        """Save CSV data and accompanying metadata.
-
-        file_name may be an absolute path or a simple file name. Relative
-        names are stored below base_dir. If file_name contains a subfolder,
-        it will be created automatically.
-        """
+        """Write CSV rows + sidecar _MD.json. Returns the CSV path."""
         csv_path = Path(file_name)
         if not csv_path.is_absolute():
             csv_path = self.base_dir / csv_path
 
-        # Create parent directory if it doesn't exist
         csv_path.parent.mkdir(parents=True, exist_ok=True)
-
         try:
-            with open(csv_path, "w", newline="", encoding="utf-8") as csv_f:
-                writer = csv.writer(csv_f)
-                writer.writerows(data)
-            # Metadata als JSON speichern
-            metadata_path = csv_path.parent / (csv_path.stem + "_MD.json")
-            with open(metadata_path, "w", encoding="utf-8") as js_f:
-                json.dump(metadata, js_f, indent=2)
-            Debug.info(f"Saved measurement to {csv_path}")
+            with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+                csv.writer(fh).writerows(data)
+            meta_path = csv_path.parent / (csv_path.stem + "_MD.json")
+            with open(meta_path, "w", encoding="utf-8") as fh:
+                json.dump(metadata, fh, indent=2)
+            _log.info("Saved measurement to %s", csv_path)
         except Exception as exc:
-            Debug.error(f"Failed to save measurement: {exc}", exc_info=exc)
+            _log.error("Failed to save measurement: %s", exc)
         return csv_path
 
     def auto_save(
         self,
         rad_sample: str,
         group_letter: str,
-        data: List[List[str]],
+        data: list[list[str]],
         start: datetime,
         end: datetime,
         subterm: str = "",
         suffix: str = "",
     ) -> Optional[Path]:
-        """Automatically save data using a generated file name."""
         if not data:
-            Debug.error("No data provided for auto save")
+            _log.error("No data provided for auto save")
             return None
-
         file_name = self.generate_filename(rad_sample, group_letter, subterm, suffix)
         meta = self.create_metadata(start, end, group_letter, rad_sample, subterm)
         return self.save_measurement(file_name, data, meta)
 
     def auto_backup(
         self,
-        data: List[List[str]],
+        data: list[list[str]],
         start: datetime,
         rad_sample: str = "unknown",
         group_letter: str = "unknown",
         subterm: str = "",
-        extra_metadata: dict | None = None,
+        extra_metadata: Optional[dict] = None,
     ) -> Optional[Path]:
-        """Automatically backup measurement data to temporary file.
-
-        This method is designed to be called periodically during a measurement
-        to create incremental backups that can be recovered in case of crashes.
-
-        Args:
-            data: Measurement data to backup (list of rows including header)
-            start: Measurement start time
-            rad_sample: Radioactive sample identifier (default: "unknown")
-            group_letter: Group letter (default: "unknown")
-            subterm: Subgroup term
-            extra_metadata: Additional metadata to include (e.g., device info, GUI version)
-
-        Returns:
-            Path to backup file or None if backup failed
-        """
-        if not data or len(data) <= 1:  # Only header present
+        """Incremental backup — call every 30 s during measurement."""
+        if not data or len(data) <= 1:
             return None
 
         try:
-            # Create backup directory
             backup_dir = self.base_dir / ".backup"
             backup_dir.mkdir(parents=True, exist_ok=True)
 
-            # Create unique backup filename with timestamp and counter
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             self._backup_counter += 1
-            backup_filename = f"backup_{timestamp}_{self._backup_counter:03d}.csv"
-            backup_path = backup_dir / backup_filename
+            bk_path = backup_dir / f"backup_{ts}_{self._backup_counter:03d}.csv"
 
-            # Create metadata
-            metadata = self.create_metadata(
+            meta = self.create_metadata(
                 start,
-                datetime.now(),  # Current time as end
+                datetime.now(),
                 group_letter,
                 rad_sample,
                 subterm,
                 extra=extra_metadata,
             )
+            with open(bk_path, "w", newline="", encoding="utf-8") as fh:
+                csv.writer(fh).writerows(data)
+            meta_path = bk_path.parent / (bk_path.stem + "_MD.json")
+            with open(meta_path, "w", encoding="utf-8") as fh:
+                json.dump(meta, fh, indent=2)
 
-            # Save CSV
-            with open(backup_path, "w", newline="", encoding="utf-8") as csv_f:
-                writer = csv.writer(csv_f)
-                writer.writerows(data)
-
-            # Save metadata
-            metadata_path = backup_path.parent / (backup_path.stem + "_MD.json")
-            with open(metadata_path, "w", encoding="utf-8") as js_f:
-                json.dump(metadata, js_f, indent=2)
-
-            Debug.debug(
-                f"Auto-backup created: {backup_path} ({len(data)-1} data points)"
-            )
-
-            # Cleanup old backups
+            _log.debug("Auto-backup: %s (%d points)", bk_path, len(data) - 1)
             self.cleanup_old_backups(backup_dir)
-
-            return backup_path
+            return bk_path
 
         except Exception as exc:
-            Debug.error(f"Failed to create auto-backup: {exc}", exc_info=exc)
+            _log.error("Failed to create auto-backup: %s", exc)
             return None
 
-    def cleanup_old_backups(self, backup_dir: Path, max_age_hours: int = 24):
-        """Remove backup files older than specified age.
+    def cleanup_old_backups(self, backup_dir: Path, max_age_hours: int = 24) -> None:
+        """Remove backup files older than max_age_hours."""
+        from datetime import timedelta
 
-        Args:
-            backup_dir: Directory containing backup files
-            max_age_hours: Maximum age of backups in hours (default: 24)
-        """
+        cutoff = datetime.now() - timedelta(hours=max_age_hours)
         try:
-            from datetime import timedelta
-
-            cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
-
-            for file in backup_dir.glob("backup_*.csv"):
-                if file.stat().st_mtime < cutoff_time.timestamp():
-                    file.unlink()
-                    # Delete associated metadata
-                    metadata_file = file.parent / (file.stem + "_MD.json")
-                    if metadata_file.exists():
-                        metadata_file.unlink()
-                    Debug.debug(f"Deleted old backup: {file}")
+            for f in backup_dir.glob("backup_*.csv"):
+                if f.stat().st_mtime < cutoff.timestamp():
+                    f.unlink(missing_ok=True)
+                    (f.parent / (f.stem + "_MD.json")).unlink(missing_ok=True)
+                    _log.debug("Deleted old backup: %s", f)
         except Exception as exc:
-            Debug.info(f"Error cleaning up old backups: {exc}")
-
-
-class DeviceControlService:
-    """Service for controlling GM Counter device - NO Qt dependencies."""
-
-    def __init__(self, device_manager):
-        """Initialize with device manager reference.
-
-        Args:
-            device_manager: The device manager (from infrastructure layer)
-        """
-        self.device_manager = device_manager
-        self.gm_counter = device_manager.device if device_manager else None
-        self.measurement_active = False
-
-    def apply_settings(self, settings: DeviceSettings) -> bool:
-        """Apply settings to the GM counter.
-
-        Args:
-            settings: DeviceSettings instance
-
-        Returns:
-            True if successful, False otherwise
-        """
-        import time
-
-        try:
-            Debug.debug(
-                f"Applying settings: repeat={settings.repeat}, "
-                f"auto_query={settings.auto_query}, "
-                f"counting_time={settings.counting_time}, "
-                f"voltage={settings.voltage}"
-            )
-
-            # Apply to GM counter
-            self.gm_counter.set_repeat(settings.repeat)
-            self.gm_counter.set_stream(4 if settings.auto_query else 1)
-            self.gm_counter.set_counting_time(settings.counting_time)
-            self.gm_counter.set_voltage(settings.voltage)
-
-            time.sleep(0.2)  # Wait for settings to apply
-
-            Debug.debug("Settings applied successfully.")
-            return True
-
-        except Exception as e:
-            Debug.error(f"Error applying settings: {e}", exc_info=e)
-            return False
-
-    def get_current_settings(self) -> Optional[dict]:
-        """Retrieve current settings from the GM counter.
-
-        Returns:
-            Dictionary with current settings or None on error
-        """
-        try:
-            data = self.gm_counter.get_data()
-            if not data:
-                Debug.error("No data received from GM counter.")
-                return None
-
-            # Check if measurement is active (started from hardware)
-            if not self.measurement_active and data.get("progress", 0) > 0:
-                self.measurement_active = True
-                Debug.info("Measurement started.")
-            return data
-
-        except Exception as e:
-            Debug.error(f"Error retrieving settings: {e}", exc_info=e)
-            return None
-
-    def reset_settings(self) -> bool:
-        """Reset the GM counter settings to default values."""
-        import time
-
-        try:
-            # Reset to default values
-            self.gm_counter.set_repeat(False)
-            self.gm_counter.set_stream(0)  # No streaming
-            self.gm_counter.set_counting_time(0)  # Unlimited
-            self.gm_counter.set_voltage(500)  # Default voltage
-
-            time.sleep(0.2)  # Wait for reset to apply
-
-            Debug.debug("Settings reset successfully.")
-            return True
-
-        except Exception as e:
-            Debug.error(f"Error resetting settings: {e}", exc_info=e)
-            return False
+            _log.info("Error cleaning up old backups: %s", exc)
 
 
 class MeasurementStateService:
-    """Service for managing measurement state - domain logic only.
+    """Track whether a measurement is currently active.
 
-    This service encapsulates the domain state of whether a measurement
-    is active, separate from the hardware/infrastructure layer.
+    Pure domain state — no I/O, no hardware references.
     """
 
-    def __init__(self):
-        """Initialize the measurement state service."""
+    def __init__(self) -> None:
         self._measurement_active = False
 
     @property
     def measurement_active(self) -> bool:
-        """Check if measurement is currently active."""
         return self._measurement_active
 
     def start_measurement(self) -> None:
-        """Mark measurement as started."""
         self._measurement_active = True
-        Debug.debug("MeasurementStateService: measurement started")
+        _log.debug("MeasurementStateService: started")
 
     def stop_measurement(self) -> None:
-        """Mark measurement as stopped."""
         self._measurement_active = False
-        Debug.debug("MeasurementStateService: measurement stopped")
+        _log.debug("MeasurementStateService: stopped")
 
     def reset(self) -> None:
-        """Reset measurement state."""
         self._measurement_active = False
-        Debug.debug("MeasurementStateService: state reset")
+        _log.debug("MeasurementStateService: reset")
+
+
+class DeviceControlService:
+    """Apply DeviceSettings to a connected device.
+
+    Takes a device reference at construction time; callers supply the
+    infrastructure GMCounter (duck-typed via the command set).
+    """
+
+    def __init__(self, device) -> None:
+        self.device = device
+
+    def apply_settings(self, settings: DeviceSettings) -> bool:
+        import time as _time
+
+        try:
+            _log.debug(
+                "Applying settings: repeat=%s counting_time=%d voltage=%d",
+                settings.repeat,
+                settings.counting_time,
+                settings.voltage,
+            )
+            self.device.set_repeat(settings.repeat)
+            self.device.set_stream(4 if settings.auto_query else 1)
+            self.device.set_counting_time(settings.counting_time)
+            self.device.set_voltage(settings.voltage)
+            _time.sleep(0.2)
+            return True
+        except Exception as exc:
+            _log.error("Error applying settings: %s", exc)
+            return False

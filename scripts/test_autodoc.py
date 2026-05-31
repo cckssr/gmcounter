@@ -140,7 +140,7 @@ def check_docstrings():
 
 def main():
     """Hauptfunktion"""
-    print("🎯 Autodoc-Funktionalität Test für HRNGGUI")
+    print("🎯 Autodoc-Funktionalität Test für GMCounter")
     print("=" * 50)
 
     # Prüfe Docstrings

@@ -15,10 +15,11 @@ python -m gmcounter
 gmcounter
 
 # Tests
-pytest
+pytest                                # all tests
+pytest tests/core/                    # core layer (no Qt needed)
+pytest tests/infrastructure/          # infrastructure layer (no Qt needed)
+QT_QPA_PLATFORM=offscreen pytest tests/ui/  # UI layer (offscreen)
 pytest --cov=gmcounter
-pytest tests/test_signals.py          # single file
-pytest tests/test_signals.py::TestX  # single test
 
 # Format / lint
 black gmcounter tests
@@ -32,44 +33,93 @@ Install for development: `pip install -e ".[dev]"`
 
 ## Architecture
 
-Three strict layers — dependency direction is UI → Core → Infrastructure → Hardware. Lower layers must never import from higher ones.
+Three strict layers — dependency direction is **UI → Infrastructure → Core**.
+Lower layers must never import from higher ones.
+
+### Layer rules (enforced, verified with grep)
+
+| Layer                          | May import                         | Must NOT import                       |
+| ------------------------------ | ---------------------------------- | ------------------------------------- |
+| `core/`                        | stdlib only                        | PySide6, serial, infrastructure/, ui/ |
+| `infrastructure/`              | core/, stdlib, serial, vendor SDKs | ui/                                   |
+| `infrastructure/qt_threads.py` | PySide6 (only this file!)          | —                                     |
+| `ui/`                          | infrastructure/, core/, PySide6    | —                                     |
 
 ### `gmcounter/core/` — Pure Python, zero Qt
 
-- `models.py`: Dataclasses (`MeasurementPoint`, `MeasurementSession`, `DeviceSettings`, `DeviceInfo`)
-- `services.py`: `MeasurementService` (session lifecycle, `add_point`), `SaveService` (CSV/JSON export), `DeviceControlService`, `MeasurementStateService`
-- `reconnect_service.py`: `ReconnectStrategy` (exponential backoff) + `ConnectionRetryService`
+- `models.py`: `MeasurementPoint`, `MeasurementSession`, `DeviceSettings`, `DeviceInfo`, `Frame` (frozen cross-thread bundle), `DesiredState` (reconnect replay snapshot)
+- `export.py`: `TabExport` dataclass (§7) + `build_gm_tab_export()` + `compose_save_path()` — pure composition, no I/O
+- `services.py`: `MeasurementService`, `SaveService` (CSV/JSON), `DeviceControlService`, `MeasurementStateService`
+- `reconnect_service.py`: `ReconnectStrategy` + `ConnectionRetryService` (exponential backoff)
 - `utils.py`: filename sanitization, statistics helpers
+- `formatting.py`: display format helpers
+- `exceptions.py`: `GMCounterError` hierarchy
+- `ports.py`: `Logger` Protocol (so core never imports infrastructure.logging)
 
-### `gmcounter/infrastructure/` — External I/O, Qt threading allowed
+### `gmcounter/infrastructure/` — Adapters, Qt only in qt_threads.py
 
-- `arduino.py`: `Arduino` / `GMCounter` class — pyserial wrapper, binary packet framing
-- `device_manager.py`: `DeviceManager(QObject)` — connects/disconnects device, owns the `DataAcquisitionThread`, emits `data_received`, `status_update`, `connection_lost` signals
-- `qt_threads.py`: `DataAcquisitionThread(QThread)` — reads 6-byte binary packets (`0xAA … 0x55`) from serial, emits `data_point(index, float)`
+- `serial_device.py`: `SerialDevice` — Qt-free pyserial base class
+- `devices/gm_counter.py`: `GMCounterAdapter` — GM counter command set (s/b/j/o/f/w/U)
+- `mocks/mock_gm_counter.py`: `MockGMCounter` — wire-compatible PTY-based mock (**excluded from wheel**)
+- `modules/registry.py`: `HostModule` Protocol + `ModuleRegistry` (§8)
+- `device_manager.py`: `DeviceManager` — **Qt-free**, plain callbacks, manages connection lifecycle
+- `qt_threads.py`: `DataAcquisitionThread(QThread)` + `ReconnectWorker(QThread)` — **only Qt file in infrastructure/**
+- `session_journal.py`: `SessionJournal` — append-only crash-safe journal, `find_orphan_journals()`
+- `save_service.py`: `SaveService` — generic `TabExport` writer (no per-experiment code)
 - `config.py`: `import_config()` — loads `gmcounter/config.json` (language key `"de"`)
 - `logging.py`: `Debug` singleton with `DEBUG_OFF / INFO / VERBOSE / ERROR` levels
 
-### `gmcounter/ui/` — PySide6 only, no business logic
+### `gmcounter/ui/` — PySide6 presentation, no business logic
 
-- `windows/main_window.py`: `MainWindow(QMainWindow)` — top-level window, wires all signals
-- `dialogs/connection.py`: `ConnectionWindow` — shown at startup, creates `DeviceManager`
-- `controllers/control.py`: `ControlWidget` — measurement parameters UI
-- `controllers/data_controller.py`: `DataController` — bridges incoming data to plot + table updates; contains Qt stubs for headless testing
-- `widgets/plot.py`: `GeneralPlot`, `HistogramWidget` — pyqtgraph-based real-time plots with OpenGL/vsync disabled for throughput
-- `common/`: `dialogs.py` (message helpers), `statusbar.py` (`StatusBarManager`), `file_dialogs.py`
+- `controllers/app_controller.py`: **`AppController(QObject)`** — owns all QTimers, DataAcquisitionThread, reconnect FSM (§5), frame fan-out to active tab
+- `tabs/base.py`: `PlotTabBase(QWidget)` — experiment tab contract (§6)
+- `tabs/registry.py`: `TabRegistry` — register/available(modules) filtering
+- `tabs/gm_timing_tab.py`: `GMTimingTab` — GM experiment, contributes 3 top-level views (Zeitverlauf/Histogramm/Liste)
+- `windows/main_window.py`: `MainWindow` — **thin**, setupUi + AppController signal subscriptions only
+- `dialogs/connection.py`: `ConnectionWindow` — port enumeration, baud select, demo-mode mock port
+- `widgets/plot.py`: `GeneralPlot`, `HistogramWidget` — pyqtgraph real-time plots
+- `widgets/event_log_panel.py`: `EventLogPanel` — dockable timestamped status scrollback (§9)
+- `common/`: `dialogs.py`, `statusbar.py` (`StatusBarManager`), `file_dialogs.py`
 
 ### `gmcounter/pyqt/` — Generated Qt UI code
 
-`ui_mainwindow.py`, `ui_connection.py`, `ui_alert.py` are auto-generated by `pyside6-uic` from the `.ui` files in the same directory. **Never hand-edit these files.**
+`ui_mainwindow.py`, `ui_connection.py`, `ui_alert.py` are auto-generated by `pyside6-uic` from `.ui` files. **Never hand-edit these files.**
+
+## Adding a new experiment (3 steps)
+
+1. Subclass `PlotTabBase`, implement `build()` and `on_frame()`:
+
+   ```python
+   class MyTab(PlotTabBase):
+       tab_id = "my_exp"
+       tab_title = "My Experiment"
+       required_modules = set()   # or {"kdc101"} to gate on a module
+
+       def build(self): ...
+       def on_frame(self, frame: Frame): ...
+       def export(self) -> TabExport: ...
+   ```
+
+2. Register at import time:
+   ```python
+   TabRegistry.register(MyTab)
+   ```
+3. The main window iterates `TabRegistry.available(ModuleRegistry.all())` — the new tab appears automatically.
+
+`required_modules` gating: if `{"kdc101"}` is declared, the tab is hidden until a `HostModule` with `id="kdc101"` is registered in `ModuleRegistry`. Tabs hide/show without losing state when modules are plugged/unplugged.
 
 ## Key Conventions
 
 **Config**: All tuneable constants live in `gmcounter/config.json` under the `"de"` key. Access with `import_config()` from `gmcounter.infrastructure.config`. `demo_mode: true` by default (no real hardware needed).
 
-**Binary protocol**: Packets are 6 bytes — `[0xAA, b1, b2, b3, b4, 0x55]`. Bytes 1–4 encode the inter-event time in microseconds. `DataAcquisitionThread` validates start/end bytes before emitting.
+**Binary protocol**: Packets are 6 bytes — `[0xAA, b1, b2, b3, b4, 0x55]`. Bytes 1–4 encode the inter-event time in microseconds (little-endian 32-bit). Measurement start is signalled by `0xFF × 6` — the acquisition thread discards all data before this marker.
 
-**Qt signals across threads**: Data flows from `DataAcquisitionThread` → `DeviceManager.data_received` → `MainWindow.on_data_received` → `DataController`. All cross-thread signal/slot connections use Qt's queued connection (automatic when receiver is on a different thread).
+**Qt signals across threads**: Data flows from `DataAcquisitionThread.data_point` → `AppController._on_data_point` → `frame_ready` signal → active `PlotTabBase.on_frame()`. All cross-thread connections use `Qt.ConnectionType.QueuedConnection`.
 
-**Deprecated files**: `gmcounter/helper_classes.py` is marked _DEPRECATED NEVER USE_. `gmcounter/helper_classes_compat.py` re-exports from it for backwards compatibility only — do not add new code to either.
+**Reconnect replay (§5 B5)**: When the connection drops, `AppController` saves a `DesiredState` snapshot. After a successful reconnect via `ReconnectWorker`, `DeviceManager.attempt_automatic_reconnect(desired=...)` re-applies voltage, counting time, repeat mode, and stream mode — so the Arduino is back in the user's configured state.
 
-**Layer enforcement**: `gmcounter/core/` must have zero PySide6 imports. This keeps core services testable without a display. `data_controller.py` in the UI layer has fallback stubs for headless test environments.
+**Crash-safe journaling**: `SessionJournal` appends every data point to `~/.gmcounter/sessions/<ts>/journal.csv` with fsync every ~1 s. On startup `find_orphan_journals()` reports sessions without a `finalized` marker.
+
+**Deprecated files**: `gmcounter/helper_classes.py` is marked _DEPRECATED NEVER USE_. `gmcounter/helper_classes_compat.py` re-exports from it for backwards compatibility — do not add new code to either. These will be removed in a future cleanup.
+
+**Mocks excluded from wheel**: `infrastructure/mocks/` is in `pyproject.toml`'s exclude list.

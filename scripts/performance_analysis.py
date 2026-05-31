@@ -273,7 +273,7 @@ def identify_bottlenecks():
 
 
 if __name__ == "__main__":
-    print("🔧 HRNGGUI Performance-Analyse")
+    print("🔧 GMCounter Performance-Analyse")
     print("=" * 50)
 
     performance_test_data_controller()

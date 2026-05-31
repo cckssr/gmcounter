@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""
-Serial Data Reader for HRNG (Hardware Random Number Generator)
+"""Serial Data Reader for HRNG (Hardware Random Number Generator).
+
 Connects to cu.usbmodem144201 and continuously reads 6-byte packets:
 - Byte 0: 0xAA (start marker)
 - Bytes 1-4: 32-bit unsigned integer (LSB format)
@@ -24,8 +24,8 @@ def find_serial_port(default_port="cu.usbmodem144201"):
 
 
 def read_packet(ser, timeout=1.0):
-    """
-    Read a single 6-byte packet from serial port.
+    """Read a single 6-byte packet from serial port.
+
     Returns (success: bool, value: int or None)
 
     Packet format:

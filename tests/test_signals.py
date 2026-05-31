@@ -15,9 +15,9 @@ def test_signals():
     # Test signal attributes exist
     assert hasattr(manager, "status_update"), "status_update signal missing"
     assert hasattr(manager, "data_received"), "data_received signal missing"
-    assert hasattr(
-        manager, "device_info_received"
-    ), "device_info_received signal missing"
+    assert hasattr(manager, "device_info_received"), (
+        "device_info_received signal missing"
+    )
 
     # Test signal connections
     received_status = []

@@ -1,15 +1,15 @@
 Schnellstart
 ============
 
-Diese Anleitung bringt Sie schnell zum Einsatz der HRNGGUI.
+Diese Anleitung bringt Sie schnell zum Einsatz der GMCounter.
 
 Installation
 ------------
 
 .. code-block:: bash
 
-   git clone https://github.com/cckssr/HRNGGUI.git
-   cd HRNGGUI
+   git clone https://github.com/cckssr/GMCounter.git
+   cd GMCounter
    pip install -r requirements.txt
 
 Erste Schritte
@@ -310,9 +310,9 @@ Dokumentation
 Support
 ~~~~~~~
 
-* **`GitHub Issues <https://github.com/cckssr/HRNGGUI/issues>`_**: Fehlerberichte
-* **`Discussions <https://github.com/cckssr/HRNGGUI/discussions>`_**: Fragen und Ideen
-* **`Wiki <https://github.com/cckssr/HRNGGUI/wiki>`_**: Community-Dokumentation
+* **`GitHub Issues <https://github.com/cckssr/GMCounter/issues>`_**: Fehlerberichte
+* **`Discussions <https://github.com/cckssr/GMCounter/discussions>`_**: Fragen und Ideen
+* **`Wiki <https://github.com/cckssr/GMCounter/wiki>`_**: Community-Dokumentation
 
 Beispiel-Workflow
 -----------------
@@ -348,4 +348,4 @@ Hier ist ein typischer Arbeitsablauf:
    - Diagramm exportieren
    - Ergebnisse dokumentieren
 
-Viel Erfolg mit HRNGGUI!
+Viel Erfolg mit GMCounter!

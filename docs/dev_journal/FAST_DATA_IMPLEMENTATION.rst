@@ -4,7 +4,7 @@ Fast Data Acquisition mit Queue-System
 Übersicht
 ---------
 
-Die HRNGGUI wurde erfolgreich erweitert, um die Arduino ``read_bytes_fast`` Funktion und ein Queue-System zu nutzen, welches die GUI nur alle 100ms aktualisiert. Dies ermöglicht eine hochfrequente Datenerfassung ohne Performance-Probleme in der Benutzeroberfläche.
+Die GMCounter wurde erfolgreich erweitert, um die Arduino ``read_bytes_fast`` Funktion und ein Queue-System zu nutzen, welches die GUI nur alle 100ms aktualisiert. Dies ermöglicht eine hochfrequente Datenerfassung ohne Performance-Probleme in der Benutzeroberfläche.
 
 Implementierte Änderungen
 -------------------------

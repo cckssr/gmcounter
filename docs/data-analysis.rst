@@ -1,7 +1,7 @@
 Datenanalyse & Konfiguration
 ============================
 
-HRNGGUI bietet umfangreiche Tools zur Analyse der Zufallsqualität und konfigurierbare Parameter für verschiedene Anwendungen.
+GMCounter bietet umfangreiche Tools zur Analyse der Zufallsqualität und konfigurierbare Parameter für verschiedene Anwendungen.
 
 Statistische Analyse
 --------------------

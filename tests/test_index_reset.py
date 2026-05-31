@@ -52,9 +52,9 @@ def test_index_reset():
     print(f"Index nach start_measurement: {thread._index}")
 
     assert result == True, "start_measurement sollte True zurückgeben"
-    assert (
-        thread._index == 0
-    ), f"Index sollte nach start_measurement 0 sein, ist aber {thread._index}"
+    assert thread._index == 0, (
+        f"Index sollte nach start_measurement 0 sein, ist aber {thread._index}"
+    )
 
     print("✅ start_measurement setzt Index korrekt zurück")
     print("=== Test erfolgreich: Index-Reset funktioniert! ===")

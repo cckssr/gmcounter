@@ -1,7 +1,7 @@
 Arduino Integration
 ===================
 
-Anleitung zur Verwendung von Arduino-basierten GM-Zählern mit HRNGGUI.
+Anleitung zur Verwendung von Arduino-basierten GM-Zählern mit GMCounter.
 
 Hardware-Setup
 --------------
@@ -21,7 +21,7 @@ Hardware-Setup
 Arduino-Code
 ------------
 
-Minimal-Code für HRNGGUI-Kompatibilität:
+Minimal-Code für GMCounter-Kompatibilität:
 
 .. code-block:: cpp
 
@@ -62,7 +62,7 @@ Minimal-Code für HRNGGUI-Kompatibilität:
      delay(100);
    }
 
-HRNGGUI-Konfiguration
+GMCounter-Konfiguration
 --------------------
 
 Für Arduino-Geräte in ``config.json``:

@@ -187,9 +187,9 @@ class DataController(QObject):
 
         # HIGH_SPEED_MODE: Batch-based detection
         self._high_speed_mode = False
-        self._batch_history: List[Tuple[float, int]] = (
-            []
-        )  # List of (timestamp, batch_size)
+        self._batch_history: List[
+            Tuple[float, int]
+        ] = []  # List of (timestamp, batch_size)
         self._histogram_update_timer = (
             None  # Separate timer for histogram in high-speed mode
         )
@@ -557,7 +557,6 @@ class DataController(QObject):
         Note: ``add_data_point_fast`` should be used for high frequency data
         acquisition, this method is kept for compatibility.
         """
-
         # Ensure numeric values
         try:
             # Ensure values are numeric

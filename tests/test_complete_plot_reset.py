@@ -48,9 +48,9 @@ def test_complete_plot_reset():
 
     # Verifiziere erste Messung
     assert len(full_data_1) == 8, f"Vollständige Daten sollten 8 Punkte haben"
-    assert (
-        data_info_1["gui_data_points"] == 5
-    ), f"GUI-Daten sollten 5 Punkte haben (limit)"
+    assert data_info_1["gui_data_points"] == 5, (
+        f"GUI-Daten sollten 5 Punkte haben (limit)"
+    )
 
     print("\n2. Neue Messung starten: clear_data() aufrufen...")
     controller.clear_data()
@@ -87,15 +87,15 @@ def test_complete_plot_reset():
     # Verifiziere neue Messung startet bei Index 0
     assert len(full_data_3) == 3, "Neue Messung sollte 3 Punkte haben"
     assert data_info_3["gui_data_points"] == 3, "GUI sollte 3 Punkte haben"
-    assert (
-        full_data_3[0][0] == 0
-    ), f"Erster Index sollte 0 sein, ist {full_data_3[0][0]}"
-    assert (
-        full_data_3[1][0] == 1
-    ), f"Zweiter Index sollte 1 sein, ist {full_data_3[1][0]}"
-    assert (
-        full_data_3[2][0] == 2
-    ), f"Dritter Index sollte 2 sein, ist {full_data_3[2][0]}"
+    assert full_data_3[0][0] == 0, (
+        f"Erster Index sollte 0 sein, ist {full_data_3[0][0]}"
+    )
+    assert full_data_3[1][0] == 1, (
+        f"Zweiter Index sollte 1 sein, ist {full_data_3[1][0]}"
+    )
+    assert full_data_3[2][0] == 2, (
+        f"Dritter Index sollte 2 sein, ist {full_data_3[2][0]}"
+    )
 
     print("\n✅ Alle Tests erfolgreich:")
     print("   ✅ Plot wird korrekt geleert")

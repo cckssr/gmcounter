@@ -1,0 +1,147 @@
+name: Version Bump
+# This workflow updates the version in pyproject.toml and __init__.py, creates a git tag, and pushes the changes. It 
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version component to bump"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+      prerelease:
+        description: "Prerelease type (none = stable release)"
+        required: true
+        default: "none"
+        type: choice
+        options:
+          - none
+          - a
+          - b
+          - rc
+      prerelease_number:
+        description: "Prerelease number (only used when prerelease != none)"
+        required: false
+        default: "1"
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    name: Bump version and create tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Use PAT_TOKEN if available so the tag push triggers release.yml.
+          # Falls back to GITHUB_TOKEN (tag push will NOT trigger other workflows).
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compute new version
+        id: ver
+        run: |
+          python3 - <<'PYEOF'
+          import re, os
+
+          with open("pyproject.toml") as f:
+              content = f.read()
+
+          m = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+          if not m:
+              raise RuntimeError("Could not find version in pyproject.toml")
+          current = m.group(1)
+
+          # Strip any existing prerelease suffix (PEP 440: 1.2.3a1 → 1.2.3)
+          base = re.sub(r"(a|b|rc)\d+$", "", current)
+          parts = base.split(".")
+          major, minor, patch = int(parts[0]), int(parts[1]), int(parts[2])
+
+          bump = "${{ inputs.bump_type }}"
+          if bump == "major":
+              major += 1; minor = 0; patch = 0
+          elif bump == "minor":
+              minor += 1; patch = 0
+          else:
+              patch += 1
+
+          new = f"{major}.{minor}.{patch}"
+
+          pre = "${{ inputs.prerelease }}"
+          pre_num = "${{ inputs.prerelease_number }}"
+          if pre != "none":
+              new = f"{new}{pre}{pre_num}"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"new_version={new}\n")
+
+          print(f"Current version: {current}")
+          print(f"New version:     {new}")
+          PYEOF
+
+      - name: Update pyproject.toml
+        run: |
+          VERSION="${{ steps.ver.outputs.new_version }}"
+          sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" pyproject.toml
+          echo "pyproject.toml → version = \"$VERSION\""
+
+      - name: Update polarisation_ui/__init__.py
+        run: |
+          VERSION="${{ steps.ver.outputs.new_version }}"
+          sed -i "s/__version__ = \"[^\"]*\"/__version__ = \"$VERSION\"/" polarisation_ui/__init__.py
+          echo "polarisation_ui/__init__.py → __version__ = \"$VERSION\""
+
+      - name: Update polarisation_ui/config.json
+        run: |
+          VERSION="${{ steps.ver.outputs.new_version }}"
+          jq --arg v "$VERSION" '. + {"version": $v}' \
+            polarisation_ui/config.json > /tmp/cfg.json \
+            && mv /tmp/cfg.json polarisation_ui/config.json
+          echo "polarisation_ui/config.json → version: \"$VERSION\""
+
+      - name: Verify changes
+        run: |
+          echo "=== pyproject.toml ===" && grep "^version" pyproject.toml
+          echo "=== __init__.py ===" && grep "__version__" polarisation_ui/__init__.py
+          echo "=== config.json ===" && python3 -c "import json; d=json.load(open('polarisation_ui/config.json')); print('version:', d['version'])"
+
+      - name: Commit and tag
+        run: |
+          VERSION="${{ steps.ver.outputs.new_version }}"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add pyproject.toml polarisation_ui/__init__.py polarisation_ui/config.json
+          git commit -m "chore: bump version to v$VERSION"
+          git tag "v$VERSION"
+          git push origin HEAD
+          git push origin "v$VERSION"
+          echo "Created and pushed tag v$VERSION"
+
+      - name: Summary
+        run: |
+          VERSION="${{ steps.ver.outputs.new_version }}"
+          echo "## Version Bump Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **New version** | \`$VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Bump type** | ${{ inputs.bump_type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Prerelease** | ${{ inputs.prerelease }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Tag pushed** | \`v$VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ secrets.PAT_TOKEN }}" != "" ]; then
+            echo "The tag push will trigger **release.yml** automatically." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "> **Note:** No \`PAT_TOKEN\` secret configured — tag push will NOT" >> $GITHUB_STEP_SUMMARY
+            echo "> automatically trigger \`release.yml\`. Run it manually from the Actions tab." >> $GITHUB_STEP_SUMMARY
+          fi

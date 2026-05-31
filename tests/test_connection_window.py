@@ -133,7 +133,9 @@ class TestConnectionWindow(unittest.TestCase):
             temp_file_path = temp_file.name
 
         try:
-            with patch("gmcounter.connection.os.path.join", return_value=temp_file_path):
+            with patch(
+                "gmcounter.connection.os.path.join", return_value=temp_file_path
+            ):
                 connection_window = ConnectionWindow()
                 result = connection_window.check_mock_port()
                 self.assertEqual(result, mock_port_content)

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Test- und Start-Skript für die HRNGGUI-Anwendung.
+Test- und Start-Skript für die GMCounter-Anwendung.
 
 Dieses Skript führt alle Tests aus und startet dann die Anwendung,
 wenn die Tests erfolgreich waren.
@@ -42,9 +42,9 @@ def run_tests():
 
 def start_application():
     """
-    Startet die HRNGGUI-Anwendung.
+    Startet die GMCounter-Anwendung.
     """
-    print("Starte HRNGGUI-Anwendung...")
+    print("Starte GMCounter-Anwendung...")
 
     # Pfad zum Startskript
     start_script = Path(__file__).parent / "start_app.py"
@@ -58,7 +58,7 @@ def main():
     Hauptfunktion: Verarbeitet die Kommandozeilenparameter und führt
     entsprechende Aktionen aus.
     """
-    parser = argparse.ArgumentParser(description="HRNGGUI Test- und Start-Skript")
+    parser = argparse.ArgumentParser(description="GMCounter Test- und Start-Skript")
     parser.add_argument(
         "--no-tests", action="store_true", help="Überspringt die Ausführung der Tests"
     )

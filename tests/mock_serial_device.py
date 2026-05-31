@@ -83,7 +83,7 @@ class MockGMCounter:
     def get_information(self) -> Dict[str, str]:
         return {
             "copyright": "(C) 2024 TU Berlin - Mock GM Counter",
-            "version": "Mock v1.0.0 (HRNGGUI Test Device)",
+            "version": "Mock v1.0.0 (GMCounter Test Device)",
             "openbis": "MOCK-001",
         }
 

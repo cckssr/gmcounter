@@ -20,11 +20,12 @@ from .infrastructure.logging import Debug
 
 
 class Statusbar:
-    """
-    A class to manage the status bar messages and styles.
+    """A class to manage the status bar messages and styles.
+
     Attributes:
         statusbar (QStatusBar): The status bar widget.
         old_state (list): The previous state of the status bar.
+
     Methods:
         __init__(statusbar: QStatusBar):
             Initializes the Statusbar with the given QStatusBar widget.
@@ -104,8 +105,8 @@ class Statusbar:
 
 
 class AlertWindow(QDialog):
-    """
-    Initializes the alert window with customizable buttons and messages.
+    """Initializes the alert window with customizable buttons and messages.
+
     Provides tracking for which button was clicked.
     """
 
@@ -168,8 +169,8 @@ class AlertWindow(QDialog):
                 button = self.ui.buttonBox.addButton(button_text, role)
                 # Add button click handler
                 button.clicked.connect(
-                    lambda checked=False, b=button, r=role, t=button_text: self._handle_button_clicked(
-                        b, r, t
+                    lambda checked=False, b=button, r=role, t=button_text: (
+                        self._handle_button_clicked(b, r, t)
                     )
                 )
 
@@ -215,8 +216,8 @@ class AlertWindow(QDialog):
 
 
 class Helper:
-    """
-    A helper class with static methods for common tasks.
+    """A helper class with static methods for common tasks.
+
     Methods:
         close_event(parent, event):
             Handles the close event for a window.
@@ -320,7 +321,6 @@ class SaveManager:
         Returns:
             str: Generated file name with folder path.
         """
-
         if not rad_sample:
             Debug.error("Radioactive sample name cannot be empty.")
             return ""
@@ -346,17 +346,14 @@ class SaveManager:
 
     def mark_unsaved(self) -> None:
         """Mark the current measurement as not yet saved."""
-
         self.last_saved = False
 
     def mark_saved(self) -> None:
         """Mark the current measurement as saved."""
-
         self.last_saved = True
 
     def has_unsaved(self) -> bool:
         """Return ``True`` if a measurement has not been saved."""
-
         return not self.last_saved
 
     def create_metadata(
@@ -369,7 +366,6 @@ class SaveManager:
         extra: dict | None = None,
     ) -> dict:
         """Create metadata dictionary following basic Dublin Core fields."""
-
         group_name = (
             group if group and len(str(group)) > 1 else self._create_group_name(group)
         )
@@ -395,7 +391,6 @@ class SaveManager:
         names are stored below ``base_dir``. If file_name contains a subfolder,
         it will be created automatically.
         """
-
         csv_path = Path(file_name)
         if not csv_path.is_absolute():
             csv_path = self.base_dir / csv_path
@@ -428,7 +423,6 @@ class SaveManager:
         suffix: str = "",
     ) -> Optional[Path]:
         """Automatically save data using a generated file name."""
-
         if not data:
             Debug.error("No data provided for auto save")
             return None
@@ -567,18 +561,19 @@ def create_dropbox_foldername(
     group_letter: str, tk_designation: str, subgroup: Optional[str] = None
 ) -> str:
     """Create a folder name for the custom GP-OpenBIS-Dropbox structure.
+
     The syntax is: <current_day><group_letter><tk_designation>-<subgroup>
 
-    Example: "MoA01-Gyroskop"
+    Example: "MoA01-Experiment"
 
     Args:
         group_letter (str): The group letter (A-Z).
         tk_designation (str): The designation of the experiment (e.g., "TK8").
         subgroup (str): The subgroup name (e.g., "A. Mueller") for differentiation.
+
     Returns:
         str: The created folder name.
     """
-
     # Ensure German weekday abbreviation independent of system locale
     day = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][datetime.now().weekday()]
     if not group_letter or not re.match(r"^[A-Z]$", group_letter):
@@ -594,10 +589,11 @@ def create_dropbox_foldername(
 
 
 def import_config(language: str = "de") -> dict:
-    """
-    Imports the language-specific configuration from config.json.
+    """Imports the language-specific configuration from config.json.
+
     Args:
         language (str): The language code to load the configuration for (default is "de").
+
     Returns:
         dict: The configuration dictionary.
     """

@@ -8,10 +8,7 @@ from __future__ import annotations
 
 from typing import Final
 
-
-_DARK_STYLESHEET: Final[
-    str
-] = r"""
+_DARK_STYLESHEET: Final[str] = r"""
 /* Base */
 QMainWindow, QWidget {
     background-color: #0f172a;
@@ -161,9 +158,7 @@ QProgressBar::chunk {
 }
 """
 
-_LIGHT_STYLESHEET: Final[
-    str
-] = r"""
+_LIGHT_STYLESHEET: Final[str] = r"""
 /* Base */
 QMainWindow, QWidget {
     background-color: #f5f7fb;
@@ -323,7 +318,6 @@ def get_stylesheet(mode: str = "dark") -> str:
     Raises:
         ValueError: If the mode is unknown.
     """
-
     normalized = mode.strip().lower()
     if normalized.startswith("dark"):
         return _DARK_STYLESHEET
@@ -334,5 +328,4 @@ def get_stylesheet(mode: str = "dark") -> str:
 
 def apply_stylesheet(app, mode: str = "dark") -> None:
     """Apply the chosen stylesheet to the given QApplication."""
-
     app.setStyleSheet(get_stylesheet(mode))

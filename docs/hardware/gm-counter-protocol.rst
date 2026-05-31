@@ -197,7 +197,7 @@ Wenn das Register leer ist, wird "-1" zurückgegeben.
 
 **Wichtig**: Um sicherzustellen, dass alle Werte übertragen werden, muss dieses Register mit einer Frequenz gelesen werden, die höher ist als die Zählzeitfrequenz.
 
-Implementierung in HRNGGUI
+Implementierung in GMCounter
 --------------------------
 
-Die HRNGGUI implementiert diese Befehle in der ``DeviceManager``-Klasse (siehe :doc:`../api`), die die serielle Kommunikation mit dem GM-Zähler verwaltet. Jeder Befehl wird durch eine entsprechende Methode gekapselt, um eine benutzerfreundliche API zu bieten.
+Die GMCounter implementiert diese Befehle in der ``DeviceManager``-Klasse (siehe :doc:`../api`), die die serielle Kommunikation mit dem GM-Zähler verwaltet. Jeder Befehl wird durch eine entsprechende Methode gekapselt, um eine benutzerfreundliche API zu bieten.

@@ -14,6 +14,7 @@ from ...core.utils import (
     create_dropbox_foldername,
 )
 from ...core.services import SaveService
+from ...core.export import TabExport
 from ...infrastructure.logging import Debug
 from . import dialogs as MessageHelper
 
@@ -125,4 +126,70 @@ class FileDialogManager:
                 f"Fehler beim Speichern: {str(e)}",
                 "Fehler",
             )
+            return None
+
+    def manual_save_export(
+        self,
+        parent: QWidget,
+        export: TabExport,
+        rad_sample: str,
+        group_letter: str,
+        subterm: str = "",
+    ) -> Optional[Path]:
+        """Open a save dialog and write a TabExport to CSV + sidecar.
+
+        Uses the export's filename_tokens for the suggested folder path.
+        """
+        if not export or not export.rows:
+            MessageHelper.show_warning(
+                parent, "Keine Messdaten zum Speichern.", "Warnung"
+            )
+            return None
+        if not rad_sample or not group_letter:
+            MessageHelper.show_warning(
+                parent,
+                "Bitte Probe und Gruppe auswählen.",
+                "Warnung",
+            )
+            return None
+
+        # Suggested folder from tokens
+        if export.filename_tokens:
+            suggested_folder = self.save_service.base_dir / Path(
+                *export.filename_tokens
+            )
+        else:
+            suggested_folder = self.save_service.base_dir
+        suggested_folder.mkdir(parents=True, exist_ok=True)
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            parent,
+            "Messung speichern",
+            str(suggested_folder),
+            "CSV-Dateien (*.csv);;Alle Dateien (*)",
+            "CSV-Dateien (*.csv)",
+        )
+        if not file_path:
+            return None
+        if not file_path.lower().endswith(".csv"):
+            file_path += ".csv"
+
+        import csv
+        import json
+
+        try:
+            csv_path = Path(file_path)
+            csv_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+                writer = csv.writer(fh)
+                writer.writerow(export.columns)
+                writer.writerows(export.rows)
+            meta_path = csv_path.parent / (csv_path.stem + "_MD.json")
+            with open(meta_path, "w", encoding="utf-8") as fh:
+                json.dump(export.metadata, fh, indent=2)
+            Debug.info(f"Export saved via file dialog: {csv_path}")
+            return csv_path
+        except Exception as exc:
+            Debug.error(f"Failed to save export: {exc}")
+            MessageHelper.show_error(parent, f"Fehler beim Speichern: {exc}", "Fehler")
             return None

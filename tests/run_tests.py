@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Test-Runner für die HRNGGUI-Anwendung.
+Test-Runner für die GMCounter-Anwendung.
 
 Führt alle Unit-Tests im 'tests'-Verzeichnis aus und gibt einen detaillierten Bericht aus.
 """

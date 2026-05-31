@@ -10,7 +10,7 @@ import threading
 import numpy as np
 
 # Add the project root to Python path
-sys.path.insert(0, "/Users/cedric.kessler/TU_Berlin_offline/TutorGP/HRNGGUI")
+sys.path.insert(0, "/Users/cedric.kessler/TU_Berlin_offline/TutorGP/GMCounter")
 
 try:
     from PySide6.QtWidgets import QApplication
@@ -73,7 +73,7 @@ def demonstrate_batch_optimization():
     old_time = time.time() - start_time
 
     print(f"✓ Individual updates completed: {old_time:.4f}s")
-    print(f"✓ Average time per point: {(old_time/test_points)*1000:.2f}ms")
+    print(f"✓ Average time per point: {(old_time / test_points) * 1000:.2f}ms")
 
     print("\n2. Testing NEW approach (batch updates):")
     print("-" * 50)
@@ -92,13 +92,13 @@ def demonstrate_batch_optimization():
     new_time = time.time() - start_time
 
     print(f"✓ Batch update completed: {new_time:.4f}s")
-    print(f"✓ Average time per point: {(new_time/test_points)*1000:.2f}ms")
+    print(f"✓ Average time per point: {(new_time / test_points) * 1000:.2f}ms")
 
     print("\n3. Performance comparison:")
     print("-" * 50)
     speedup = old_time / new_time
     print(f"✓ Performance improvement: {speedup:.1f}x faster")
-    print(f"✓ Time saved: {((old_time - new_time)/old_time)*100:.1f}%")
+    print(f"✓ Time saved: {((old_time - new_time) / old_time) * 100:.1f}%")
 
     print("\n4. Testing DataController with high-frequency simulation:")
     print("-" * 50)

@@ -1,10 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-arduino.py
-
-This module provides a class to manage a serial connection to an Arduino device.
+"""This module provides a class to manage a serial connection to an Arduino device.
 
 Classes:
     Arduino: A class to represent an Arduino connection, providing methods to
@@ -16,6 +10,7 @@ Usage example:
         arduino.send_command('Hello, Arduino!')
         print(arduino.read_value())
 """
+
 from typing import Optional, Union, Dict, Any
 from time import sleep, time
 import serial
@@ -23,8 +18,8 @@ from .logging import Debug
 
 
 class Arduino:
-    """
-    Class for communication with Arduino-based devices.
+    """Class for communication with Arduino-based devices.
+
     Manages serial connection and data exchange with hardware.
     """
 
@@ -35,8 +30,7 @@ class Arduino:
     FAST_READ_TIMEOUT_MS = 100
 
     def __init__(self, port: str, baudrate: int = 115200, timeout: float = 1.0):
-        """
-        Initialize Arduino connection.
+        """Initialize Arduino connection.
 
         Args:
             port (str): Serial port identifier
@@ -51,8 +45,7 @@ class Arduino:
         self._config: Dict[str, Any] = {}
 
     def reconnect(self) -> bool:
-        """
-        (Re-)establishes connection with the Arduino.
+        """(Re-)establishes connection with the Arduino.
 
         Returns:
             bool: True if connection successful, False otherwise
@@ -109,17 +102,14 @@ class Arduino:
             raise serial.SerialException(str(e)) from e
 
     def close(self) -> None:
-        """
-        Closes the connection to the Arduino.
-        """
+        """Closes the connection to the Arduino."""
         if self.serial and self.serial.is_open:
             self.serial.close()
             Debug.debug(f"Connection to {self.port} closed")
         self.connected = False
 
     def send_command(self, command: str, add_newline: bool = True) -> bool:
-        """
-        Sends a command to the Arduino.
+        """Sends a command to the Arduino.
 
         Args:
             command (str): Command to send
@@ -217,8 +207,7 @@ class Arduino:
         return_type: str = "auto",
         strip_whitespace: bool = True,
     ) -> Union[str, bytes, None]:
-        """
-        Unified method to read a single value from the Arduino.
+        """Unified method to read a single value from the Arduino.
 
         This is the standard read method. It automatically handles both text and binary
         data. Use this for general-purpose reading unless you need extreme speed.
@@ -292,6 +281,7 @@ class Arduino:
             timeout_remaining (float): Remaining timeout in seconds.
             packet_size (int): Size of binary packets to skip (default 6 bytes).
             start_byte (int): Start byte of binary packets (default 0xAA).
+
         Returns:
             Optional[str]: The first text character found, or None if none found.
         """
@@ -331,6 +321,7 @@ class Arduino:
 
         Args:
             result_parts (list): List to append read lines to.
+
         Returns:
             bool: True if data was read, False otherwise.
         """
@@ -381,9 +372,7 @@ class Arduino:
         timeout: float = DEFAULT_READ_TIMEOUT,
         packet_size: int = DEFAULT_PACKET_SIZE,
     ) -> str:
-        """
-        Reads a complete text response from the Arduino, handling multiple lines
-        and filtering out binary data.
+        """Reads a complete text response, handling multiple lines and filtering binary data.
 
         This method is more lenient than read_value() and is designed for
         multi-line text responses (copyright, version information, etc.).
@@ -430,6 +419,7 @@ class Arduino:
         Args:
             max_bytes (int): Maximum number of bytes to read.
             delimiter (bytes): Byte sequence marking end of message.
+
         Returns:
             bytes: The bytes read including the delimiter, or empty bytes if none.
         """
@@ -462,8 +452,7 @@ class Arduino:
         timeout_ms: int = FAST_READ_TIMEOUT_MS,
         delimiter: Optional[bytes] = None,
     ) -> Optional[bytes]:
-        """
-        Read raw bytes at very high speed with minimal overhead.
+        r"""Read raw bytes at very high speed with minimal overhead.
 
         This is optimized for bulk data transfer and high-frequency sampling.
         Use this instead of read_value() when you need maximum performance.
@@ -527,8 +516,7 @@ class Arduino:
         max_buffer: int = 4096,
         timeout: float = DEFAULT_READ_TIMEOUT,
     ) -> Optional[bytes]:
-        """
-        Read bytes until a delimiter is encountered.
+        r"""Read bytes until a delimiter is encountered.
 
         Optimized for streaming data where you need to read complete messages
         separated by a delimiter (e.g., newline).
@@ -586,8 +574,7 @@ class Arduino:
             return None
 
     def flush_input_buffer(self) -> bool:
-        """
-        Clear the serial input buffer for a clean restart.
+        """Clear the serial input buffer for a clean restart.
 
         Reads and discards all pending data in the buffer. Useful before
         expecting a specific response.
@@ -628,8 +615,7 @@ class Arduino:
             return False
 
     def set_config(self, key: str, value: Any) -> bool:
-        """
-        Sets a configuration parameter for the Arduino.
+        """Sets a configuration parameter for the Arduino.
 
         Args:
             key (str): Configuration parameter name
@@ -642,8 +628,7 @@ class Arduino:
         return self.send_command(f"CONFIG {key}={value}")
 
     def get_config(self, key: str) -> Any:
-        """
-        Retrieves a configuration parameter.
+        """Retrieves a configuration parameter.
 
         Args:
             key (str): Configuration parameter name
@@ -655,8 +640,8 @@ class Arduino:
 
 
 class GMCounter(Arduino):
-    """
-    A class to represent a GM counter connected to an Arduino.
+    """A class to represent a GM counter connected to an Arduino.
+
     Class only for communication with GM counters and basic validity checks.
 
     Inherits from the Arduino class and provides additional functionality specific to GM counters.
@@ -722,8 +707,7 @@ class GMCounter(Arduino):
         return result
 
     def get_data(self, request: bool = True) -> Dict[str, Union[int, bool]]:
-        """
-        Extracts data from the GM counter data string stream.
+        """Extracts data from the GM counter data string stream.
 
         Sends a request to the device (if requested) and reads a single
         data line containing comma-separated values.
@@ -780,8 +764,7 @@ class GMCounter(Arduino):
             return data_template
 
     def set_stream(self, value: int = 0):
-        """
-        Sets the stream value for the GM counter.
+        """Sets the stream value for the GM counter.
 
         Args:
             value (int): The stream value to set.
@@ -799,8 +782,7 @@ class GMCounter(Arduino):
         return True
 
     def get_information(self, use_cache: bool = True) -> Dict[str, str]:
-        """
-        Gets information from the GM counter.
+        """Gets information from the GM counter.
 
         Queries the device for copyright, version, and OpenBIS code information.
         Uses read_text_response() with optimized timeouts for fast handshake.
@@ -868,8 +850,7 @@ class GMCounter(Arduino):
         return info
 
     def set_voltage(self, value: int = 500):
-        """
-        Sets the voltage for the GM counter.
+        """Sets the voltage for the GM counter.
 
         Args:
             value (int): The voltage value in volt to set (default is 500).
@@ -881,8 +862,7 @@ class GMCounter(Arduino):
         return True
 
     def set_repeat(self, value: bool = False):
-        """
-        Sets the repeat mode for the GM counter.
+        """Sets the repeat mode for the GM counter.
 
         Args:
             value (bool): True to enable repeat mode, False to disable it.
@@ -891,8 +871,7 @@ class GMCounter(Arduino):
         return True
 
     def set_counting(self, value: bool = False):
-        """
-        Starts or stops the counting process of the GM counter.
+        """Starts or stops the counting process of the GM counter.
 
         Args:
             value (bool): True to start counting, False to stop it.
@@ -901,8 +880,8 @@ class GMCounter(Arduino):
         return True
 
     def set_speaker(self, gm: bool = False, ready: bool = False):
-        """
-        Sets the speaker settings for the GM counter.
+        """Sets the speaker settings for the GM counter.
+
         The speaker settings are represented by a combination of two binary values:
         - 'U0': GM sound off - Ready sound off
         - 'U1': GM sound on - Ready sound off
@@ -917,8 +896,7 @@ class GMCounter(Arduino):
         return True
 
     def set_counting_time(self, value: int = 0):
-        """
-        Sets the counting time for the GM counter.
+        """Sets the counting time for the GM counter.
 
         Args:
             value (int): The counting time in seconds (default is 0).
@@ -938,8 +916,8 @@ class GMCounter(Arduino):
         return True
 
     def clear_register(self):
-        """
-        Clears the register of the GM counter.
+        """Clears the register of the GM counter.
+
         This is typically used to reset the count.
         """
         self.send_command("w")

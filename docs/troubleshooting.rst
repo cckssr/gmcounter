@@ -1,7 +1,7 @@
 Troubleshooting
 ===============
 
-Schnelle Lösungen für häufige HRNGGUI-Probleme.
+Schnelle Lösungen für häufige GMCounter-Probleme.
 
 Verbindungsprobleme
 ------------------
@@ -45,7 +45,7 @@ Datenprobleme
 Software-Probleme
 -----------------
 
-**HRNGGUI startet nicht:**
+**GMCounter startet nicht:**
 
 .. code-block:: bash
 
@@ -75,8 +75,8 @@ Debug-Informationen
    python main.py --debug --log-level DEBUG
 
 **Logdateien finden:**
-- Windows: ``%APPDATA%/HRNGGUI/logs/``
-- Linux/Mac: ``~/.hrnggui/logs/``
+- Windows: ``%APPDATA%/GMCounter/logs/``
+- Linux/Mac: ``~/.GMCounter/logs/``
 
 **Wichtige Log-Nachrichten:**
 - ``Serial connection established`` → Verbindung OK
@@ -149,6 +149,6 @@ Logs und Debugging
 
 Log-Dateien finden Sie unter:
 
-* **Windows**: ``%APPDATA%\HRNGGUI\logs\``
-* **macOS**: ``~/Library/Application Support/HRNGGUI/logs/``
-* **Linux**: ``~/.config/HRNGGUI/logs/``
+* **Windows**: ``%APPDATA%\GMCounter\logs\``
+* **macOS**: ``~/Library/Application Support/GMCounter/logs/``
+* **Linux**: ``~/.config/GMCounter/logs/``
