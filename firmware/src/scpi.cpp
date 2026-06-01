@@ -235,13 +235,39 @@ static void handleFETCStat()
         errorQueue.push("-230,\"Data corrupt or stale; no response from GM counter\"");
 }
 
+// ── HELP subsystem ───────────────────────────────────────────────────────────
+
+static void handleHELP()
+{
+    Serial.println(F("Available SCPI commands (* = query-only, ! = command-only):"));
+    Serial.println(F("  *IDN?                         Device identification"));
+    Serial.println(F("  *RST   !                      Reset device to defaults"));
+    Serial.println(F("  *CLS   !                      Clear error queue"));
+    Serial.println(F("  *TST?                         Self-test (returns 0)"));
+    Serial.println(F("  *OPC?                         Operation complete query"));
+    Serial.println(F("  SYST:ERR?                     Pop next error from queue"));
+    Serial.println(F("  SYST:CLR   !                  Clear GM counter event register"));
+    Serial.println(F("  SYST:DEB [ON|OFF|1|0]         Debug mode (query/set)"));
+    Serial.println(F("  SYST:VERS?                    SCPI version string"));
+    Serial.println(F("  INIT   !                      Start acquisition"));
+    Serial.println(F("  ABOR   !                      Stop acquisition"));
+    Serial.println(F("  CONF:VOLT [300..900]          HV voltage in V (query/set)"));
+    Serial.println(F("  CONF:TIME [0..9]              Counting time mode (query/set)"));
+    Serial.println(F("  CONF:REP  [ON|OFF|1|0]        Repeat mode (query/set)"));
+    Serial.println(F("  CONF:STR  [0..2]              Stream mode (query/set)"));
+    Serial.println(F("  FETC:STAT?                    GM counter status CSV"));
+    Serial.println(F("  CONF:SPKR [0..3]  !           Speaker mode (0=off,1=click,2=tone,3=both)"));
+    Serial.println(F("  DIAG:STAT?                    Last-acquisition statistics CSV"));
+    Serial.println(F("  HELP?                         This help text"));
+}
+
 // ── DIAGnostic subsystem ──────────────────────────────────────────────────────
 
-static void handleDIAGSPKR(const String &param, bool isQuery)
+static void handleCONFSPKR(const String &param, bool isQuery)
 {
     if (isQuery)
     {
-        errNotQueryable("DIAG:SPKR"); // speaker mode is write-only
+        errNotQueryable("CONF:SPKR"); // speaker mode is write-only
         return;
     }
     int val = param.toInt();
@@ -405,9 +431,9 @@ void scpiDispatch(const String &line)
     }
 
     // ── DIAGnostic ──
-    if (header == "DIAG:SPKR" || header == "DIAGNOSTIC:SPEAKER")
+    if (header == "CONF:SPKR" || header == "CONFIGURE:SPEAKER")
     {
-        handleDIAGSPKR(param, isQuery);
+        handleCONFSPKR(param, isQuery);
         return;
     }
 
@@ -417,6 +443,16 @@ void scpiDispatch(const String &line)
             handleDIAGSTAT();
         else
             errNotQueryable("DIAG:STAT");
+        return;
+    }
+
+    // ── HELP ──
+    if (header == "HELP")
+    {
+        if (isQuery)
+            handleHELP();
+        else
+            errNotACommand("HELP");
         return;
     }
 

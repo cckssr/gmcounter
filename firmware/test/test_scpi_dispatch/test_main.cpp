@@ -328,24 +328,24 @@ void test_fetc_stat_no_response_pushes_error()
     TEST_ASSERT_EQUAL(1, errorQueue.count);
 }
 
-// ── DIAG:SPKR ─────────────────────────────────────────────────────────────────
+// ── CONF:SPKR ─────────────────────────────────────────────────────────────────
 
-void test_diag_spkr_sends_u_command()
+void test_conf_spkr_sends_u_command()
 {
-    scpiDispatch("DIAG:SPKR 2");
+    scpiDispatch("CONF:SPKR 2");
     TEST_ASSERT_EQUAL_STRING("U2", Serial1.lastLine().c_str());
 }
 
-void test_diag_spkr_out_of_range_pushes_error()
+void test_conf_spkr_out_of_range_pushes_error()
 {
-    scpiDispatch("DIAG:SPKR 4");
+    scpiDispatch("CONF:SPKR 4");
     TEST_ASSERT_EQUAL(1, errorQueue.count);
     TEST_ASSERT_EQUAL_STRING("", Serial1.lastLine().c_str());
 }
 
-void test_diag_spkr_query_pushes_error()
+void test_conf_spkr_query_pushes_error()
 {
-    scpiDispatch("DIAG:SPKR?");
+    scpiDispatch("CONF:SPKR?");
     TEST_ASSERT_EQUAL(1, errorQueue.count);
 }
 
@@ -483,10 +483,10 @@ int main()
     RUN_TEST(test_fetc_stat_sends_b2_to_hardware);
     RUN_TEST(test_fetc_stat_forwards_response);
     RUN_TEST(test_fetc_stat_no_response_pushes_error);
-    // DIAG:SPKR
-    RUN_TEST(test_diag_spkr_sends_u_command);
-    RUN_TEST(test_diag_spkr_out_of_range_pushes_error);
-    RUN_TEST(test_diag_spkr_query_pushes_error);
+    // CONF:SPKR
+    RUN_TEST(test_conf_spkr_sends_u_command);
+    RUN_TEST(test_conf_spkr_out_of_range_pushes_error);
+    RUN_TEST(test_conf_spkr_query_pushes_error);
     // unknown
     RUN_TEST(test_unknown_header_pushes_error);
     // *RST hardware sync
