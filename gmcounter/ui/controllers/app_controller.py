@@ -15,7 +15,11 @@ from PySide6.QtCore import (  # pylint: disable=no-name-in-module
 )
 
 from ...infrastructure.device_manager import DeviceManager
-from ...infrastructure.qt_threads import DataAcquisitionThread, ReconnectWorker
+from ...infrastructure.qt_threads import (
+    DataAcquisitionThread,
+    ReconnectWorker,
+    StatePollerThread,
+)
 from ...infrastructure.config import import_config
 from ...infrastructure.session_journal import SessionJournal, find_orphan_journals
 from ...core.models import DesiredState, Frame
@@ -92,12 +96,17 @@ class AppController(QObject):
         self._wire_device_manager()
         self._start_acquisition()
 
+        # Background state poller — replaces the old main-thread _control_timer.
+        # get_data() blocks for up to 2 s; running it off the main thread keeps
+        # the UI responsive.
+        self._state_poller = StatePollerThread(device_manager)
+        self._state_poller.data_ready.connect(
+            self.device_state_updated, Qt.ConnectionType.QueuedConnection
+        )
+        self._state_poller.start()
+
         # QTimers
         cfg_t = CONFIG.get("timers", {})
-        self._control_timer = QTimer(self)
-        self._control_timer.timeout.connect(self._poll_device_state)
-        self._control_timer.start(cfg_t.get("control_update_interval", 1000))
-
         self._stats_timer = QTimer(self)
         self._stats_timer.timeout.connect(self._emit_statistics)
         self._stats_timer.start(cfg_t.get("statistics_update_interval", 1000))
@@ -144,6 +153,11 @@ class AppController(QObject):
         if self._acquire_thread:
             self._acquire_thread.reset_index()
 
+        # Pause state polling before sending INIT so no FETC:STAT? is
+        # in-flight when binary streaming starts.  pause() blocks until
+        # any ongoing get_data() call finishes, guaranteeing a clean port.
+        self._state_poller.pause()
+
         if self.device_manager.start_measurement():
             self._is_measuring = True
             self._measurement_start = datetime.now()
@@ -160,12 +174,15 @@ class AppController(QObject):
             )
             return True
 
+        # start failed — restore polling so the idle state display still works
+        self._state_poller.resume()
         return False
 
     def stop_measurement(self) -> None:
         self._is_measuring = False
         self._progress_timer.stop()
         self.device_manager.stop_measurement()
+        self._state_poller.resume()
         self.measurement_stopped.emit()
         self.status_message.emit(
             "Messung gestoppt.",
@@ -207,9 +224,12 @@ class AppController(QObject):
 
     def cleanup(self) -> None:
         """Call from MainWindow.closeEvent() — stop all timers and threads."""
-        for timer in (self._control_timer, self._stats_timer, self._progress_timer):
+        for timer in (self._stats_timer, self._progress_timer):
             if timer.isActive():
                 timer.stop()
+
+        if self._state_poller and self._state_poller.isRunning():
+            self._state_poller.stop()
 
         if self._reconnect_worker and self._reconnect_worker.isRunning():
             self._reconnect_worker.abort()
@@ -267,16 +287,6 @@ class AppController(QObject):
     # ------------------------------------------------------------------
     # Timers
 
-    def _poll_device_state(self) -> None:
-        if self._is_measuring or not self.device_manager.connected:
-            return
-        try:
-            data = self.device_manager.device.get_data()
-            if data:
-                self.device_state_updated.emit(data)
-        except Exception as exc:
-            _log.debug("Error polling device state: %s", exc)
-
     def _emit_statistics(self) -> None:
         if self._active_tab is None:
             return
@@ -301,13 +311,15 @@ class AppController(QObject):
         if self._reconnect_state != self._CONNECTED:
             return  # Already handling
 
+        # Set state immediately — handle_connection_lost() calls on_connection_lost
+        # which re-enters here, so the guard must be up before any callback fires.
+        self._reconnect_state = self._RECONNECTING
+
         # B1: if measuring, stop cleanly first
         if self._is_measuring:
             self.stop_measurement()
 
         self.device_manager.handle_connection_lost()
-        self._reconnect_state = self._RECONNECTING
-        self._control_timer.stop()
 
         self.status_message.emit(
             "Verbindung unterbrochen — Wiederverbindung...",
@@ -344,9 +356,6 @@ class AppController(QObject):
         """Reconnect worker reports success (B5)."""
         self._reconnect_state = self._CONNECTED
         self._start_acquisition()
-        self._control_timer.start(
-            CONFIG.get("timers", {}).get("control_update_interval", 1000)
-        )
 
         if self._journal:
             self._journal.mark_gap()

@@ -7,7 +7,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from .models import MeasurementSession, MeasurementPoint, DeviceSettings
 from .utils import (
     create_dropbox_foldername,
     sanitize_subterm_for_folder,
@@ -15,68 +14,6 @@ from .utils import (
 )
 
 _log = logging.getLogger(__name__)
-
-
-class MeasurementService:
-    """Lifecycle management for a single MeasurementSession."""
-
-    def __init__(self) -> None:
-        self.current_session: Optional[MeasurementSession] = None
-        self._unsaved = False
-
-    def start_session(
-        self,
-        radioactive_sample: str = "",
-        subterm: str = "",
-        group: str = "",
-    ) -> MeasurementSession:
-        self.current_session = MeasurementSession(
-            points=[],
-            start_time=datetime.now(),
-            radioactive_sample=radioactive_sample,
-            subterm=subterm,
-            group=group,
-        )
-        self._unsaved = False
-        _log.info("New measurement session started")
-        return self.current_session
-
-    def stop_session(self) -> Optional[MeasurementSession]:
-        if self.current_session:
-            self.current_session.end_time = datetime.now()
-            self._unsaved = True
-            _log.info(
-                "Measurement session stopped with %d points",
-                self.current_session.count,
-            )
-        return self.current_session
-
-    def add_point(self, index: int, value: float, timestamp: str) -> None:
-        if not self.current_session:
-            _log.warning("No active session — creating one")
-            self.start_session()
-        point = MeasurementPoint(index=index, value=value, timestamp=timestamp)
-        self.current_session.points.append(point)  # type: ignore[union-attr]
-        self._unsaved = True
-
-    def clear_session(self) -> None:
-        self.current_session = None
-        self._unsaved = False
-        _log.info("Measurement session cleared")
-
-    def has_unsaved_data(self) -> bool:
-        return self._unsaved and self.current_session is not None
-
-    def mark_saved(self) -> None:
-        self._unsaved = False
-
-    def get_data_as_list(self) -> list[list[str]]:
-        if not self.current_session:
-            return []
-        data = [["Index", "Value (µs)", "Timestamp"]]
-        for p in self.current_session.points:
-            data.append([str(p.index), str(p.value), p.timestamp])
-        return data
 
 
 class SaveService:
@@ -306,34 +243,3 @@ class MeasurementStateService:
     def reset(self) -> None:
         self._measurement_active = False
         _log.debug("MeasurementStateService: reset")
-
-
-class DeviceControlService:
-    """Apply DeviceSettings to a connected device.
-
-    Takes a device reference at construction time; callers supply the
-    infrastructure GMCounter (duck-typed via the command set).
-    """
-
-    def __init__(self, device) -> None:
-        self.device = device
-
-    def apply_settings(self, settings: DeviceSettings) -> bool:
-        import time as _time
-
-        try:
-            _log.debug(
-                "Applying settings: repeat=%s counting_time=%d voltage=%d",
-                settings.repeat,
-                settings.counting_time,
-                settings.voltage,
-            )
-            self.device.set_repeat(settings.repeat)
-            self.device.set_stream(4 if settings.auto_query else 1)
-            self.device.set_counting_time(settings.counting_time)
-            self.device.set_voltage(settings.voltage)
-            _time.sleep(0.2)
-            return True
-        except Exception as exc:
-            _log.error("Error applying settings: %s", exc)
-            return False

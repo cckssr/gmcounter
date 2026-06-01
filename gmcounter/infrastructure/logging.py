@@ -75,9 +75,15 @@ class Debug:
         """
         cls.DEBUG_LEVEL = debug_level
 
-        # Create logger
-        cls.logger = logging.getLogger(app_name)
+        # Use the "gmcounter" logger — parent of every gmcounter.* module logger.
+        # This ensures all logging.getLogger(__name__) calls in the package
+        # propagate here and respect the configured level/handlers.
+        cls.logger = logging.getLogger("gmcounter")
         cls.logger.setLevel(logging.DEBUG)
+        cls.logger.propagate = False  # don't double-print via root logger
+
+        # Remove any handlers added by a previous Debug.init() call
+        cls.logger.handlers.clear()
 
         # Handler for console output
         console_handler = logging.StreamHandler()
@@ -116,9 +122,10 @@ class Debug:
                     return
 
             # Always create a log.txt in the specified directory
+            safe_name = app_name.replace(" ", "_")
             cls.LOG_FILE = os.path.join(
                 log_directory,
-                f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{app_name}.txt",
+                f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{safe_name}.txt",
             )
 
             file_handler = logging.FileHandler(cls.LOG_FILE, encoding="utf-8")

@@ -211,7 +211,7 @@ class MockGMCounter:
             return None
 
         # ── DIAGnostic ──
-        if upper.startswith("DIAG:SPKR") or upper.startswith("DIAGNOSTIC:SPEAKER"):
+        if upper.startswith("CONF:SPKR") or upper.startswith("CONFIGURE:SPEAKER"):
             parts = command.split(None, 1)
             if len(parts) == 2:
                 try:

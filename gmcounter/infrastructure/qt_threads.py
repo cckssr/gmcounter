@@ -1,6 +1,7 @@
 # Layer: infrastructure — Qt threading helpers.
 # THIS IS THE ONLY FILE IN infrastructure/ ALLOWED TO IMPORT PySide6.
 
+import threading
 import time
 import logging
 from typing import Optional, Callable
@@ -174,6 +175,66 @@ class DataAcquisitionThread(QThread):
         _log.info("Stopping DataAcquisitionThread")
         if not self.wait(2000):
             _log.warning("Thread did not stop in time — terminating")
+            self.terminate()
+            self.wait()
+
+
+class StatePollerThread(QThread):
+    """Polls device state (FETC:STAT?) in a background thread.
+
+    Mutually exclusive with DataAcquisitionThread — pause() must be called
+    before any measurement starts so no SCPI command is in-flight when INIT
+    is sent.  pause() blocks until the current get_data() call finishes,
+    guaranteeing the serial port is fully idle before returning.
+    """
+
+    data_ready = Signal(dict)
+
+    _POLL_INTERVAL_S = 1.0
+
+    def __init__(self, manager) -> None:
+        super().__init__()
+        self.manager = manager
+        self._running = False
+        self._poll_lock = threading.Lock()
+        self._enabled = True
+
+    def pause(self) -> None:
+        """Disable polling and wait for any in-flight get_data() to complete."""
+        with self._poll_lock:
+            self._enabled = False
+
+    def resume(self) -> None:
+        """Re-enable polling after a measurement has stopped."""
+        with self._poll_lock:
+            self._enabled = True
+
+    def run(self) -> None:
+        _log.info("StatePollerThread started")
+        self._running = True
+        while self._running:
+            with self._poll_lock:
+                if (
+                    self._enabled
+                    and self.manager.device
+                    and self.manager.connected
+                    and not self.manager.measurement_state.measurement_active
+                ):
+                    try:
+                        data = self.manager.device.get_data()
+                        if data:
+                            self.data_ready.emit(data)
+                    except Exception as exc:
+                        _log.debug("State poller error: %s", exc)
+            time.sleep(self._POLL_INTERVAL_S)
+        _log.info("StatePollerThread stopped")
+
+    def stop(self) -> None:
+        self._running = False
+        self.requestInterruption()
+        _log.info("Stopping StatePollerThread")
+        if not self.wait(3000):
+            _log.warning("StatePollerThread did not stop in time — terminating")
             self.terminate()
             self.wait()
 

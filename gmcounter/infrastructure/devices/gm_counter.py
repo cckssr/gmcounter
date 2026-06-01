@@ -16,7 +16,7 @@ class GMCounterAdapter(SerialDevice):
       *IDN? / *RST / *CLS
       INIT / ABOR
       CONF:VOLT / CONF:TIME / CONF:REP / CONF:STR
-      FETC:STAT? / SYST:CLR / DIAG:SPKR / SYST:ERR?
+      FETC:STAT? / SYST:CLR / CONF:SPKR / SYST:ERR?
 
     Binary timing data is streamed as 0xAA [4-byte LE µs] 0x55 packets,
     preceded by a 0xFF×6 start marker when INIT is sent.
@@ -128,7 +128,7 @@ class GMCounterAdapter(SerialDevice):
         return True
 
     def set_speaker(self, gm: bool = False, ready: bool = False) -> bool:
-        self.send_command(f"DIAG:SPKR {int(gm) + 2 * int(ready)}")
+        self.send_command(f"CONF:SPKR {int(gm) + 2 * int(ready)}")
         return True
 
     def set_counting_time(self, value: int = 0) -> Optional[bool]:

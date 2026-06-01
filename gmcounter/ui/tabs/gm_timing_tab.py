@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import logging
 import queue
-import statistics
 import threading
 from datetime import datetime
 from time import time

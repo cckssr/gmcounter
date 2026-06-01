@@ -20,6 +20,7 @@ from ..tabs.gm_timing_tab import GMTimingTab  # registers at import time
 from ..widgets.event_log_panel import EventLogPanel
 from ..common import dialogs as MessageHelper
 from ..common.file_dialogs import FileDialogManager
+from ..common.statusbar import StatusBarManager
 from ...pyqt.ui_mainwindow import Ui_MainWindow
 
 _log = logging.getLogger(__name__)
@@ -48,6 +49,8 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+
+        self._status_bar = StatusBarManager(self.ui.statusBar)
 
         self._save_service = SaveService(
             base_dir=CONFIG.get("save", {}).get("base_folder", "GMCounter"),
@@ -106,11 +109,11 @@ class MainWindow(QMainWindow):
 
         # Initial status
         self._set_status_indicator("Bereit", "green")
-        self.ui.statusBar().showMessage(
+        self._status_bar.show_message(
             CONFIG.get("messages", {})
             .get("connected", "Verbunden mit {0}")
             .format(device_manager.port),
-            3000,
+            duration=3000,
         )
 
         # Maximize
@@ -183,8 +186,7 @@ class MainWindow(QMainWindow):
     # AppController signal handlers
 
     def _on_status_message(self, text: str, color: str) -> None:
-        mapped = CONFIG.get("colors", {}).get(color, color)
-        self.ui.statusBar().showMessage(text)
+        self._status_bar.show_message(text)
         self._event_log.append(text, color)
 
     def _on_tab_status(self, level: str, text: str) -> None:
@@ -198,7 +200,15 @@ class MainWindow(QMainWindow):
         self.ui.buttonStop.setEnabled(True)
         self.ui.buttonSave.setEnabled(False)
         self.ui.buttonReset.setEnabled(False)
+        # Lock all device-settings controls — only binary acquisition runs now
         self.ui.buttonSetting.setEnabled(False)
+        self.ui.sVoltage.setEnabled(False)
+        self.ui.sDuration.setEnabled(False)
+        self.ui.sModeMulti.setEnabled(False)
+        if hasattr(self.ui, "sQModeAuto"):
+            self.ui.sQModeAuto.setEnabled(False)
+        if hasattr(self.ui, "sQModeMan"):
+            self.ui.sQModeMan.setEnabled(False)
         self._set_status_indicator("Messung", "blue")
 
     def _on_measurement_stopped(self) -> None:
@@ -206,7 +216,15 @@ class MainWindow(QMainWindow):
         self.ui.buttonStop.setEnabled(False)
         self.ui.buttonSave.setEnabled(True)
         self.ui.buttonReset.setEnabled(True)
+        # Restore all device-settings controls
         self.ui.buttonSetting.setEnabled(True)
+        self.ui.sVoltage.setEnabled(True)
+        self.ui.sDuration.setEnabled(True)
+        self.ui.sModeMulti.setEnabled(True)
+        if hasattr(self.ui, "sQModeAuto"):
+            self.ui.sQModeAuto.setEnabled(True)
+        if hasattr(self.ui, "sQModeMan"):
+            self.ui.sQModeMan.setEnabled(True)
         self._save_service.mark_unsaved()
         self._set_status_indicator("Gestoppt", "yellow")
 
@@ -323,7 +341,7 @@ class MainWindow(QMainWindow):
             self._save_service.mark_saved()
             self.ui.buttonSave.setEnabled(False)
             self.ui.buttonStart.setEnabled(True)
-            self.ui.statusBar().showMessage("Gespeichert.", 3000)
+            self._status_bar.show_message("Gespeichert.", duration=3000)
         else:
             MessageHelper.show_error(self, "Fehler beim Speichern.", "Fehler")
 
@@ -387,17 +405,17 @@ class MainWindow(QMainWindow):
                 "auto_save_disabled", "Auto-Backup deaktiviert"
             )
         )
-        self.ui.statusBar().showMessage(msg, 1000)
+        self._status_bar.show_message(msg, duration=1000)
 
     def _on_voltage_changed(self, value: int) -> None:
         threshold = CONFIG.get("gm_counter", {}).get("voltage_warning_threshold", 650)
         if value > threshold:
             self.ui.sVoltage.setStyleSheet("background-color: orange;")
-            self.ui.statusBar().showMessage(
+            self._status_bar.show_message(
                 CONFIG.get("messages", {})
                 .get("voltage_warning", "Achtung: {0} V")
                 .format(value),
-                3000,
+                duration=3000,
             )
         else:
             self.ui.sVoltage.setStyleSheet("")
