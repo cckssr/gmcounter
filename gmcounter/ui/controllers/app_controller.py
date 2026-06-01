@@ -36,7 +36,7 @@ class AppController(QObject):
 
     Signal contract (public API for MainWindow / tabs):
     ─────────────────────────────────────────────────
-    frame_ready(Frame)            — one acquired data point
+    frames_ready(list[Frame])     — a batch of acquired data points
     statistics_updated(dict)      — {count, min, max, avg, stdev}
     device_state_updated(dict)    — raw get_data() response (count/voltage/…)
     measurement_started()
@@ -49,7 +49,7 @@ class AppController(QObject):
     connection_lost()             — terminal; all retries exhausted
     """
 
-    frame_ready = Signal(object)  # Frame (frozen dataclass)
+    frames_ready = Signal(object)  # list[Frame] (frozen dataclasses)
     statistics_updated = Signal(dict)
     device_state_updated = Signal(dict)
     measurement_started = Signal()
@@ -123,7 +123,7 @@ class AppController(QObject):
     def set_active_tab(self, tab: "PlotTabBase") -> None:
         if self._active_tab is not None:
             try:
-                self.frame_ready.disconnect(self._active_tab.on_frame)
+                self.frames_ready.disconnect(self._active_tab.on_frames)
                 self.measurement_started.disconnect(
                     self._active_tab.on_measurement_started
                 )
@@ -134,7 +134,7 @@ class AppController(QObject):
                 pass
         self._active_tab = tab
         if tab is not None:
-            self.frame_ready.connect(tab.on_frame)
+            self.frames_ready.connect(tab.on_frames)
             self.measurement_started.connect(tab.on_measurement_started)
             self.measurement_stopped.connect(tab.on_measurement_stopped)
 
@@ -256,8 +256,8 @@ class AppController(QObject):
         if self._acquire_thread and self._acquire_thread.isRunning():
             return
         self._acquire_thread = DataAcquisitionThread(self.device_manager)
-        self._acquire_thread.data_point.connect(
-            self._on_data_point, Qt.ConnectionType.QueuedConnection
+        self._acquire_thread.data_batch.connect(
+            self._on_data_batch, Qt.ConnectionType.QueuedConnection
         )
         self._acquire_thread.connection_lost.connect(
             self._on_acquire_connection_lost, Qt.ConnectionType.QueuedConnection
@@ -269,20 +269,28 @@ class AppController(QObject):
             self._acquire_thread.stop()
 
     # ------------------------------------------------------------------
-    # Data point handler
+    # Data batch handler
 
-    def _on_data_point(self, index: int, value: float) -> None:
-        if not self._is_measuring:
+    def _on_data_batch(self, points: list) -> None:
+        """Handle a batch of (index, value_us) tuples from the acquisition thread.
+
+        Runs on the GUI thread (QueuedConnection).  One wall-clock timestamp is
+        taken per batch — at high rates a per-point host timestamp is meaningless
+        (the µs delta from the device is the real time axis), and at low rates a
+        batch holds ~one point, so this stays accurate where it matters.
+        """
+        if not self._is_measuring or not points:
             return
         ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        frame = Frame(index=index, value=value, timestamp=ts)
+        journal = self._journal
+        frames = []
+        for index, value in points:
+            if journal:
+                journal.record(index, value)
+            frames.append(Frame(index=index, value=value, timestamp=ts))
 
-        # Journal
-        if self._journal:
-            self._journal.record(index, value)
-
-        # Fan out to active tab
-        self.frame_ready.emit(frame)
+        # Fan out to active tab (direct call — same thread, cheap)
+        self.frames_ready.emit(frames)
 
     # ------------------------------------------------------------------
     # Timers

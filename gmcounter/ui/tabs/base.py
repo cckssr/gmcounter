@@ -32,6 +32,7 @@ class PlotTabBase(QWidget):
     ─────────────────────────────────────────────
     build()                         Called once after the tab is added.
     on_frame(frame)                 Called for each acquired data point.
+    on_frames(frames)               Called with a batch (defaults to looping on_frame).
     on_reset()                      Before a new measurement starts.
     on_connection_state(state)
     on_activated() / on_deactivated()
@@ -68,6 +69,16 @@ class PlotTabBase(QWidget):
 
     def on_frame(self, frame: Frame) -> None:
         """Process one acquired data point."""
+
+    def on_frames(self, frames: "list[Frame]") -> None:
+        """Process a batch of acquired data points.
+
+        Default implementation forwards each frame to :meth:`on_frame`.  Tabs on
+        a high-rate stream should override this to handle the whole batch at once
+        (one lock/append cycle instead of N).
+        """
+        for frame in frames:
+            self.on_frame(frame)
 
     def on_reset(self) -> None:
         """Clear data before a new measurement."""

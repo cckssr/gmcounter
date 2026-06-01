@@ -3,6 +3,10 @@
 #include "config.h"
 #include "state.h"
 
+// Enable the DWT cycle counter for high-resolution timestamps. Call from setup().
+// No-op when USE_CYCLE_COUNTER == 0 (native unit tests use micros()).
+void gmEnableHighResClock();
+
 // ISR — attach to INTERRUPT_PIN on RISING edge.
 void gmISR();
 

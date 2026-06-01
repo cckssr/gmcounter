@@ -8,6 +8,8 @@ from typing import Optional, Callable
 
 from PySide6.QtCore import QThread, Signal  # pylint: disable=no-name-in-module
 
+from .packet_parser import PacketParser
+
 _log = logging.getLogger(__name__)
 
 
@@ -15,19 +17,22 @@ class DataAcquisitionThread(QThread):
     """Background thread that reads binary packets from the device.
 
     Protocol:
-    - 6-byte packets: 0xAA + 4-byte LE µs value + 0x55
+    - 6-byte packets: 0xAA + 4-byte LE tick value + 0x55
+    - The tick value is an inter-event delta in firmware timer ticks; the host
+      divides by ``ticks_per_us`` (config.json -> acquisition) to get µs.
     - Measurement start marker: 0xFF × 6 (discards all data before it)
-    - Adaptive sleep: 0.1 ms during active measurement, 10 ms otherwise
+
+    Performance: each read cycle parses *all* complete packets in one pass over a
+    persistent ``bytearray`` (no per-packet reslicing) and emits a single
+    ``data_batch`` signal carrying the whole list.  At 10 kHz this replaces ~10k
+    queued cross-thread signals/s with a handful, which is the dominant host-side
+    cost — see docs.
     """
 
     CONNECTION_TIMEOUT = 3.0
     START_MARKER_TIMEOUT = 2.0
-    START_BYTE = 0xAA
-    END_BYTE = 0x55
-    PACKET_SIZE = 6
-
     # Public signals
-    data_point = Signal(int, float)  # (index, value_us)
+    data_batch = Signal(object)  # list[tuple[int index, float value_us]]
     connection_lost = Signal()
 
     def __init__(self, manager) -> None:
@@ -39,11 +44,25 @@ class DataAcquisitionThread(QThread):
         super().__init__()
         self.manager = manager
         self._running = False
-        self._index = 0
         self._last_data_time = time.time()
         self._connection_lost_emitted = False
         self._first_data_received = False
         self._measurement_start_time: Optional[float] = None
+
+        # Tick → microsecond conversion (firmware sends raw timer ticks).
+        try:
+            from .config import import_config
+
+            acq = import_config().get("acquisition", {})
+            ticks_per_us = float(acq.get("ticks_per_us", 48)) or 1.0
+            self._read_chunk = int(acq.get("read_chunk_bytes", 8192))
+            self._read_timeout_ms = int(acq.get("read_timeout_ms", 50))
+        except Exception:  # pragma: no cover - config is best-effort here
+            ticks_per_us = 48.0
+            self._read_chunk = 8192
+            self._read_timeout_ms = 50
+
+        self._parser = PacketParser(ticks_per_us=ticks_per_us)
 
     # ------------------------------------------------------------------
     # Thread lifecycle
@@ -51,13 +70,11 @@ class DataAcquisitionThread(QThread):
     def run(self) -> None:
         _log.info("DataAcquisitionThread started")
         self._running = True
-        self._index = 0
         self._last_data_time = time.time()
         self._connection_lost_emitted = False
         self._first_data_received = False
         self._measurement_start_time = None
-
-        byte_buffer = b""
+        self._parser.reset()
 
         while self._running:
             try:
@@ -92,36 +109,19 @@ class DataAcquisitionThread(QThread):
                         self.connection_lost.emit()
                         break
 
-                raw = device.read_fast(max_bytes=4096, timeout_ms=1500)
+                raw = device.read_fast(
+                    max_bytes=self._read_chunk, timeout_ms=self._read_timeout_ms
+                )
 
                 if raw:
                     self._last_data_time = time.time()
                     self._connection_lost_emitted = False
-                    byte_buffer += raw
-
-                    # Detect start marker (0xFF × 6)
-                    marker = b"\xff\xff\xff\xff\xff\xff"
-                    pos = byte_buffer.find(marker)
-                    if pos != -1:
-                        discarded = pos + len(marker)
-                        _log.info("Start marker found — discarding %d bytes", discarded)
-                        byte_buffer = byte_buffer[discarded:]
+                    points = self._parser.feed(raw)
+                    if not self._first_data_received and self._parser.synced:
                         self._first_data_received = True
-
-                    # Process complete packets
-                    while len(byte_buffer) >= self.PACKET_SIZE:
-                        start = byte_buffer.find(self.START_BYTE)
-                        if start == -1:
-                            byte_buffer = b""
-                            break
-                        if start > 0:
-                            byte_buffer = byte_buffer[start:]
-                        if len(byte_buffer) < self.PACKET_SIZE:
-                            break
-
-                        packet = byte_buffer[: self.PACKET_SIZE]
-                        byte_buffer = byte_buffer[self.PACKET_SIZE :]
-                        self._process_packet(packet)
+                        _log.info("Start marker found — stream synced")
+                    if points:
+                        self.data_batch.emit(points)
 
                 else:
                     if not self.manager.measurement_state.measurement_active:
@@ -132,13 +132,10 @@ class DataAcquisitionThread(QThread):
                                 _log.error("Connection timeout — no data")
                                 self.connection_lost.emit()
                                 self._connection_lost_emitted = True
-
-                sleep_s = (
-                    0.0001
-                    if self.manager.measurement_state.measurement_active
-                    else 0.01
-                )
-                time.sleep(sleep_s)
+                    # read_fast already blocked up to read_timeout_ms; only idle
+                    # between measurements needs an explicit sleep.
+                    if not self.manager.measurement_state.measurement_active:
+                        time.sleep(0.01)
 
             except Exception as exc:
                 _log.error("Error in acquisition thread: %s", exc, exc_info=True)
@@ -149,24 +146,11 @@ class DataAcquisitionThread(QThread):
 
         _log.info("DataAcquisitionThread stopped")
 
-    def _process_packet(self, packet: bytes) -> None:
-        if packet[0] != self.START_BYTE or packet[5] != self.END_BYTE:
-            _log.debug("Invalid packet: %s", packet.hex())
-            return
-        try:
-            value = float(int.from_bytes(packet[1:5], byteorder="little", signed=False))
-            self._index += 1
-            self.data_point.emit(self._index, value)
-            self._last_data_time = time.time()
-            self._connection_lost_emitted = False
-        except Exception as exc:
-            _log.error("Error processing packet %s: %s", packet.hex(), exc)
-
     def reset_index(self) -> None:
-        old = self._index
-        self._index = 0
+        old = self._parser.index
         self._first_data_received = False
         self._measurement_start_time = None
+        self._parser.reset()
         _log.info("Acquisition index reset from %d to 0", old)
 
     def stop(self) -> None:

@@ -19,13 +19,19 @@ _log = logging.getLogger(__name__)
 
 PORT_FILE = os.path.join(gettempdir(), "virtual_serial_port.txt")
 
+# Inter-event deltas are sent as raw firmware timer ticks; the host divides by
+# this to recover microseconds.  MUST match config.json acquisition.ticks_per_us
+# and the firmware TICKS_PER_US (RA4M1 @ 48 MHz).
+TICKS_PER_US = 48
+
 
 class MockGMCounter:
     """Wire-compatible mock for GMCounterAdapter.
 
     Simulates the GM counter binary protocol:
     - Start marker: 0xFF × 6 on measurement start
-    - Data packets: 0xAA + 4-byte little-endian µs value + 0x55
+    - Data packets: 0xAA + 4-byte little-endian tick value + 0x55
+      (ticks = µs × TICKS_PER_US, matching the firmware wire format)
     - is_mock_device = True so the acquisition thread uses longer timeouts.
     """
 
@@ -288,9 +294,11 @@ def run_pty_server(device_class=MockGMCounter, **device_kwargs) -> None:
 
             value = device.tick()
             if value is not None:
+                # tick() returns µs; the wire protocol carries firmware ticks.
+                ticks = min(int(value) * TICKS_PER_US, 0xFFFFFFFF)
                 packet = (
                     bytes([0xAA])
-                    + value.to_bytes(4, byteorder="little")
+                    + ticks.to_bytes(4, byteorder="little")
                     + bytes([0x55])
                 )
                 os.write(master, packet)

@@ -176,6 +176,12 @@ struct MockSerial
     void print(int) {}
 
     void write(uint8_t b) { bytes.push_back(b); }
+    size_t write(const uint8_t *buf, size_t n)
+    {
+        for (size_t i = 0; i < n; i++)
+            bytes.push_back(buf[i]);
+        return n;
+    }
 
     int available() const { return (int)(inputBuf.size() - inputPos); }
     int read()

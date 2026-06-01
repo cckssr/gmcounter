@@ -181,6 +181,31 @@ void test_multiple_valid_pulses()
     TEST_ASSERT_EQUAL(18, (int)Serial.bytes.size());
 }
 
+// ── TX batching ───────────────────────────────────────────────────────────────
+// A burst larger than TX_BATCH_PACKETS must still emit exactly nPoints packets
+// (the batch buffer flushes mid-drain when full, then again when the ring empties).
+
+void test_burst_across_batches_emits_all_packets()
+{
+    gmStartAcquisition();
+    Serial.clear();
+
+    // 100 pulses → 99 deltas → 99 packets, spanning several TX_BATCH_PACKETS flushes.
+    const int pulses = 100;
+    for (int i = 0; i < pulses; i++)
+    {
+        set_mock_micros((uint32_t)i * 500UL); // 500 µs > DEBOUNCE
+        gmISR();
+    }
+    gmProcessAcquisition();
+
+    TEST_ASSERT_EQUAL(pulses - 1, (int)acqStats.nPoints);
+    TEST_ASSERT_EQUAL((pulses - 1) * 6, (int)Serial.bytes.size());
+    // First and last bytes confirm framing survived the batching.
+    TEST_ASSERT_EQUAL_HEX8(0xAA, Serial.bytes.front());
+    TEST_ASSERT_EQUAL_HEX8(0x55, Serial.bytes.back());
+}
+
 // ── Ring buffer wrap-around ───────────────────────────────────────────────────
 
 void test_ring_buffer_overflow_no_crash()
@@ -277,6 +302,7 @@ int main()
     RUN_TEST(test_delta_at_debounce_threshold_filtered);
     RUN_TEST(test_delta_just_above_debounce_passes);
     RUN_TEST(test_multiple_valid_pulses);
+    RUN_TEST(test_burst_across_batches_emits_all_packets);
     RUN_TEST(test_ring_buffer_overflow_no_crash);
     RUN_TEST(test_isr_overflow_counted);
     RUN_TEST(test_isr_overflow_does_not_overwrite_buffer);

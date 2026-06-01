@@ -179,6 +179,28 @@ class GMTimingTab(PlotTabBase):
                 _log.warning("Data queue overflow — GUI cannot keep up")
                 self._overflow_warned = True
 
+    def on_frames(self, frames: List[Frame]) -> None:
+        """Batch entrypoint — append a whole batch under one lock acquisition.
+
+        Overrides PlotTabBase.on_frames so a 10 kHz stream costs one lock cycle
+        per GUI-thread delivery instead of one per point.
+        """
+        if not frames:
+            return
+        dp = self._data_points
+        q = self._queue
+        with self._queue_lock:
+            for frame in frames:
+                row = (frame.index, frame.value, frame.timestamp)
+                dp.append(row)
+                try:
+                    q.put_nowait(row)
+                except queue.Full:
+                    if not self._overflow_warned:
+                        _log.warning("Data queue overflow — GUI cannot keep up")
+                        self._overflow_warned = True
+                    break
+
     def on_reset(self) -> None:
         self._deactivate_high_speed()
         self._batch_history.clear()

@@ -17,6 +17,8 @@ void setup()
 
     inputBuf.reserve(CMD_MAX_LEN);
 
+    gmEnableHighResClock(); // start the DWT cycle counter (high-res timestamps)
+
     pinMode(INTERRUPT_PIN, INPUT);
     attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), gmISR, RISING);
 }

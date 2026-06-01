@@ -34,6 +34,13 @@
       "gui_update_interval": 200
     },
 
+    "acquisition": {
+      "_comment": "ticks_per_us MUST equal the firmware's TICKS_PER_US (config.h). The firmware sends inter-event deltas as raw timer ticks; the host divides by this to get microseconds. RA4M1 core clock = 48 MHz -> 48 ticks/µs (~20.8 ns resolution).",
+      "ticks_per_us": 48,
+      "read_chunk_bytes": 8192,
+      "read_timeout_ms": 50
+    },
+
     "data_controller": {
       "max_history_size": 1000,
       "high_speed_mode": {
