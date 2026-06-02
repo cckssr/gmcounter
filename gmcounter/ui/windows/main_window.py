@@ -71,6 +71,7 @@ class MainWindow(QMainWindow):
             table_view=self.ui.tableView,
             count_lcd=self.ui.currentCount,
             last_count_lcd=self.ui.lastCount,
+            rate_lcd=self.ui.currentRate,
             tab_widget=self.ui.tabWidget,
         )
         self._gm_tab.build()

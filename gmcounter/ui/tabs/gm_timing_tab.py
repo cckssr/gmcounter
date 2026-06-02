@@ -90,7 +90,12 @@ class GMTimingTab(PlotTabBase):
         self._table_view: Optional[QTableView] = None
         self._count_lcd: Optional[QLCDNumber] = None
         self._last_count_lcd: Optional[QLCDNumber] = None
+        self._rate_lcd: Optional[QLCDNumber] = None
         self._tab_widget_ref: Optional[QTabWidget] = None
+
+        # Rate tracking (for currentRate LCD)
+        self._rate_sample_time: float = 0.0
+        self._rate_sample_count: int = 0
 
         # Lazily created widgets
         self._plot = None
@@ -114,6 +119,7 @@ class GMTimingTab(PlotTabBase):
         table_view: QTableView,
         count_lcd: Optional[QLCDNumber] = None,
         last_count_lcd: Optional[QLCDNumber] = None,
+        rate_lcd: Optional[QLCDNumber] = None,
         tab_widget: Optional[QTabWidget] = None,
     ) -> None:
         """Receive the .ui container widgets before build() is called."""
@@ -122,6 +128,7 @@ class GMTimingTab(PlotTabBase):
         self._table_view = table_view
         self._count_lcd = count_lcd
         self._last_count_lcd = last_count_lcd
+        self._rate_lcd = rate_lcd
         self._tab_widget_ref = tab_widget
 
     def set_measurement_metadata(
@@ -227,6 +234,10 @@ class GMTimingTab(PlotTabBase):
             self._histogram.clear_measurement_data()
         if self._count_lcd:
             self._count_lcd.display(0)
+        if self._rate_lcd:
+            self._rate_lcd.display(0)
+        self._rate_sample_time = 0.0
+        self._rate_sample_count = 0
         if self._table_model:
             while self._table_model.rowCount() > 0:
                 self._table_model.removeRow(0)
@@ -324,6 +335,7 @@ class GMTimingTab(PlotTabBase):
             self._update_plot_and_display(last_val)
             if len(self._data_points) < 5000:
                 self._update_table(new_points)
+            self._update_rate_display(now)
         else:
             if self._count_lcd:
                 self._count_lcd.display(last_val)
@@ -410,12 +422,25 @@ class GMTimingTab(PlotTabBase):
         if self._gui_timer and not self._gui_timer.isActive():
             self._gui_timer.start(GUI_UPDATE_INTERVAL)
 
+    def _update_rate_display(self, now: float) -> None:
+        if not self._rate_lcd:
+            return
+        if self._rate_sample_time > 0:
+            elapsed = now - self._rate_sample_time
+            if elapsed > 0:
+                rate_hz = (len(self._data_points) - self._rate_sample_count) / elapsed
+                self._rate_lcd.display(round(rate_hz, 1))
+        self._rate_sample_time = now
+        self._rate_sample_count = len(self._data_points)
+
     def _update_histogram_only(self) -> None:
         if not self._high_speed or not self._histogram:
             return
+        now = time()
         if len(self._data_points) > 1:
             values = [pt[1] for pt in self._data_points[-10000:]]
             self._histogram.update_histogram(values)
+        self._update_rate_display(now)
 
 
 # Register this experiment at import time
