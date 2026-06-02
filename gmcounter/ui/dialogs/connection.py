@@ -10,7 +10,7 @@ from typing import Optional
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QApplication,
     QDialog,
-    QDialogButtonBox,
+    QMessageBox,
     QWidget,
 )
 from serial.tools import list_ports
@@ -19,7 +19,6 @@ from ...infrastructure.config import import_config
 from ...infrastructure.device_manager import DeviceManager
 from ...infrastructure.mocks.mock_gm_counter import MockGMCounter
 from ...pyqt.ui_connection import Ui_Dialog as Ui_Connection
-from ...helper_classes_compat import AlertWindow
 
 _log = logging.getLogger(__name__)
 CONFIG = import_config()
@@ -184,26 +183,21 @@ class ConnectionWindow(QDialog):
         if success:
             return super().accept()
 
-        alert = AlertWindow(
-            self,
-            message=f"Verbindung zu {self.combo.currentText()} fehlgeschlagen.\n\nBitte überprüfen Sie die Verbindung.",
-            title="Verbindungsfehler",
-            buttons=[
-                ("Wiederholen", QDialogButtonBox.ButtonRole.ResetRole),
-                ("Anderen Port wählen", QDialogButtonBox.ButtonRole.ActionRole),
-                ("Abbrechen", QDialogButtonBox.ButtonRole.RejectRole),
-            ],
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Verbindungsfehler")
+        msg.setText(
+            f"Verbindung zu {self.combo.currentText()} fehlgeschlagen.\n\n"
+            "Bitte überprüfen Sie die Verbindung."
         )
-        result = alert.exec()
-        role = alert.get_clicked_role()
+        msg.setIcon(QMessageBox.Icon.Warning)
+        retry_btn = msg.addButton("Wiederholen", QMessageBox.ButtonRole.AcceptRole)
+        msg.addButton("Anderen Port wählen", QMessageBox.ButtonRole.ResetRole)
+        msg.addButton("Abbrechen", QMessageBox.ButtonRole.RejectRole)
+        msg.exec()
 
-        if (
-            role == QDialogButtonBox.ButtonRole.RejectRole
-            or result == QDialog.DialogCode.Rejected
-        ):
-            return super().reject()
-        if role == QDialogButtonBox.ButtonRole.ActionRole:
-            return False  # Dialog stays open
-        if role == QDialogButtonBox.ButtonRole.ResetRole:
+        clicked = msg.clickedButton()
+        if clicked is retry_btn:
             return self.accept()  # Recursive retry
-        return False
+        if msg.buttonRole(clicked) == QMessageBox.ButtonRole.RejectRole:
+            return super().reject()
+        # "Anderen Port wählen" — leave dialog open

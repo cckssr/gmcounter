@@ -23,9 +23,11 @@ from ...infrastructure.qt_threads import (
 from ...infrastructure.config import import_config
 from ...infrastructure.session_journal import SessionJournal, find_orphan_journals
 from ...core.models import DesiredState, Frame
+from ..common.statusbar import StatusBarManager
 
 if TYPE_CHECKING:
     from ..tabs.base import PlotTabBase
+    from ..widgets.event_log_panel import EventLogPanel
 
 _log = logging.getLogger(__name__)
 CONFIG = import_config()
@@ -70,11 +72,14 @@ class AppController(QObject):
     def __init__(
         self,
         device_manager: DeviceManager,
+        status_bar: StatusBarManager,
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
 
         self.device_manager = device_manager
+        self._status_bar = status_bar
+        self.event_log: Optional["EventLogPanel"] = None
         self._active_tab: Optional["PlotTabBase"] = None
 
         # Measurement tracking
@@ -115,7 +120,16 @@ class AppController(QObject):
         self._progress_timer.timeout.connect(self._tick_progress)
 
         # Check for orphan journals from previous crashes
-        QTimer.singleShot(1000, self._check_orphan_journals)
+        QTimer.singleShot(5000, self._check_orphan_journals)
+
+    # ------------------------------------------------------------------
+    # Status notification
+
+    def _notify(self, text: str, color: str = "") -> None:
+        """Show text on the status bar and append to the event log."""
+        self._status_bar.show_message(text, backcolor=color)
+        if self.event_log is not None:
+            self.event_log.append(text, color)
 
     # ------------------------------------------------------------------
     # Active-tab management
@@ -144,7 +158,7 @@ class AppController(QObject):
     def start_measurement(self, total_seconds: int = 0) -> bool:
         """Start a measurement.  total_seconds=0 → indeterminate."""
         if not (self.device_manager.connected and self.device_manager.device):
-            self.status_message.emit("Kein Gerät verbunden", "red")
+            self._notify("Kein Gerät verbunden", "red")
             return False
 
         if self._active_tab is not None:
@@ -169,7 +183,7 @@ class AppController(QObject):
 
             self._progress_timer.start(1000)
             self.measurement_started.emit()
-            self.status_message.emit(
+            self._notify(
                 "Messung läuft...", CONFIG.get("colors", {}).get("blue", "blue")
             )
             return True
@@ -184,9 +198,8 @@ class AppController(QObject):
         self.device_manager.stop_measurement()
         self._state_poller.resume()
         self.measurement_stopped.emit()
-        self.status_message.emit(
-            "Messung gestoppt.",
-            CONFIG.get("colors", {}).get("green", "green"),
+        self._notify(
+            "Messung gestoppt.", CONFIG.get("colors", {}).get("green", "green")
         )
 
     @property
@@ -214,7 +227,7 @@ class AppController(QObject):
             self.device_manager._apply_device_settings(
                 self._desired_state.to_device_settings()
             )
-        self.status_message.emit(
+        self._notify(
             CONFIG.get("messages", {}).get("settings_applied", "Einstellungen gesetzt"),
             CONFIG.get("colors", {}).get("green", "green"),
         )
@@ -247,9 +260,7 @@ class AppController(QObject):
     # Internal wiring
 
     def _wire_device_manager(self) -> None:
-        self.device_manager.on_status = lambda msg, col: self.status_message.emit(
-            msg, col
-        )
+        self.device_manager.on_status = self._notify
         self.device_manager.on_connection_lost = self._on_connection_lost_cb
 
     def _start_acquisition(self) -> None:
@@ -329,7 +340,7 @@ class AppController(QObject):
 
         self.device_manager.handle_connection_lost()
 
-        self.status_message.emit(
+        self._notify(
             "Verbindung unterbrochen — Wiederverbindung...",
             CONFIG.get("colors", {}).get("orange", "orange"),
         )
@@ -351,9 +362,7 @@ class AppController(QObject):
         )
         self._reconnect_worker.succeeded.connect(self._on_reconnect_succeeded)
         self._reconnect_worker.failed.connect(self._on_reconnect_failed)
-        self._reconnect_worker.status_update.connect(
-            lambda msg, col: self.status_message.emit(msg, col)
-        )
+        self._reconnect_worker.status_update.connect(self._notify)
         self._reconnect_worker.start()
 
     def _on_connection_lost_cb(self) -> None:
@@ -369,9 +378,7 @@ class AppController(QObject):
             self._journal.mark_gap()
 
         self.reconnect_succeeded.emit()
-        self.status_message.emit(
-            "Wiederverbunden", CONFIG.get("colors", {}).get("green", "green")
-        )
+        self._notify("Wiederverbunden", CONFIG.get("colors", {}).get("green", "green"))
 
     def _on_reconnect_failed(self) -> None:
         """All retry attempts exhausted (B7) — notify UI and offer journal export."""
@@ -380,12 +387,12 @@ class AppController(QObject):
 
         if self._journal:
             self._journal.close()
-            self.status_message.emit(
+            self._notify(
                 f"Verbindung verloren. Journal gespeichert: {self._journal.path}",
                 CONFIG.get("colors", {}).get("red", "red"),
             )
         else:
-            self.status_message.emit(
+            self._notify(
                 "Verbindung verloren. Alle Wiederverbindungsversuche fehlgeschlagen.",
                 CONFIG.get("colors", {}).get("red", "red"),
             )
@@ -398,7 +405,7 @@ class AppController(QObject):
         if orphans:
             paths = "\n".join(str(p) for p in orphans)
             _log.warning("Found %d orphan journal(s):\n%s", len(orphans), paths)
-            self.status_message.emit(
+            self._notify(
                 f"{len(orphans)} ungespeichertes Journal gefunden. Daten unter ~/.gmcounter/sessions/",
                 CONFIG.get("colors", {}).get("orange", "orange"),
             )

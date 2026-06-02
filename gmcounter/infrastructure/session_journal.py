@@ -45,6 +45,8 @@ class SessionJournal:
             self._writer.writerow(["epoch_s", "kind", "index", "value_us"])
 
         # Background fsync
+        self._closed = False
+
         self._stop_event = threading.Event()
         self._flush_thread = threading.Thread(target=self._flush_loop, daemon=True)
         self._flush_thread.start()
@@ -57,6 +59,8 @@ class SessionJournal:
     def record(self, index: int, value_us: float) -> None:
         """Append one data point row."""
         with self._lock:
+            if self._closed:
+                return
             self._writer.writerow([time.time(), "data", index, value_us])
 
     def mark_gap(self) -> None:
@@ -82,6 +86,8 @@ class SessionJournal:
         _log.info("Journal finalized: %s", self._path)
 
     def close(self) -> None:
+        with self._lock:
+            self._closed = True
         self._stop_event.set()
         try:
             self._fh.flush()

@@ -58,8 +58,10 @@ class MainWindow(QMainWindow):
         )
         self._file_dialog_manager = FileDialogManager(self._save_service)
 
-        # Build AppController
-        self._ctrl = AppController(device_manager, parent=self)
+        # Build AppController (needs status_bar for direct notifications)
+        self._ctrl = AppController(
+            device_manager, status_bar=self._status_bar, parent=self
+        )
 
         # Instantiate the GM experiment tab and inject .ui containers
         self._gm_tab = GMTimingTab(parent=self)
@@ -80,7 +82,7 @@ class MainWindow(QMainWindow):
         self._refresh_tab_visibility()
 
         # Connect AppController signals → MainWindow slots
-        self._ctrl.status_message.connect(self._on_status_message)
+        # (status_message is handled directly via StatusBarManager in AppController)
         self._ctrl.measurement_started.connect(self._on_measurement_started)
         self._ctrl.measurement_stopped.connect(self._on_measurement_stopped)
         self._ctrl.device_state_updated.connect(self._on_device_state_updated)
@@ -92,20 +94,21 @@ class MainWindow(QMainWindow):
         # Connect GMTimingTab status signal to event log / status bar
         self._gm_tab.status_message.connect(self._on_tab_status)
 
-        # Event log dock
+        # Event log dock — give AppController a reference so _notify() can append
         self._event_log = EventLogPanel(self)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._event_log)
         self._event_log.hide()
+        self._ctrl.event_log = self._event_log
 
         # Wire buttons
         self._setup_buttons()
         self._setup_radioactive_sample_input()
         self._setup_voltage_warning()
 
-        # Initial device info
+        # Initial device info — set callback before fetch so it fires on initial connect
+        device_manager.on_device_info = self._on_device_info
         if device_manager.device and device_manager.connected:
             device_manager._fetch_device_info()
-        device_manager.on_device_info = self._on_device_info
 
         # Initial status
         self._set_status_indicator("Bereit", "green")
@@ -185,15 +188,12 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # AppController signal handlers
 
-    def _on_status_message(self, text: str, color: str) -> None:
-        self._status_bar.show_message(text)
-        self._event_log.append(text, color)
-
     def _on_tab_status(self, level: str, text: str) -> None:
         color = {"info": "green", "warning": "orange", "error": "red"}.get(
             level, "white"
         )
-        self._on_status_message(text, color)
+        self._status_bar.show_message(text, backcolor=color)
+        self._event_log.append(text, color)
 
     def _on_measurement_started(self) -> None:
         self.ui.buttonStart.setEnabled(False)

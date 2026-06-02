@@ -605,6 +605,7 @@ class Ui_MainWindow(object):
         sizePolicy14.setHeightForWidth(self.tabWidget.sizePolicy().hasHeightForWidth())
         self.tabWidget.setSizePolicy(sizePolicy14)
         self.tabWidget.setFont(font1)
+        self.tabWidget.setAutoFillBackground(False)
         self.time = QWidget()
         self.time.setObjectName("time")
         self.gridLayout_6 = QGridLayout(self.time)
@@ -1112,7 +1113,7 @@ class Ui_MainWindow(object):
         self.buttonSetting.setDefault(False)
         self.radSample.setCurrentIndex(-1)
         self.groupLetter.setCurrentIndex(-1)
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(1)
 
         QMetaObject.connectSlotsByName(MainWindow)
 

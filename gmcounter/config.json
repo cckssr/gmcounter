@@ -85,6 +85,7 @@
     },
 
     "radioactive_samples": [
+      "BACKGROUND",
       "E87198",
       "E93652",
       "E62894",

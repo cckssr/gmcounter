@@ -151,9 +151,15 @@ class GMTimingTab(PlotTabBase):
             QVBoxLayout(self._plot_container).addWidget(self._plot)
 
         if self._hist_container and self._histogram is None:
+            hist_bg = (
+                self._hist_container.palette()
+                .color(self._hist_container.backgroundRole())
+                .name()
+            )
             self._histogram = HistogramWidget(
                 xlabel=CONFIG.get("histogram", {}).get("x_label", "Zeit (µs)"),
                 ylabel=CONFIG.get("histogram", {}).get("y_label", "Häufigkeit"),
+                background=hist_bg,
             )
             QVBoxLayout(self._hist_container).addWidget(self._histogram)
 
