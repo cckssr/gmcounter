@@ -610,6 +610,7 @@ class Ui_MainWindow(object):
         self.time.setObjectName("time")
         self.gridLayout_6 = QGridLayout(self.time)
         self.gridLayout_6.setObjectName("gridLayout_6")
+        self.gridLayout_6.setContentsMargins(10, 10, 10, 5)
         self.horizontalLayout_8 = QHBoxLayout()
         self.horizontalLayout_8.setObjectName("horizontalLayout_8")
         self.horizontalLayout_8.setContentsMargins(-1, 0, -1, -1)
@@ -676,7 +677,7 @@ class Ui_MainWindow(object):
         self.histogramm.setSizePolicy(sizePolicy16)
         self.gridLayout_4 = QGridLayout(self.histogramm)
         self.gridLayout_4.setObjectName("gridLayout_4")
-        self.gridLayout_4.setContentsMargins(10, -1, 10, 5)
+        self.gridLayout_4.setContentsMargins(10, 10, 10, 5)
         self.histWidget = QWidget(self.histogramm)
         self.histWidget.setObjectName("histWidget")
 
@@ -759,6 +760,7 @@ class Ui_MainWindow(object):
         self.list.setSizePolicy(sizePolicy16)
         self.gridLayout = QGridLayout(self.list)
         self.gridLayout.setObjectName("gridLayout")
+        self.gridLayout.setContentsMargins(10, 10, 10, 5)
         self.tableView = QTableView(self.list)
         self.tableView.setObjectName("tableView")
         self.tableView.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -1113,7 +1115,7 @@ class Ui_MainWindow(object):
         self.buttonSetting.setDefault(False)
         self.radSample.setCurrentIndex(-1)
         self.groupLetter.setCurrentIndex(-1)
-        self.tabWidget.setCurrentIndex(1)
+        self.tabWidget.setCurrentIndex(0)
 
         QMetaObject.connectSlotsByName(MainWindow)
 

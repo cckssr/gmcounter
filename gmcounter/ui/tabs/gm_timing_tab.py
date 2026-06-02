@@ -11,7 +11,10 @@ from time import time
 from typing import Optional, List, Tuple
 
 from PySide6.QtCore import QTimer, Signal  # pylint: disable=no-name-in-module
-from PySide6.QtGui import QStandardItem, QStandardItemModel  # pylint: disable=no-name-in-module
+from PySide6.QtGui import (
+    QStandardItem,
+    QStandardItemModel,
+)  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QTabWidget,
     QTableView,

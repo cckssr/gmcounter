@@ -280,11 +280,11 @@ static void handleCONFSPKR(const String &param, bool isQuery)
     Serial1.println("U" + String(val));
 }
 
-// Returns last-acquisition statistics: dur_ms,npoints,debounced,overflows
+// Returns last-acquisition statistics: dur_ms,npoints,debounced,overflows,tx_drops
 static void handleDIAGSTAT()
 {
     Serial.println(
-        String(acqStats.endMs - acqStats.startMs) + "," + String(acqStats.nPoints) + "," + String(acqStats.debounced) + "," + String(acqStats.overflows));
+        String(acqStats.endMs - acqStats.startMs) + "," + String(acqStats.nPoints) + "," + String(acqStats.debounced) + "," + String(acqStats.overflows) + "," + String(acqStats.txDrops));
 }
 
 // ── Dispatcher ────────────────────────────────────────────────────────────────

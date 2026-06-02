@@ -52,30 +52,53 @@ void gmISR()
 }
 
 // ── USB TX batching ───────────────────────────────────────────────────────────
-// Packets are coalesced into _txBuf and flushed with one Serial.write().  This
-// runs entirely in loop() context (never the ISR), so a blocking USB write here
-// delays only the next drain, not pulse timestamping.
-static uint8_t _txBuf[TX_BATCH_PACKETS * 6];
+// Packets are coalesced into _txBuf and flushed with non-blocking writes.
+// _txBuf is TX_BUF_PACKETS × 6 bytes — larger than TX_BATCH_PACKETS × 6 so
+// partial-flush residue fits without overflow when the USB host is temporarily
+// slow.  txFlush() never blocks: it writes only what availableForWrite() can
+// accept and leaves the rest for the next drain cycle.  This guarantees that
+// gmProcessAcquisition() is never stalled by USB back-pressure, which would
+// prevent the ring buffer from draining and produce artificial large deltas.
+static uint8_t _txBuf[TX_BUF_PACKETS * 6];
 static uint16_t _txLen = 0;
 
 static void txFlush()
 {
-    if (_txLen > 0)
+    if (_txLen == 0)
+        return;
+
+    int avail = Serial.availableForWrite();
+    if (avail < 6)
+        return; // USB TX buffer full — leave data, retry on next drain cycle
+
+    size_t toWrite = ((size_t)avail < (size_t)_txLen) ? (size_t)avail : (size_t)_txLen;
+    toWrite -= toWrite % 6; // packet-aligned: never split a framed packet
+    if (toWrite == 0)
+        return;
+
+    Serial.write(_txBuf, toWrite);
+
+    if (toWrite == _txLen)
     {
-        Serial.write(_txBuf, _txLen);
         _txLen = 0;
+    }
+    else
+    {
+        // Slide unwritten residue to the front for next flush attempt.
+        memmove(_txBuf, _txBuf + toWrite, _txLen - toWrite);
+        _txLen -= (uint16_t)toWrite;
     }
 }
 
-/**
- * @brief Append a 32-bit value to the TX batch as a framed binary packet.
- * Format: 0xAA [LSB] [ ] [ ] [MSB] 0x55 (little-endian), so the host can
- * distinguish valid packets from spurious data.  Flushes when the batch fills.
- *
- * @param value The 32-bit unsigned tick delta to send.
- */
+// Append a 32-bit tick delta as a framed 6-byte packet, flush when batch full.
 static void txAppend(uint32_t value)
 {
+    if (_txLen + 6 > sizeof(_txBuf))
+    {
+        // Residue from repeated partial flushes filled the buffer — drop packet.
+        acqStats.txDrops++;
+        return;
+    }
     uint8_t *p = &_txBuf[_txLen];
     p[0] = 0xAA;
     p[1] = (uint8_t)(value & 0xFF);
@@ -84,7 +107,7 @@ static void txAppend(uint32_t value)
     p[4] = (uint8_t)((value >> 24) & 0xFF);
     p[5] = 0x55;
     _txLen += 6;
-    if (_txLen >= sizeof(_txBuf))
+    if (_txLen >= (uint16_t)(TX_BATCH_PACKETS * 6))
         txFlush();
 }
 
@@ -119,7 +142,13 @@ void gmStartAcquisition()
 void gmStopAcquisition()
 {
     gmState.streaming = false;
-    txFlush(); // push any packets still sitting in the batch buffer
+    // Drain the TX buffer with retries — at stop we can afford to wait.
+    // Non-blocking txFlush() may need several attempts if the host was slow.
+    for (uint8_t i = 0; i < 100 && _txLen > 0; i++)
+    {
+        txFlush();
+        delayMicroseconds(500);
+    }
     acqStats.endMs = millis();
     // NOTE: do NOT call acqStats.print() here — the binary stream may still be
     // in the USB TX buffer and text output would corrupt it.

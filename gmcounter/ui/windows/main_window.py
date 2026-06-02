@@ -227,6 +227,8 @@ class MainWindow(QMainWindow):
             self.ui.sQModeMan.setEnabled(True)
         self._save_service.mark_unsaved()
         self._set_status_indicator("Gestoppt", "yellow")
+        self.ui.progressBar.setMaximum(1)
+        self.ui.progressBar.setValue(0)
 
     def _on_device_state_updated(self, data: dict) -> None:
         label_map = CONFIG.get("gm_counter", {}).get("label_map", {})

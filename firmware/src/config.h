@@ -41,12 +41,18 @@
 #define DEBOUNCE_TICKS (DEBOUNCE_US * TICKS_PER_US)
 
 // --- USB TX batching ----------------------------------------------------------
-// Number of 6-byte packets coalesced into one Serial.write() while streaming.
-// A single USB CDC write of N×6 bytes is far cheaper than N single-byte writes
-// and never blocks the ISR (the ISR only ever touches the ring buffer, not the
-// serial port).  The batch is flushed as soon as the ring buffer drains, so
-// this adds throughput without adding latency.
+// TX_BATCH_PACKETS: number of 6-byte packets coalesced before a flush attempt.
+// TX_BUF_PACKETS:   total _txBuf capacity — must be > TX_BATCH_PACKETS to absorb
+//                   residue left over when a partial non-blocking flush can only
+//                   send part of the batch (host USB buffer temporarily full).
+//
+// txFlush() is non-blocking: it writes only what Serial.availableForWrite()
+// can accept without stalling.  Leftover bytes stay in _txBuf for the next
+// drain cycle.  This ensures gmProcessAcquisition() is never blocked by USB
+// back-pressure, which would stall ring-buffer draining and cause artificial
+// large inter-event deltas when the ring buffer subsequently overflows.
 #define TX_BATCH_PACKETS 32
+#define TX_BUF_PACKETS 64 // 2× batch — headroom for partial-flush residue
 
 // --- Ring buffer (power of 2) ---
 // 1024 × 4 B = 4 KB of the RA4M1's 32 KB SRAM.  At 10 kHz this buffers ~102 ms
@@ -57,8 +63,13 @@
 // --- Device identity (*IDN?) ---
 #define DEVICE_MFR "TU Berlin"
 #define DEVICE_MODEL "GM-Counter"
-#define DEVICE_SERIAL "0"
-#define FW_VERSION "2.1.0"
+
+#ifndef DEVICE_SERIAL
+#error "DEVICE_SERIAL not defined — add -DDEVICE_SERIAL=<value> to the build-flags block in platformio.ini"
+#endif
+#ifndef FW_VERSION
+#error "FW_VERSION not defined — add -DFW_VERSION=<value> to the build-flags block in platformio.ini"
+#endif
 
 // --- Error queue ---
 #define ERR_QUEUE_SIZE 8

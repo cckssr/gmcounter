@@ -36,10 +36,11 @@ struct AcqStats
     unsigned long nPoints = 0;
     unsigned long debounced = 0;
     unsigned long overflows = 0; // ISR ring-buffer overflow events (pulses dropped)
+    unsigned long txDrops = 0;   // TX batch flushes where Serial.write() dropped bytes
 
-    void reset() { startMs = endMs = nPoints = debounced = overflows = 0; }
+    void reset() { startMs = endMs = nPoints = debounced = overflows = txDrops = 0; }
 
-    // Emit four STAT: lines — only call when the host is in idle (text) mode,
+    // Emit five STAT: lines — only call when the host is in idle (text) mode,
     // never while the binary acquisition stream is open.
     void print() const
     {
@@ -47,6 +48,7 @@ struct AcqStats
         Serial.println("STAT:NPTS " + String(nPoints));
         Serial.println("STAT:DBNCE " + String(debounced));
         Serial.println("STAT:OFLOW " + String(overflows));
+        Serial.println("STAT:TXDRP " + String(txDrops));
     }
 };
 
