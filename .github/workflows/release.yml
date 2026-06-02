@@ -10,37 +10,6 @@ env:
   CLI_COMMAND: gmcounter
   MODULE_COMMAND: python -m gmcounter
   REPOSITORY_URL: https://github.com/${{ github.repository }}
-  RELEASE_BODY: |
-    ## ${{ env.PROJECT_NAME }} ${{ github.ref_name }}
-
-    Python package release published from this repository.
-
-    ### Installation
-
-    ```bash
-    pip install git+${{ env.REPOSITORY_URL }}.git@${{ github.ref_name }}
-    ```
-
-    Or install the latest stable release:
-
-    ```bash
-    pip install git+${{ env.REPOSITORY_URL }}.git
-    ```
-
-    ### Launch
-
-    ```bash
-    ${{ env.CLI_COMMAND }}
-    ```
-
-    or via python:
-
-    ```bash
-    ${{ env.MODULE_COMMAND }}
-    ```
-
-    See the [README](${{ env.REPOSITORY_URL }}#readme) for package-specific
-    installation details and configuration options.
 
 permissions:
   contents: write
@@ -87,7 +56,37 @@ jobs:
           name: Release ${{ github.ref_name }}
           prerelease: ${{ steps.pre.outputs.is_prerelease }}
           generate_release_notes: true
-          body: ${{ env.RELEASE_BODY }}
+          body: |
+            ## ${{ env.PROJECT_NAME }} ${{ github.ref_name }}
+
+            Python package release published from this repository.
+
+            ### Installation
+
+            ```bash
+            pip install git+${{ env.REPOSITORY_URL }}.git@${{ github.ref_name }}
+            ```
+
+            Or install the latest stable release:
+
+            ```bash
+            pip install git+${{ env.REPOSITORY_URL }}.git
+            ```
+
+            ### Launch
+
+            ```bash
+            ${{ env.CLI_COMMAND }}
+            ```
+
+            or via python:
+
+            ```bash
+            ${{ env.MODULE_COMMAND }}
+            ```
+
+            See the [README](${{ env.REPOSITORY_URL }}#readme) for package-specific
+            installation details and configuration options.
           files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
