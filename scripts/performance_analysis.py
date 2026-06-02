@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""
-Performance-Analyse-Tool für die Datenakquisition.
+"""Performance-Analyse-Tool für die Datenakquisition.
+
 Misst die maximale Datenrate und identifiziert Engpässe.
 """
 
@@ -18,7 +18,6 @@ from unittest.mock import Mock
 
 def performance_test_data_controller():
     """Teste die Performance des DataControllers."""
-
     print("=== Performance-Test: DataController ===")
 
     # Mock PlotWidget
@@ -104,12 +103,10 @@ def performance_test_data_controller():
 
 def performance_test_serial_simulation():
     """Simuliere seriellen Datenverkehr mit verschiedenen Raten."""
-
     print("\n=== Performance-Test: Serielle Daten-Simulation ===")
 
     def simulate_packet_processing(packet_rate_hz, test_duration=2.0):
         """Simuliere die Verarbeitung von binären Paketen."""
-
         # Simuliere das 6-Byte-Protokoll
         START_BYTE = 0xAA
         END_BYTE = 0x55
@@ -184,7 +181,6 @@ def performance_test_serial_simulation():
 
 def identify_bottlenecks():
     """Identifiziere spezifische Performance-Engpässe."""
-
     print("\n=== Bottleneck-Analyse ===")
 
     # 1. Queue-Operations-Test

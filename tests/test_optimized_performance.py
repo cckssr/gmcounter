@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Test der Performance-Verbesserungen nach den Optimierungen.
-"""
+"""Test der Performance-Verbesserungen nach den Optimierungen."""
 
 import sys
 import os
@@ -12,7 +10,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 def test_optimized_performance():
     """Teste die Performance nach den Optimierungen."""
-
     print("=== Performance-Test nach Optimierungen ===")
 
     # Importiere die optimierten Module
@@ -112,7 +109,6 @@ def test_optimized_performance():
 
 def estimate_real_world_performance():
     """Schätze die reale Performance mit den Optimierungen."""
-
     print(f"\n=== Reale Performance-Schätzung ===")
 
     # Baudrate-Limits (mit Optimierungen)
@@ -154,7 +150,6 @@ def estimate_real_world_performance():
 
 def create_performance_summary():
     """Erstelle eine Zusammenfassung der Performance-Optimierungen."""
-
     summary = {
         "optimizations_applied": [
             "Baudrate: 9600 → 115200 (+12x Serial-Throughput)",

@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-Unit-Tests für die ConnectionWindow-Klasse.
+"""Unit-Tests für die ConnectionWindow-Klasse.
 
 Dieser Test testet das Connection Window, das für die Verbindung mit seriellen Geräten
 und Mock-Geräten (Demo-Modus) zuständig ist.

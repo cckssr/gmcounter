@@ -10,7 +10,6 @@ import pytest
 from gmcounter.ui.tabs.registry import TabRegistry
 from gmcounter.infrastructure.modules.registry import ModuleRegistry
 
-
 # ------------------------------------------------------------------
 # Registry basics (no Qt needed)
 

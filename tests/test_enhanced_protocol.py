@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""
-Test script for the enhanced binary protocol with START_BYTE (0xAA) and END_BYTE (0x55).
+"""Test script for the enhanced binary protocol with START_BYTE (0xAA) and END_BYTE (0x55).
+
 Tests packet validation and invalid data rejection.
 """
 

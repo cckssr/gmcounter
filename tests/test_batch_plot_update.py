@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""
-Test script to verify the batch plot update functionality.
+"""Test script to verify the batch plot update functionality.
+
 Tests both the new update_plot_batch method and the updated DataController logic.
 """
 

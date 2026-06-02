@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Test-Runner für die GMCounter-Anwendung.
+"""Test-Runner für die GMCounter-Anwendung.
 
 Führt alle Unit-Tests im 'tests'-Verzeichnis aus und gibt einen detaillierten Bericht aus.
 """
@@ -14,9 +13,7 @@ from pathlib import Path
 
 
 def run_all_tests():
-    """
-    Führt alle Tests im 'tests'-Verzeichnis aus.
-    """
+    """Führt alle Tests im 'tests'-Verzeichnis aus."""
     # Sicherstellen, dass das Hauptverzeichnis im Python-Pfad ist
     sys.path.insert(0, str(Path(__file__).parent))
 

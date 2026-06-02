@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Debug script to check DataController queue processing.
-"""
+"""Debug script to check DataController queue processing."""
 
 import sys
 import time

@@ -67,6 +67,7 @@ class DataController(QObject):
                 [count, min, max, avg, standardDeviation]
             table_widget: Optional table widget for data display.
             max_history: Maximum number of data points for GUI display (not file storage).
+            gui_update_interval: Interval in milliseconds for GUI updates (default 500ms).
         """
         super().__init__()
         self.plot = plot_widget

@@ -13,7 +13,6 @@ from unittest.mock import Mock
 
 def test_complete_plot_reset():
     """Test des kompletten Plot-Reset-Workflows."""
-
     print("=== Integrationstest: Kompletter Plot-Reset bei neuer Messung ===")
 
     # Mock PlotWidget

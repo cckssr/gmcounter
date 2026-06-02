@@ -15,9 +15,9 @@ from gmcounter.infrastructure.logging import Debug
 
 
 class MockGMCounter:
-    """
-    Eine Mock-Klasse für GMCounter, die dessen Verhalten für Testzwecke simuliert,
-    ohne ein physisches Gerät zu benötigen.
+    """Eine Mock-Klasse für GMCounter, die dessen Verhalten für Testzwecke simuliert.
+
+    Benötigt kein physisches Gerät.
     """
 
     def __init__(
@@ -243,9 +243,7 @@ class MockGMCounter:
 
 
 def main(device_class=MockGMCounter):
-    """
-    Erstellt eine virtuelle serielle Schnittstelle und simuliert ein Gerät.
-    """
+    """Erstellt eine virtuelle serielle Schnittstelle und simuliert ein Gerät."""
     port_file = os.path.join(gettempdir(), "virtual_serial_port.txt")
 
     master, slave = pty.openpty()

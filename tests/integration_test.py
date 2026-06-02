@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Integrationstest für die refaktorierte GMCounter-Anwendung.
+"""Integrationstest für die refaktorierte GMCounter-Anwendung.
+
 Überprüft die Grundfunktionalität der Anwendung nach der Umstrukturierung.
 """
 

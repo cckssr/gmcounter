@@ -53,7 +53,7 @@ class DummyPlot:
         self.data.append(point)
 
     def update_plot_batch(self, points):
-        """Support for batch updates"""
+        """Support for batch updates."""
         for point in points:
             self.data.append(point)
 
@@ -84,7 +84,7 @@ class DataControllerTests(unittest.TestCase):
         self.assertEqual(self.ctrl.gui_data_points[0], (1, 0.5))
 
     def test_add_data_point_fast(self):
-        """Test the new fast data point method with queue processing"""
+        """Test the new fast data point method with queue processing."""
         # Add data points using the fast method (only 3 due to max_history limit)
         for i in range(3):
             self.ctrl.add_data_point_fast(i, float(i * 0.1))

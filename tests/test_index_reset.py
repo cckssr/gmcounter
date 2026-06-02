@@ -12,7 +12,6 @@ from unittest.mock import Mock
 
 def test_index_reset():
     """Test der Index-Reset-Funktionalität."""
-
     print("=== Test: Index-Reset bei neuer Messung ===")
 
     # Mock DeviceManager

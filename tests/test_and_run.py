@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Test- und Start-Skript für die GMCounter-Anwendung.
+"""Test- und Start-Skript für die GMCounter-Anwendung.
 
 Dieses Skript führt alle Tests aus und startet dann die Anwendung,
 wenn die Tests erfolgreich waren.
@@ -16,8 +15,7 @@ import argparse
 
 
 def run_tests():
-    """
-    Führt alle Unit- und Integrationstests aus.
+    """Führt alle Unit- und Integrationstests aus.
 
     Returns:
         bool: True wenn alle Tests erfolgreich waren, sonst False
@@ -41,9 +39,7 @@ def run_tests():
 
 
 def start_application():
-    """
-    Startet die GMCounter-Anwendung.
-    """
+    """Startet die GMCounter-Anwendung."""
     print("Starte GMCounter-Anwendung...")
 
     # Pfad zum Startskript
@@ -54,10 +50,7 @@ def start_application():
 
 
 def main():
-    """
-    Hauptfunktion: Verarbeitet die Kommandozeilenparameter und führt
-    entsprechende Aktionen aus.
-    """
+    """Hauptfunktion: Verarbeitet die Kommandozeilenparameter und führt entsprechende Aktionen aus."""
     parser = argparse.ArgumentParser(description="GMCounter Test- und Start-Skript")
     parser.add_argument(
         "--no-tests", action="store_true", help="Überspringt die Ausführung der Tests"

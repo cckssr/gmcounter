@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
-"""
-Build-Skript für Read the Docs Dokumentation
+"""Build-Skript für Read the Docs Dokumentation.
+
 Dieses Skript erstellt die Sphinx-Dokumentation für das GMCounter-Projekt
 """
 
@@ -12,7 +11,7 @@ from pathlib import Path
 
 
 def run_command(cmd, cwd=None):
-    """Führt einen Shell-Befehl aus und gibt das Ergebnis zurück"""
+    """Führt einen Shell-Befehl aus und gibt das Ergebnis zurück."""
     try:
         result = subprocess.run(
             cmd, shell=True, cwd=cwd, capture_output=True, text=True
@@ -28,7 +27,7 @@ def run_command(cmd, cwd=None):
 
 
 def setup_sphinx_docs():
-    """Erstellt die Sphinx-Dokumentation"""
+    """Erstellt die Sphinx-Dokumentation."""
     print("🚀 Erstelle Read the Docs Dokumentation...")
 
     # Aktuelles Verzeichnis ermitteln
@@ -65,7 +64,7 @@ def setup_sphinx_docs():
 
 
 def install_requirements():
-    """Installiert die benötigten Pakete"""
+    """Installiert die benötigten Pakete."""
     print("📦 Installiere Abhängigkeiten...")
 
     requirements_files = ["docs/requirements.txt", "requirements.txt"]
@@ -81,7 +80,7 @@ def install_requirements():
 
 
 def check_readthedocs_config():
-    """Prüft die Read the Docs Konfiguration"""
+    """Prüft die Read the Docs Konfiguration."""
     print("🔍 Prüfe Read the Docs Konfiguration...")
 
     config_file = Path(".readthedocs.yaml")
@@ -111,7 +110,7 @@ def check_readthedocs_config():
 
 
 def main():
-    """Hauptfunktion"""
+    """Hauptfunktion."""
     print("🎯 Read the Docs Setup für GMCounter")
     print("=" * 50)
 

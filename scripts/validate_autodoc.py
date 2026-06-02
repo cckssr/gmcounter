@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""
-Validierungsskript für die generierte API-Dokumentation
+"""Validierungsskript für die generierte API-Dokumentation.
+
 Prüft, ob die Autodoc-Funktionalität korrekt funktioniert
 """
 
@@ -10,7 +10,7 @@ import re
 
 
 def validate_api_documentation():
-    """Validiert die generierte API-Dokumentation"""
+    """Validiert die generierte API-Dokumentation."""
     print("🔍 Validiere API-Dokumentation...")
 
     # Pfad zur generierten HTML-Datei
@@ -91,7 +91,7 @@ def validate_api_documentation():
 
 
 def validate_module_index():
-    """Validiert den Python-Modulindex"""
+    """Validiert den Python-Modulindex."""
     print("\n🔍 Validiere Python-Modulindex...")
 
     modindex_path = Path("docs/_build/html/py-modindex.html")
@@ -125,7 +125,7 @@ def validate_module_index():
 
 
 def main():
-    """Hauptfunktion"""
+    """Hauptfunktion."""
     print("🎯 Validierung der API-Dokumentation")
     print("=" * 50)
 

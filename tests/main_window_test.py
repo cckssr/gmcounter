@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Unit-Tests für die MainWindow-Klasse.
-"""
+"""Unit-Tests für die MainWindow-Klasse."""
 
 import sys
 from pathlib import Path

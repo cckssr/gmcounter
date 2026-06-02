@@ -112,11 +112,8 @@ class FastPlotCurveItem(pg.PlotCurveItem):
         """Set data with optimized performance.
 
         Args:
-            x, y: Data arrays or lists
-            pen: Pen for drawing
-            antialias: Enable antialiasing (default: False for speed)
-            skipFiniteCheck: Skip NaN/inf checking (faster for pre-validated data)
-            connect: Connection array or string ('all', 'pairs', 'finite', 'array')
+            *args: Positional arguments for setData (x, y, etc.)
+            **kwds: Keyword arguments for setData (e.g., skipFiniteCheck)
         """
         # Mark cache as invalid
         self._data_changed = True
