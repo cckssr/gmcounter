@@ -160,6 +160,38 @@ jobs:
           git push origin "v$VERSION"
           echo "Created and pushed tag v$VERSION"
 
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.new_version }}
+          name: Release v${{ steps.ver.outputs.new_version }}
+          prerelease: ${{ inputs.prerelease != 'none' }}
+          generate_release_notes: true
+          body: |
+            ## ${{ github.repository }} v${{ steps.ver.outputs.new_version }}
+
+            Python package release created by the version bump workflow.
+
+            ### Installation
+
+            ```bash
+            pip install git+https://github.com/${{ github.repository }}.git@v${{ steps.ver.outputs.new_version }}
+            ```
+
+            ### Launch
+
+            ```bash
+            gmcounter
+            ```
+
+            or via python:
+
+            ```bash
+            python -m gmcounter
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Summary
         run: |
           VERSION="${{ steps.ver.outputs.new_version }}"
@@ -171,10 +203,6 @@ jobs:
           echo "| **Bump type** | ${{ inputs.bump_type }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Prerelease** | ${{ inputs.prerelease }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Tag pushed** | \`v$VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Release created** | ✅ v$VERSION |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ secrets.PAT_TOKEN }}" != "" ]; then
-            echo "The tag push will trigger **release.yml** automatically." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "> **Note:** No \`PAT_TOKEN\` secret configured — tag push will NOT" >> $GITHUB_STEP_SUMMARY
-            echo "> automatically trigger \`release.yml\`. Run it manually from the Actions tab." >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "The release is created directly by this workflow, so no downstream trigger is required." >> $GITHUB_STEP_SUMMARY
