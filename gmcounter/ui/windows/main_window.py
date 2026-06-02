@@ -17,6 +17,7 @@ from ...core.services import SaveService
 from ..controllers.app_controller import AppController
 from ..tabs.registry import TabRegistry
 from ..tabs.gm_timing_tab import GMTimingTab  # registers at import time
+from ..tabs.distance_law_tab import DistanceLawTab  # registers at import time
 from ..widgets.event_log_panel import EventLogPanel
 from ..common import dialogs as MessageHelper
 from ..common.file_dialogs import FileDialogManager
@@ -78,6 +79,28 @@ class MainWindow(QMainWindow):
 
         # Register with AppController
         self._ctrl.set_active_tab(self._gm_tab)
+
+        # Distance-law sweep tab — the QWidget page already lives in .ui;
+        # inject the widgets from that page and build the GeneralPlot inside.
+        self._distance_tab = DistanceLawTab(parent=self)
+        self._distance_tab.set_gm_tab(self._gm_tab)
+        self._distance_tab.inject_ui(
+            plot_container=self.ui.distancePlot,
+            table_view=self.ui.distanceTable,
+            param_input=self.ui.distanceInput,
+            status_label=self.ui.distanceStatus,
+        )
+        self._distance_tab.build()
+
+        # Sweep session state — True while any parameter sweep is running
+        self._sweep_session: bool = False
+
+        # GMTimingTab.on_measurement_stopped fires first (connected via
+        # set_active_tab), so _session_end is already stamped when the sweep
+        # tab snapshots the export.
+        self._ctrl.measurement_stopped.connect(
+            self._distance_tab.on_measurement_stopped
+        )
 
         # Wire TabRegistry for any future experiments
         self._refresh_tab_visibility()
@@ -213,7 +236,6 @@ class MainWindow(QMainWindow):
         self._set_status_indicator("Messung", "blue")
 
     def _on_measurement_stopped(self) -> None:
-        self.ui.buttonStart.setEnabled(False)  # disabled until data saved/reset
         self.ui.buttonStop.setEnabled(False)
         self.ui.buttonSave.setEnabled(True)
         self.ui.buttonReset.setEnabled(True)
@@ -226,10 +248,19 @@ class MainWindow(QMainWindow):
             self.ui.sQModeAuto.setEnabled(True)
         if hasattr(self.ui, "sQModeMan"):
             self.ui.sQModeMan.setEnabled(True)
-        self._save_service.mark_unsaved()
         self._set_status_indicator("Gestoppt", "yellow")
         self.ui.progressBar.setMaximum(1)
         self.ui.progressBar.setValue(0)
+
+        if self._sweep_session:
+            # In a sweep session Start stays enabled so the user can fire the
+            # next distance measurement immediately; unsaved state is tracked by
+            # the sweep tab, not _save_service.
+            self.ui.buttonStart.setEnabled(True)
+        else:
+            # Normal mode: Start disabled until data is saved/reset.
+            self.ui.buttonStart.setEnabled(False)
+            self._save_service.mark_unsaved()
 
     def _on_device_state_updated(self, data: dict) -> None:
         label_map = CONFIG.get("gm_counter", {}).get("label_map", {})
@@ -278,87 +309,215 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------
     # Measurement button handlers
+    #
+    # The same Start / Stop / Speichern / Reset buttons serve both the normal
+    # GM timing mode and any parameter-sweep tab (Abstandsgesetz, etc.).
+    # _current_sweep_tab() returns the active sweep tab when one is selected;
+    # None otherwise.  Button logic branches on that single check.
+
+    def _current_sweep_tab(self):
+        """Return the active ParameterSweepTabBase if one is selected, else None."""
+        from ..tabs.parameter_sweep_base import ParameterSweepTabBase
+
+        widget = self.ui.tabWidget.currentWidget()
+        return widget if isinstance(widget, ParameterSweepTabBase) else None
+
+    def _set_gm_views_enabled(self, enabled: bool) -> None:
+        """Enable or disable the three GM timing view tabs (Zeitverlauf, Histogramm, Liste).
+
+        Called when entering / leaving a sweep session so the data tabs cannot
+        be switched to while sweep measurements are running.
+        """
+        for idx in range(3):  # tabs 0=Zeitverlauf 1=Histogramm 2=Liste
+            self.ui.tabWidget.setTabEnabled(idx, enabled)
 
     def _handle_start(self) -> None:
-        if self._save_service.has_unsaved():
-            MessageHelper.show_warning(
-                self,
-                "Bitte speichern oder löschen Sie die vorhandenen Messdaten.",
-                "Warnung",
+        sweep = self._current_sweep_tab()
+
+        if sweep is not None:
+            # ── Sweep mode ──────────────────────────────────────────────
+            seconds_map = {0: 0, 1: 1, 2: 10, 3: 60, 4: 100, 5: 300}
+            idx = int(self.ui.sDuration.currentIndex())
+
+            if idx == 0 and not self._sweep_session:
+                # Warn on infinite time only at the first measurement of a session
+                if not MessageHelper.ask_question(
+                    self,
+                    "Die Messzeit ist auf 'unbegrenzt' eingestellt.\n\n"
+                    "Für Abstandsmessungen empfiehlt sich eine feste Messzeit, "
+                    "damit alle Messpunkte vergleichbar sind.\n\n"
+                    "Trotzdem fortfahren?",
+                    "Hinweis: unbegrenzte Messzeit",
+                ):
+                    return
+
+            # Previous data already captured in on_measurement_stopped; bypass
+            # the unsaved-data guard for repeat measurements in the same session.
+            self._save_service.mark_saved()
+
+            if not self._sweep_session:
+                # First measurement of this sweep session: disable GM view tabs and
+                # suppress high-speed auto-switch to Histogramm.
+                self._sweep_session = True
+                self._set_gm_views_enabled(False)
+                self._gm_tab.set_high_speed_autoswitch(False)
+
+            total = seconds_map.get(idx, 0)
+            self._gm_tab.set_measurement_metadata(
+                rad_sample=self.ui.radSample.currentText(),
+                group=self.ui.groupLetter.currentText(),
+                subterm=self.ui.suffix.text().strip(),
             )
-            return
+            self._ctrl.start_measurement(total_seconds=total)
 
-        seconds_map = {0: 0, 1: 1, 2: 10, 3: 60, 4: 100, 5: 300}
-        idx = int(self.ui.sDuration.currentIndex())
-        total = seconds_map.get(idx, 0)
-        if total == 0:
-            total = 0  # indeterminate
+        else:
+            # ── Normal GM timing mode ────────────────────────────────────
+            if self._save_service.has_unsaved():
+                MessageHelper.show_warning(
+                    self,
+                    "Bitte speichern oder löschen Sie die vorhandenen Messdaten.",
+                    "Warnung",
+                )
+                return
 
-        self._gm_tab.set_measurement_metadata(
-            rad_sample=self.ui.radSample.currentText(),
-            group=self.ui.groupLetter.currentText(),
-            subterm=self.ui.suffix.text().strip(),
-        )
-        self._ctrl.start_measurement(total_seconds=total)
+            seconds_map = {0: 0, 1: 1, 2: 10, 3: 60, 4: 100, 5: 300}
+            idx = int(self.ui.sDuration.currentIndex())
+            total = seconds_map.get(idx, 0)
+
+            self._gm_tab.set_measurement_metadata(
+                rad_sample=self.ui.radSample.currentText(),
+                group=self.ui.groupLetter.currentText(),
+                subterm=self.ui.suffix.text().strip(),
+            )
+            self._ctrl.start_measurement(total_seconds=total)
 
     def _handle_stop(self) -> None:
         self._ctrl.stop_measurement()
 
     def _handle_save(self) -> None:
-        if not self._save_service.has_unsaved():
-            MessageHelper.show_info(self, "Keine ungespeicherten Daten.", "Information")
-            return
+        if self._sweep_session and self._distance_tab.has_data():
+            # ── Sweep save: summary CSV + auto-named individual timing CSVs ──
+            from ...infrastructure.save_service import write_export
 
-        export = self._gm_tab.export()
-        if not export:
-            MessageHelper.show_error(self, "Keine Messdaten zum Speichern.", "Fehler")
-            return
+            summary = self._distance_tab.summary_export()
+            if not summary:
+                MessageHelper.show_info(
+                    self, "Keine Zusammenfassungsdaten vorhanden.", "Information"
+                )
+                return
 
-        # Collect extended metadata
-        extra = {
-            "gui_version": gmcounter.__version__,
-        }
-        dist = self.ui.sampleDistance.value()
-        if dist != 0:
-            extra["sample_distance_cm"] = dist
-        openbis = self.ui.cOpenbis.text()
-        if openbis and openbis != "unknown":
-            extra["counter_openbis_code"] = openbis
-        fw = self.ui.cVersion.text()
-        if fw and fw != "unknown":
-            extra["counter_firmware_version"] = fw
-        if export.rows:
-            extra["total_count"] = len(export.rows)
+            saved = self._file_dialog_manager.manual_save_export(
+                self,
+                summary,
+                self.ui.radSample.currentText(),
+                self.ui.groupLetter.currentText(),
+                self.ui.suffix.text().strip(),
+            )
+            if not saved or not saved.exists():
+                return
 
-        export.metadata.update(extra)
+            # Auto-write individual timing exports alongside the summary
+            individual = self._distance_tab.individual_exports
+            ok_count = 0
+            for i, exp in enumerate(individual):
+                dist = exp.metadata.get(self._distance_tab.param_metadata_key, "?")
+                auto_name = f"{saved.stem}_d{dist}{self._distance_tab.param_unit}_m{i + 1:02d}.csv"
+                try:
+                    write_export(exp, saved.parent / auto_name)
+                    ok_count += 1
+                except Exception as exc:
+                    _log.warning(
+                        "Could not write individual export %s: %s", auto_name, exc
+                    )
 
-        saved = self._file_dialog_manager.manual_save_export(
-            self,
-            export,
-            self.ui.radSample.currentText(),
-            self.ui.groupLetter.currentText(),
-            self.ui.suffix.text().strip(),
-        )
-
-        if saved and saved.exists():
+            # Tear down sweep session
+            self._distance_tab.mark_saved()
+            self._distance_tab.reset_summary()
+            self._sweep_session = False
+            self._set_gm_views_enabled(True)
+            self._gm_tab.set_high_speed_autoswitch(True)
+            self._gm_tab.on_reset()
             self._save_service.mark_saved()
+
             self.ui.buttonSave.setEnabled(False)
             self.ui.buttonStart.setEnabled(True)
-            self._status_bar.show_message("Gespeichert.", duration=3000)
+            n = len(individual)
+            self._status_bar.show_message(
+                f"Zusammenfassung gespeichert. {ok_count}/{n} Einzelmessung(en) exportiert.",
+                duration=5000,
+            )
+            self._set_status_indicator("Bereit", "green")
+
         else:
-            MessageHelper.show_error(self, "Fehler beim Speichern.", "Fehler")
+            # ── Normal single-measurement save ───────────────────────────
+            if not self._save_service.has_unsaved():
+                MessageHelper.show_info(
+                    self, "Keine ungespeicherten Daten.", "Information"
+                )
+                return
+
+            export = self._gm_tab.export()
+            if not export:
+                MessageHelper.show_error(
+                    self, "Keine Messdaten zum Speichern.", "Fehler"
+                )
+                return
+
+            extra = {"gui_version": gmcounter.__version__}
+            openbis = self.ui.cOpenbis.text()
+            if openbis and openbis != "unknown":
+                extra["counter_openbis_code"] = openbis
+            fw = self.ui.cVersion.text()
+            if fw and fw != "unknown":
+                extra["counter_firmware_version"] = fw
+            if export.rows:
+                extra["total_count"] = len(export.rows)
+            export.metadata.update(extra)
+
+            saved = self._file_dialog_manager.manual_save_export(
+                self,
+                export,
+                self.ui.radSample.currentText(),
+                self.ui.groupLetter.currentText(),
+                self.ui.suffix.text().strip(),
+            )
+            if saved and saved.exists():
+                self._save_service.mark_saved()
+                self.ui.buttonSave.setEnabled(False)
+                self.ui.buttonStart.setEnabled(True)
+                self._status_bar.show_message("Gespeichert.", duration=3000)
+            else:
+                MessageHelper.show_error(self, "Fehler beim Speichern.", "Fehler")
 
     def _handle_reset(self) -> None:
         if self._ctrl.is_measuring:
             MessageHelper.show_warning(self, "Messung läuft.", "Warnung")
             return
-        if self._save_service.has_unsaved():
-            if not MessageHelper.ask_question(
-                self,
-                CONFIG.get("messages", {}).get("unsaved_data", "Daten verwerfen?"),
-                "Warnung",
-            ):
-                return
+
+        if self._sweep_session:
+            # Discard the entire sweep session without saving
+            if self._distance_tab.has_data():
+                if not MessageHelper.ask_question(
+                    self,
+                    CONFIG.get("messages", {}).get(
+                        "unsaved_data", "Messdaten verwerfen?"
+                    ),
+                    "Warnung",
+                ):
+                    return
+            self._distance_tab.reset_summary()
+            self._sweep_session = False
+            self._set_gm_views_enabled(True)
+            self._gm_tab.set_high_speed_autoswitch(True)
+        else:
+            if self._save_service.has_unsaved():
+                if not MessageHelper.ask_question(
+                    self,
+                    CONFIG.get("messages", {}).get("unsaved_data", "Daten verwerfen?"),
+                    "Warnung",
+                ):
+                    return
+
         self._gm_tab.on_reset()
         self._save_service.mark_saved()
         self.ui.buttonSave.setEnabled(False)

@@ -447,17 +447,11 @@ class Ui_MainWindow(object):
 
         self.formLayout_2.setWidget(1, QFormLayout.ItemRole.FieldRole, self.groupLetter)
 
-        self.label_20 = QLabel(self.groupBox)
-        self.label_20.setObjectName("label_20")
-        self.label_20.setFont(font1)
-
-        self.formLayout_2.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label_20)
-
         self.label_5 = QLabel(self.groupBox)
         self.label_5.setObjectName("label_5")
         self.label_5.setFont(font1)
 
-        self.formLayout_2.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_5)
+        self.formLayout_2.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label_5)
 
         self.suffix = QLineEdit(self.groupBox)
         self.suffix.setObjectName("suffix")
@@ -467,16 +461,7 @@ class Ui_MainWindow(object):
         self.suffix.setText("")
         self.suffix.setMaxLength(20)
 
-        self.formLayout_2.setWidget(3, QFormLayout.ItemRole.FieldRole, self.suffix)
-
-        self.sampleDistance = QDoubleSpinBox(self.groupBox)
-        self.sampleDistance.setObjectName("sampleDistance")
-        self.sampleDistance.setFont(font1)
-        self.sampleDistance.setMaximum(19999.000000000000000)
-
-        self.formLayout_2.setWidget(
-            2, QFormLayout.ItemRole.FieldRole, self.sampleDistance
-        )
+        self.formLayout_2.setWidget(2, QFormLayout.ItemRole.FieldRole, self.suffix)
 
         self.verticalLayout.addLayout(self.formLayout_2)
 
@@ -768,6 +753,74 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.tableView, 0, 0, 1, 1)
 
         self.tabWidget.addTab(self.list, "")
+        self.distance = QWidget()
+        self.distance.setObjectName("distance")
+        sizePolicy16.setHeightForWidth(self.distance.sizePolicy().hasHeightForWidth())
+        self.distance.setSizePolicy(sizePolicy16)
+        self.gridLayout_distance = QGridLayout(self.distance)
+        self.gridLayout_distance.setObjectName("gridLayout_distance")
+        self.gridLayout_distance.setContentsMargins(10, 10, 10, 5)
+        self.horizontalLayout_distance = QHBoxLayout()
+        self.horizontalLayout_distance.setObjectName("horizontalLayout_distance")
+        self.label_distanceInput = QLabel(self.distance)
+        self.label_distanceInput.setObjectName("label_distanceInput")
+        self.label_distanceInput.setFont(font1)
+
+        self.horizontalLayout_distance.addWidget(self.label_distanceInput)
+
+        self.distanceInput = QDoubleSpinBox(self.distance)
+        self.distanceInput.setObjectName("distanceInput")
+        self.distanceInput.setFont(font1)
+        self.distanceInput.setDecimals(1)
+        self.distanceInput.setSingleStep(0.500000000000000)
+        self.distanceInput.setMaximum(99999.000000000000000)
+
+        self.horizontalLayout_distance.addWidget(self.distanceInput)
+
+        self.horizontalSpacer_distance = QSpacerItem(
+            40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )
+
+        self.horizontalLayout_distance.addItem(self.horizontalSpacer_distance)
+
+        self.distanceStatus = QLabel(self.distance)
+        self.distanceStatus.setObjectName("distanceStatus")
+        self.distanceStatus.setFont(font1)
+        self.distanceStatus.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        self.horizontalLayout_distance.addWidget(self.distanceStatus)
+
+        self.gridLayout_distance.addLayout(self.horizontalLayout_distance, 0, 0, 1, 1)
+
+        self.distancePlot = QWidget(self.distance)
+        self.distancePlot.setObjectName("distancePlot")
+        sizePolicy15.setHeightForWidth(
+            self.distancePlot.sizePolicy().hasHeightForWidth()
+        )
+        self.distancePlot.setSizePolicy(sizePolicy15)
+
+        self.gridLayout_distance.addWidget(self.distancePlot, 1, 0, 1, 1)
+
+        self.distanceTable = QTableView(self.distance)
+        self.distanceTable.setObjectName("distanceTable")
+        sizePolicy5.setHeightForWidth(
+            self.distanceTable.sizePolicy().hasHeightForWidth()
+        )
+        self.distanceTable.setSizePolicy(sizePolicy5)
+        self.distanceTable.setMaximumSize(QSize(16777215, 200))
+        self.distanceTable.setFont(font1)
+        self.distanceTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.distanceTable.setAlternatingRowColors(True)
+        self.distanceTable.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+
+        self.gridLayout_distance.addWidget(self.distanceTable, 2, 0, 1, 1)
+
+        self.gridLayout_distance.setRowStretch(1, 1)
+        self.tabWidget.addTab(self.distance, "")
 
         self.gridLayout_2.addWidget(self.tabWidget, 4, 0, 1, 1)
 
@@ -1142,7 +1195,7 @@ class Ui_MainWindow(object):
         self.buttonSetting.setDefault(False)
         self.radSample.setCurrentIndex(-1)
         self.groupLetter.setCurrentIndex(-1)
-        self.tabWidget.setCurrentIndex(1)
+        self.tabWidget.setCurrentIndex(0)
 
         QMetaObject.connectSlotsByName(MainWindow)
 
@@ -1418,9 +1471,6 @@ class Ui_MainWindow(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
-        self.label_20.setText(
-            QCoreApplication.translate("MainWindow", "Probenabstand (cm)", None)
-        )
         self.label_5.setText(
             QCoreApplication.translate("MainWindow", "Eigenes Suffix", None)
         )
@@ -1508,6 +1558,28 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(
             self.tabWidget.indexOf(self.list),
             QCoreApplication.translate("MainWindow", "Liste", None),
+        )
+        self.label_distanceInput.setText(
+            QCoreApplication.translate("MainWindow", "Probenabstand (cm):", None)
+        )
+        # if QT_CONFIG(tooltip)
+        self.distanceInput.setToolTip(
+            QCoreApplication.translate(
+                "MainWindow", "Abstand der Probe vom Detektor in Zentimetern", None
+            )
+        )
+        # endif // QT_CONFIG(tooltip)
+        self.distanceInput.setSuffix(
+            QCoreApplication.translate("MainWindow", " cm", None)
+        )
+        self.distanceStatus.setText(
+            QCoreApplication.translate(
+                "MainWindow", "Keine Messpunkte aufgezeichnet.", None
+            )
+        )
+        self.tabWidget.setTabText(
+            self.tabWidget.indexOf(self.distance),
+            QCoreApplication.translate("MainWindow", "Abstandsgesetz", None),
         )
         self.label_4.setText(
             QCoreApplication.translate("MainWindow", "Voriges Z\u00e4hlergebnis", None)

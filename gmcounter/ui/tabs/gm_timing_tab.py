@@ -80,6 +80,7 @@ class GMTimingTab(PlotTabBase):
         self._high_speed = False
         self._batch_history: List[Tuple[float, int]] = []
         self._hist_timer: Optional[QTimer] = None
+        self._hs_autoswitch: bool = True  # set False during sweep sessions
 
         # GUI update timer
         self._gui_timer: Optional[QTimer] = None
@@ -137,6 +138,15 @@ class GMTimingTab(PlotTabBase):
         self._rad_sample = rad_sample
         self._group = group
         self._subterm = subterm
+
+    def set_high_speed_autoswitch(self, enabled: bool) -> None:
+        """Enable or disable the automatic tab switch to Histogramm on high-speed.
+
+        MainWindow disables this for the duration of a sweep session so the
+        Abstandsgesetz (or voltage) tab stays visible while data accumulates.
+        Data acquisition and histogram updates are unaffected.
+        """
+        self._hs_autoswitch = enabled
 
     # ------------------------------------------------------------------
     # PlotTabBase lifecycle
@@ -400,8 +410,8 @@ class GMTimingTab(PlotTabBase):
         if self._gui_timer:
             self._gui_timer.stop()
 
-        # Switch to Histogramm tab (index 1)
-        if self._tab_widget_ref:
+        # Switch to Histogramm tab (index 1) — skipped during sweep sessions
+        if self._tab_widget_ref and self._hs_autoswitch:
             self._tab_widget_ref.setCurrentIndex(1)
 
         # Start histogram-only timer (every 2 s)
