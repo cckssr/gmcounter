@@ -821,6 +821,65 @@ class Ui_MainWindow(object):
 
         self.gridLayout_distance.setRowStretch(1, 1)
         self.tabWidget.addTab(self.distance, "")
+        self.voltage = QWidget()
+        self.voltage.setObjectName("voltage")
+        sizePolicy16.setHeightForWidth(self.voltage.sizePolicy().hasHeightForWidth())
+        self.voltage.setSizePolicy(sizePolicy16)
+        self.gridLayout_voltage = QGridLayout(self.voltage)
+        self.gridLayout_voltage.setObjectName("gridLayout_voltage")
+        self.gridLayout_voltage.setContentsMargins(10, 10, 10, 5)
+        self.horizontalLayout_voltage = QHBoxLayout()
+        self.horizontalLayout_voltage.setObjectName("horizontalLayout_voltage")
+        self.label_voltageHint = QLabel(self.voltage)
+        self.label_voltageHint.setObjectName("label_voltageHint")
+        self.label_voltageHint.setFont(font1)
+
+        self.horizontalLayout_voltage.addWidget(self.label_voltageHint)
+
+        self.horizontalSpacer_voltage = QSpacerItem(
+            40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )
+
+        self.horizontalLayout_voltage.addItem(self.horizontalSpacer_voltage)
+
+        self.voltageStatus = QLabel(self.voltage)
+        self.voltageStatus.setObjectName("voltageStatus")
+        self.voltageStatus.setFont(font1)
+        self.voltageStatus.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        self.horizontalLayout_voltage.addWidget(self.voltageStatus)
+
+        self.gridLayout_voltage.addLayout(self.horizontalLayout_voltage, 0, 0, 1, 1)
+
+        self.voltagePlot = QWidget(self.voltage)
+        self.voltagePlot.setObjectName("voltagePlot")
+        sizePolicy15.setHeightForWidth(
+            self.voltagePlot.sizePolicy().hasHeightForWidth()
+        )
+        self.voltagePlot.setSizePolicy(sizePolicy15)
+
+        self.gridLayout_voltage.addWidget(self.voltagePlot, 1, 0, 1, 1)
+
+        self.voltageTable = QTableView(self.voltage)
+        self.voltageTable.setObjectName("voltageTable")
+        sizePolicy5.setHeightForWidth(
+            self.voltageTable.sizePolicy().hasHeightForWidth()
+        )
+        self.voltageTable.setSizePolicy(sizePolicy5)
+        self.voltageTable.setMaximumSize(QSize(16777215, 200))
+        self.voltageTable.setFont(font1)
+        self.voltageTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.voltageTable.setAlternatingRowColors(True)
+        self.voltageTable.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+
+        self.gridLayout_voltage.addWidget(self.voltageTable, 2, 0, 1, 1)
+
+        self.gridLayout_voltage.setRowStretch(1, 1)
+        self.tabWidget.addTab(self.voltage, "")
 
         self.gridLayout_2.addWidget(self.tabWidget, 4, 0, 1, 1)
 
@@ -1580,6 +1639,22 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(
             self.tabWidget.indexOf(self.distance),
             QCoreApplication.translate("MainWindow", "Abstandsgesetz", None),
+        )
+        self.label_voltageHint.setText(
+            QCoreApplication.translate(
+                "MainWindow",
+                "Spannung wird in der Ger\u00e4testeuerung eingestellt.",
+                None,
+            )
+        )
+        self.voltageStatus.setText(
+            QCoreApplication.translate(
+                "MainWindow", "Keine Messpunkte aufgezeichnet.", None
+            )
+        )
+        self.tabWidget.setTabText(
+            self.tabWidget.indexOf(self.voltage),
+            QCoreApplication.translate("MainWindow", "Spannungskurve", None),
         )
         self.label_4.setText(
             QCoreApplication.translate("MainWindow", "Voriges Z\u00e4hlergebnis", None)

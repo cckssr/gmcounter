@@ -77,6 +77,7 @@ Lower layers must never import from higher ones.
 - `tabs/gm_timing_tab.py`: `GMTimingTab` — GM experiment, contributes 3 top-level views (Zeitverlauf/Histogramm/Liste); `set_high_speed_autoswitch(bool)` suppresses auto-tab-switch during sweep sessions
 - `tabs/parameter_sweep_base.py`: `ParameterSweepTabBase` — generic base for parameter-sweep experiments (distance law, voltage curve, …); all layout in `.ui`, injected via `inject_ui()`
 - `tabs/distance_law_tab.py`: `DistanceLawTab` — 1/r² distance-law sweep; pure class-attribute subclass of `ParameterSweepTabBase`
+- `tabs/voltage_response_tab.py`: `VoltageResponseTab` — Geiger plateau / voltage-response curve; pure class-attribute subclass of `ParameterSweepTabBase`; voltage parameter sourced from live `cVoltage` readback, setpoint auto-applied on each Start
 - `windows/main_window.py`: `MainWindow` — **thin**, setupUi + AppController signal subscriptions; routes shared Start/Stop/Speichern buttons via `_current_sweep_tab()` check; manages `_sweep_session` flag
 - `dialogs/connection.py`: `ConnectionWindow` — port enumeration, baud select, demo-mode mock port
 - `widgets/plot.py`: `GeneralPlot` (real-time line plot, `set_summary_points()` for scatter/line sweep summary), `HistogramWidget` — all pyqtgraph

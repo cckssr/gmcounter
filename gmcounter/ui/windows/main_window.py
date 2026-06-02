@@ -17,7 +17,8 @@ from ...core.services import SaveService
 from ..controllers.app_controller import AppController
 from ..tabs.registry import TabRegistry
 from ..tabs.gm_timing_tab import GMTimingTab  # registers at import time
-from ..tabs.distance_law_tab import DistanceLawTab  # registers at import time
+from ..tabs.distance_law_tab import DistanceLawTab  # explicitly wired sweep tab
+from ..tabs.voltage_response_tab import VoltageResponseTab  # explicitly wired sweep tab
 from ..widgets.event_log_panel import EventLogPanel
 from ..common import dialogs as MessageHelper
 from ..common.file_dialogs import FileDialogManager
@@ -80,27 +81,48 @@ class MainWindow(QMainWindow):
         # Register with AppController
         self._ctrl.set_active_tab(self._gm_tab)
 
-        # Distance-law sweep tab — the QWidget page already lives in .ui;
-        # inject the widgets from that page and build the GeneralPlot inside.
+        # ── Sweep tabs ────────────────────────────────────────────────────
+        # The QWidget pages already live in .ui; inject widgets and build.
+        # Sweep tabs are NOT registered in TabRegistry — they are wired here.
+
+        # Distance-law sweep tab
         self._distance_tab = DistanceLawTab(parent=self)
         self._distance_tab.set_gm_tab(self._gm_tab)
         self._distance_tab.inject_ui(
             plot_container=self.ui.distancePlot,
             table_view=self.ui.distanceTable,
-            param_input=self.ui.distanceInput,
             status_label=self.ui.distanceStatus,
+            param_input=self.ui.distanceInput,
         )
         self._distance_tab.build()
 
-        # Sweep session state — True while any parameter sweep is running
-        self._sweep_session: bool = False
-
-        # GMTimingTab.on_measurement_stopped fires first (connected via
-        # set_active_tab), so _session_end is already stamped when the sweep
-        # tab snapshots the export.
-        self._ctrl.measurement_stopped.connect(
-            self._distance_tab.on_measurement_stopped
+        # Voltage-response sweep tab — parameter comes from the device-control
+        # panel (live cVoltage readback); no tab-local input spinbox.
+        self._voltage_tab = VoltageResponseTab(parent=self)
+        self._voltage_tab.set_gm_tab(self._gm_tab)
+        self._voltage_tab.inject_ui(
+            plot_container=self.ui.voltagePlot,
+            table_view=self.ui.voltageTable,
+            status_label=self.ui.voltageStatus,
+            param_provider=lambda: float(self.ui.cVoltage.value()),
         )
+        self._voltage_tab.build()
+
+        # Page → sweep-tab map: used by _current_sweep_tab() to resolve which
+        # ParameterSweepTabBase object owns the currently-visible .ui page.
+        self._sweep_tabs = {
+            self.ui.distance: self._distance_tab,
+            self.ui.voltage: self._voltage_tab,
+        }
+
+        # Sweep session state — True while any parameter sweep is running.
+        # _active_sweep_tab holds the specific tab object for this session.
+        self._sweep_session: bool = False
+        self._active_sweep_tab = None  # type: ignore[assignment]
+
+        # Measurement lifecycle is forwarded to the active sweep tab inside
+        # _on_measurement_started / _on_measurement_stopped (below), which
+        # fire after GMTimingTab via the AppController signal ordering.
 
         # Wire TabRegistry for any future experiments
         self._refresh_tab_visibility()
@@ -234,6 +256,9 @@ class MainWindow(QMainWindow):
         if hasattr(self.ui, "sQModeMan"):
             self.ui.sQModeMan.setEnabled(False)
         self._set_status_indicator("Messung", "blue")
+        # Forward to the active sweep tab so it can record _session_start
+        if self._active_sweep_tab is not None:
+            self._active_sweep_tab.on_measurement_started()
 
     def _on_measurement_stopped(self) -> None:
         self.ui.buttonStop.setEnabled(False)
@@ -252,9 +277,14 @@ class MainWindow(QMainWindow):
         self.ui.progressBar.setMaximum(1)
         self.ui.progressBar.setValue(0)
 
+        # Forward to the active sweep tab — GMTimingTab.on_measurement_stopped
+        # fires first (connected via set_active_tab), so its export is ready.
+        if self._active_sweep_tab is not None:
+            self._active_sweep_tab.on_measurement_stopped()
+
         if self._sweep_session:
             # In a sweep session Start stays enabled so the user can fire the
-            # next distance measurement immediately; unsaved state is tracked by
+            # next measurement point immediately; unsaved state is tracked by
             # the sweep tab, not _save_service.
             self.ui.buttonStart.setEnabled(True)
         else:
@@ -316,20 +346,24 @@ class MainWindow(QMainWindow):
     # None otherwise.  Button logic branches on that single check.
 
     def _current_sweep_tab(self):
-        """Return the active ParameterSweepTabBase if one is selected, else None."""
-        from ..tabs.parameter_sweep_base import ParameterSweepTabBase
+        """Return the ParameterSweepTabBase for the currently-selected page, or None.
 
-        widget = self.ui.tabWidget.currentWidget()
-        return widget if isinstance(widget, ParameterSweepTabBase) else None
-
-    def _set_gm_views_enabled(self, enabled: bool) -> None:
-        """Enable or disable the three GM timing view tabs (Zeitverlauf, Histogramm, Liste).
-
-        Called when entering / leaving a sweep session so the data tabs cannot
-        be switched to while sweep measurements are running.
+        Sweep tab objects are separate Python instances injected into plain .ui
+        page widgets — the page widget itself is not a ParameterSweepTabBase.
+        The _sweep_tabs dict maps each .ui page QWidget to its owner tab object.
         """
-        for idx in range(3):  # tabs 0=Zeitverlauf 1=Histogramm 2=Liste
-            self.ui.tabWidget.setTabEnabled(idx, enabled)
+        return self._sweep_tabs.get(self.ui.tabWidget.currentWidget())
+
+    def _set_sweep_lock(self, locked: bool, active_page=None) -> None:
+        """Lock or unlock tab navigation during a sweep session.
+
+        When *locked*, every tab page is disabled except *active_page* (the
+        sweep tab the user is currently running), so they cannot accidentally
+        switch tabs mid-measurement.  When unlocked, all pages are re-enabled.
+        """
+        for idx in range(self.ui.tabWidget.count()):
+            page = self.ui.tabWidget.widget(idx)
+            self.ui.tabWidget.setTabEnabled(idx, (not locked) or page is active_page)
 
     def _handle_start(self) -> None:
         sweep = self._current_sweep_tab()
@@ -344,7 +378,7 @@ class MainWindow(QMainWindow):
                 if not MessageHelper.ask_question(
                     self,
                     "Die Messzeit ist auf 'unbegrenzt' eingestellt.\n\n"
-                    "Für Abstandsmessungen empfiehlt sich eine feste Messzeit, "
+                    "Für Sweep-Messungen empfiehlt sich eine feste Messzeit, "
                     "damit alle Messpunkte vergleichbar sind.\n\n"
                     "Trotzdem fortfahren?",
                     "Hinweis: unbegrenzte Messzeit",
@@ -356,11 +390,20 @@ class MainWindow(QMainWindow):
             self._save_service.mark_saved()
 
             if not self._sweep_session:
-                # First measurement of this sweep session: disable GM view tabs and
-                # suppress high-speed auto-switch to Histogramm.
+                # First measurement of this sweep session: record which sweep
+                # tab is active, lock other tabs, and suppress high-speed
+                # auto-switch to Histogramm.
                 self._sweep_session = True
-                self._set_gm_views_enabled(False)
+                self._active_sweep_tab = sweep
+                active_page = self.ui.tabWidget.currentWidget()
+                self._set_sweep_lock(True, active_page)
                 self._gm_tab.set_high_speed_autoswitch(False)
+
+            # For tabs that require device voltage to be applied on each
+            # measurement (e.g. VoltageResponseTab), push the current setpoint
+            # to the device now so the live cVoltage readback is up-to-date.
+            if sweep.applies_device_voltage_on_start:
+                self._handle_apply_settings()
 
             total = seconds_map.get(idx, 0)
             self._gm_tab.set_measurement_metadata(
@@ -395,11 +438,12 @@ class MainWindow(QMainWindow):
         self._ctrl.stop_measurement()
 
     def _handle_save(self) -> None:
-        if self._sweep_session and self._distance_tab.has_data():
+        sweep = self._active_sweep_tab
+        if self._sweep_session and sweep is not None and sweep.has_data():
             # ── Sweep save: summary CSV + auto-named individual timing CSVs ──
             from ...infrastructure.save_service import write_export
 
-            summary = self._distance_tab.summary_export()
+            summary = sweep.summary_export()
             if not summary:
                 MessageHelper.show_info(
                     self, "Keine Zusammenfassungsdaten vorhanden.", "Information"
@@ -416,12 +460,15 @@ class MainWindow(QMainWindow):
             if not saved or not saved.exists():
                 return
 
-            # Auto-write individual timing exports alongside the summary
-            individual = self._distance_tab.individual_exports
+            # Auto-write individual timing exports alongside the summary.
+            # File name encodes the parameter value and measurement index.
+            individual = sweep.individual_exports
             ok_count = 0
             for i, exp in enumerate(individual):
-                dist = exp.metadata.get(self._distance_tab.param_metadata_key, "?")
-                auto_name = f"{saved.stem}_d{dist}{self._distance_tab.param_unit}_m{i + 1:02d}.csv"
+                param_val = exp.metadata.get(sweep.param_metadata_key, "?")
+                auto_name = (
+                    f"{saved.stem}_p{param_val}{sweep.param_unit}_m{i + 1:02d}.csv"
+                )
                 try:
                     write_export(exp, saved.parent / auto_name)
                     ok_count += 1
@@ -431,10 +478,11 @@ class MainWindow(QMainWindow):
                     )
 
             # Tear down sweep session
-            self._distance_tab.mark_saved()
-            self._distance_tab.reset_summary()
+            sweep.mark_saved()
+            sweep.reset_summary()
             self._sweep_session = False
-            self._set_gm_views_enabled(True)
+            self._active_sweep_tab = None
+            self._set_sweep_lock(False)
             self._gm_tab.set_high_speed_autoswitch(True)
             self._gm_tab.on_reset()
             self._save_service.mark_saved()
@@ -496,7 +544,8 @@ class MainWindow(QMainWindow):
 
         if self._sweep_session:
             # Discard the entire sweep session without saving
-            if self._distance_tab.has_data():
+            sweep = self._active_sweep_tab
+            if sweep is not None and sweep.has_data():
                 if not MessageHelper.ask_question(
                     self,
                     CONFIG.get("messages", {}).get(
@@ -505,9 +554,11 @@ class MainWindow(QMainWindow):
                     "Warnung",
                 ):
                     return
-            self._distance_tab.reset_summary()
+            if sweep is not None:
+                sweep.reset_summary()
             self._sweep_session = False
-            self._set_gm_views_enabled(True)
+            self._active_sweep_tab = None
+            self._set_sweep_lock(False)
             self._gm_tab.set_high_speed_autoswitch(True)
         else:
             if self._save_service.has_unsaved():

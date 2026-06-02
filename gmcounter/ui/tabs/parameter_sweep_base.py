@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Optional, List, TYPE_CHECKING
+from typing import Callable, Optional, List, TYPE_CHECKING
 
 from PySide6.QtGui import QStandardItemModel, QStandardItem  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
@@ -66,6 +66,10 @@ class ParameterSweepTabBase(PlotTabBase):
     param_metadata_key: str = "param_value"
     summary_filename_hint: str = "sweep"
     summary_title: str = "Parameter-Sweep"
+    # Table cell format string applied to the parameter value
+    param_format: str = "{:.1f}"
+    # Set True if the tab requires the device voltage to be applied on each Start
+    applies_device_voltage_on_start: bool = False
 
     # -- Internal -------------------------------------------------------
     def __init__(self, parent: Optional[QWidget] = None) -> None:
@@ -78,6 +82,9 @@ class ParameterSweepTabBase(PlotTabBase):
         self._table_view: Optional[QTableView] = None
         self._param_input: Optional[QDoubleSpinBox] = None
         self._status_label: Optional[QLabel] = None
+        # Optional callable that provides the parameter value (takes priority
+        # over _param_input when set; used e.g. for voltage from device control).
+        self._param_provider: Optional[Callable[[], float]] = None
 
         # Created in build()
         self._plot = None  # GeneralPlot instance
@@ -99,13 +106,20 @@ class ParameterSweepTabBase(PlotTabBase):
         self,
         plot_container: QWidget,
         table_view: QTableView,
-        param_input: QDoubleSpinBox,
         status_label: QLabel,
+        param_input: Optional[QDoubleSpinBox] = None,
+        param_provider: Optional[Callable[[], float]] = None,
     ) -> None:
-        """Receive the .ui container widgets. Call before build()."""
+        """Receive the .ui container widgets. Call before build().
+
+        Either *param_input* (a QDoubleSpinBox in the tab page) or
+        *param_provider* (a zero-argument callable, e.g. ``lambda: ctrl.voltage``)
+        must be supplied so the tab can read the current parameter value.
+        """
         self._plot_container = plot_container
         self._table_view = table_view
         self._param_input = param_input
+        self._param_provider = param_provider
         self._status_label = status_label
 
     # ------------------------------------------------------------------
@@ -193,6 +207,8 @@ class ParameterSweepTabBase(PlotTabBase):
         return self._current_param()
 
     def _current_param(self) -> float:
+        if self._param_provider is not None:
+            return float(self._param_provider())
         return self._param_input.value() if self._param_input else 0.0
 
     def has_data(self) -> bool:
@@ -259,7 +275,7 @@ class ParameterSweepTabBase(PlotTabBase):
             return
         self._table_model.appendRow(
             [
-                QStandardItem(f"{entry['param']:.1f}"),
+                QStandardItem(self.param_format.format(entry["param"])),
                 QStandardItem(str(entry["count"])),
                 QStandardItem(str(entry["rate_hz"])),
                 QStandardItem(str(entry["duration_s"])),
