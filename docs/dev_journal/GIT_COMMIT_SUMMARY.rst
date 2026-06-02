@@ -4,7 +4,7 @@ Git Commit Summary: High-Frequency Data Acquisition Optimization
 Übersicht
 ---------
 
-Die folgenden Git-Commits implementieren eine umfassende Optimierung der HRNGGUI-Anwendung für hochfrequente Datenerfassung. Die Verbesserungen ermöglichen Datenraten von 500+ Hz mit flüssiger GUI-Performance.
+Die folgenden Git-Commits implementieren eine umfassende Optimierung der GMCounter-Anwendung für hochfrequente Datenerfassung. Die Verbesserungen ermöglichen Datenraten von 500+ Hz mit flüssiger GUI-Performance.
 
 Commit-Struktur
 ---------------
@@ -192,7 +192,7 @@ Arduino → Serial → Queue → Timer (100ms) → Batch GUI Update
 **Dateien:**
 
 * ``config.json`` (modifiziert)
-* ``HRNGGUI.pyproject.user`` (modifiziert)
+* ``GMCounter.pyproject.user`` (modifiziert)
 * ``pyqt/`` (verschiedene UI-Dateien)
 * ``test.py`` (neu)
 
@@ -274,4 +274,4 @@ Für Produktionsumgebung
 Fazit
 -----
 
-Diese Commit-Serie transformiert die HRNGGUI von einer 50 Hz-begrenzten Anwendung zu einem hochperformanten System, das 500+ Hz Datenraten mit flüssiger GUI-Performance bewältigen kann. Die Implementierung ist produktionsreif, umfassend getestet und vollständig dokumentiert.
+Diese Commit-Serie transformiert die GMCounter von einer 50 Hz-begrenzten Anwendung zu einem hochperformanten System, das 500+ Hz Datenraten mit flüssiger GUI-Performance bewältigen kann. Die Implementierung ist produktionsreif, umfassend getestet und vollständig dokumentiert.

@@ -5,8 +5,8 @@ from tempfile import gettempdir
 
 
 def check_mock_port():
-    """
-    Checks if the mock virtual port is available.
+    """Checks if the mock virtual port is available.
+
     Returns:
         str: The mock port name if available, otherwise None.
     """
@@ -19,9 +19,7 @@ def check_mock_port():
 
 
 def main():
-    """
-    Main function to check for the mock port and print its status.
-    """
+    """Main function to check for the mock port and print its status."""
     mock_port = check_mock_port()
     if mock_port:
         print(f"Mock port found: {mock_port}")

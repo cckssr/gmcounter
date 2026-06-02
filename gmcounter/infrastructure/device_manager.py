@@ -1,339 +1,216 @@
-"""Device management with threaded acquisition for reuse."""
+# Layer: infrastructure — Qt-free device manager.
+# No QObject, no Signal, no QTimer — plain callbacks only.
+# The ui layer (AppController) owns the DataAcquisitionThread and connects signals.
 
-from typing import Optional
+import logging
 import time
-from threading import Event
+from typing import Optional, Callable
 import serial
 
-from PySide6.QtCore import QObject, Signal, QTimer  # pylint: disable=no-name-in-module
-
-from .arduino import GMCounter
-from .logging import Debug
-from .qt_threads import DataAcquisitionThread
+from .devices.gm_counter import GMCounterAdapter
 from ..core.services import MeasurementStateService
+from ..core.models import DesiredState, DeviceSettings
+
+_log = logging.getLogger(__name__)
 
 
-class DeviceManager(QObject):
-    """Handle device connections and data acquisition.
+class DeviceManager:
+    """Manage the serial connection lifecycle for one GM counter.
 
-    This class manages the hardware interface layer only:
-    - Device connection/disconnection
-    - Data acquisition thread lifecycle
-    - Hardware command execution
-
-    Domain state (measurement_active) is delegated to MeasurementStateService.
+    Plain callbacks — no Qt.  AppController subscribes to these and
+    translates them into Qt signals for the UI.
     """
 
-    # Timing constants for hardware operations (milliseconds)
-    STOP_SEQUENCE_DELAY_MS = 200
-    CLEAR_REGISTER_DELAY_MS = 200
-
-    # Signals for data and status updates
-    status_update = Signal(str, str)  # (message, color)
-    data_received = Signal(int, float)  # (index, value)
-    device_info_received = Signal(dict)  # device info dictionary
-    connection_lost = Signal()  # Emitted when device connection is lost
+    STOP_SEQUENCE_DELAY_S = 0.2
+    CLEAR_REGISTER_DELAY_S = 0.2
 
     def __init__(
-        self, measurement_state: Optional[MeasurementStateService] = None, parent=None
+        self,
+        measurement_state: Optional[MeasurementStateService] = None,
     ) -> None:
-        super().__init__(parent)
-        self.connected = False
-        self.port = "None"
-        self.device: Optional[GMCounter] = None
-        self.acquire_thread: Optional[DataAcquisitionThread] = None
-        self.stop_event = Event()
-
-        # Use provided service or create default
-        if measurement_state is None:
-            self.measurement_state = MeasurementStateService()
-        else:
-            self.measurement_state = measurement_state
-
-        # Flag to prevent multiple connection_lost handlers
+        self.connected: bool = False
+        self.port: str = "None"
+        self.baudrate: int = 115200
+        self.device: Optional[GMCounterAdapter] = None
         self._connection_lost_handled = False
 
-    def connect_device(self, port: str, baudrate: int) -> bool:
-        """Connect to the given serial port and retrieve device information."""
+        self.measurement_state = measurement_state or MeasurementStateService()
+
+        # Plain callbacks — set by AppController
+        self.on_status: Optional[Callable[[str, str], None]] = None
+        self.on_data: Optional[Callable[[int, float], None]] = None
+        self.on_connection_lost: Optional[Callable[[], None]] = None
+        self.on_device_info: Optional[Callable[[dict], None]] = None
+
+    # ------------------------------------------------------------------
+    # Connection lifecycle
+
+    def connect_device(
+        self,
+        port: str,
+        baudrate: int,
+        device_class=None,
+    ) -> bool:
+        """Connect to *port* at *baudrate*.
+
+        *device_class* defaults to GMCounterAdapter but can be replaced
+        with MockGMCounter for demo / test mode — both share the same
+        command interface.
+        """
+        if device_class is None:
+            device_class = GMCounterAdapter
+
         self.port = port
+        self.baudrate = baudrate
         self.disconnect_device()
+
         try:
-            self.device = GMCounter(port=port, baudrate=baudrate)
+            self.device = device_class(port=port, baudrate=baudrate)
             self.connected = True
-            self._connection_lost_handled = False  # Reset on successful connection
-            self.status_update.emit(f"Connected to {port}", "green")
+            self._connection_lost_handled = False
+            _log.info("Connected to %s", port)
 
-            # Retrieve and report device information (version, openbis, etc.)
+            if self.on_status:
+                self.on_status(f"Verbunden mit {port}", "green")
+
             self._fetch_device_info()
-
-            self.start_acquisition()
             return True
+
         except serial.SerialException as exc:
-            Debug.error(f"Serial connection failed: {exc}")
+            _log.error("Serial connection failed: %s", exc)
             self.connected = False
-            self.status_update.emit(f"Connection failed: {exc}", "red")
+            if self.on_status:
+                self.on_status(f"Verbindung fehlgeschlagen: {exc}", "red")
             return False
         except (OSError, ValueError) as exc:
-            Debug.error(f"Device initialization failed: {exc}")
+            _log.error("Device initialization failed: %s", exc)
             self.connected = False
-            self.status_update.emit(f"Connection failed: {exc}", "red")
+            if self.on_status:
+                self.on_status(f"Verbindung fehlgeschlagen: {exc}", "red")
             return False
 
-    def attempt_automatic_reconnect(self) -> bool:
-        """Attempt to automatically reconnect to the last known device.
+    def attempt_automatic_reconnect(
+        self, desired: Optional[DesiredState] = None
+    ) -> bool:
+        """Attempt to reconnect to the last known port.
 
-        This is called when an unexpected disconnection is detected.
-        It tries to reconnect to the same port without user intervention.
-
-        Returns:
-            True if reconnection successful, False otherwise.
+        Uses the stored baudrate (not hardcoded 115200) — this fixes the
+        latent bug where reconnect always tried 1 000 000 baud.
+        After a successful reconnect, re-applies *desired* state to the
+        Arduino so voltage/counting-time/repeat are restored (§5 B5).
         """
         if not self.port or self.port == "None":
-            Debug.warning("No previous port to reconnect to")
+            _log.warning("No previous port for automatic reconnect")
             return False
 
-        Debug.info(f"Attempting automatic reconnection to {self.port}")
-        # Reset the connection_lost_handled flag before attempting
+        _log.info("Automatic reconnect to %s at %d baud", self.port, self.baudrate)
         self._connection_lost_handled = False
 
-        # ✅ FIX: Use correct baudrate (1000000 for Arduino R4)
-        # instead of hardcoded 115200
-        return self.connect_device(self.port, 1000000)
+        success = self.connect_device(self.port, self.baudrate)
+        if success and desired and self.device:
+            settings = desired.to_device_settings()
+            self._apply_device_settings(settings)
 
-    def _fetch_device_info(self) -> None:
-        """Fetch device information and call the info callback."""
+        return success
+
+    def _apply_device_settings(self, settings: DeviceSettings) -> None:
+        """Push settings to the hardware (best-effort)."""
         if not self.device:
             return
-
         try:
-            info = self.device.get_information()
-            Debug.info(f"Device info retrieved: {info}")
-            self.device_info_received.emit(info)
-        except Exception as exc:  # pylint: disable=broad-except
-            Debug.error(f"Failed to fetch device info: {exc}")
+            self.device.set_repeat(settings.repeat)
+            self.device.set_stream(4 if settings.auto_query else 1)
+            self.device.set_counting_time(settings.counting_time)
+            self.device.set_voltage(settings.voltage)
+            time.sleep(0.2)
+        except Exception as exc:
+            _log.error("Failed to re-apply settings: %s", exc)
 
     def disconnect_device(self) -> None:
-        """Close existing connection and stop acquisition."""
-        self.stop_acquisition()
         if self.device:
             try:
                 self.device.close()
             except (serial.SerialException, OSError) as exc:
-                Debug.error(f"Error closing device: {exc}")
+                _log.error("Error closing device: %s", exc)
         self.device = None
         self.connected = False
         self.measurement_state.stop_measurement()
-        self._connection_lost_handled = False  # Reset flag for next disconnection
+        self._connection_lost_handled = False
 
-    def start_acquisition(self) -> bool:
-        """Start or (re)connect the acquisition thread."""
-        if self.acquire_thread and self.acquire_thread.isRunning():
-            # Thread already running, ensure signal is connected
-            return True
-
+    def _fetch_device_info(self) -> None:
+        if not self.device:
+            return
         try:
-            self.acquire_thread = DataAcquisitionThread(self)
-            # Forward data_point signal from thread to our data_received signal
-            self.acquire_thread.data_point.connect(self.data_received.emit)
-            # Connect connection_lost signal to handle disconnections
-            self.acquire_thread.connection_lost.connect(self._handle_connection_lost)
-            self.acquire_thread.start()
+            info = self.device.get_information()
+            _log.info("Device info: %s", info)
+            if self.on_device_info:
+                self.on_device_info(info)
+        except Exception as exc:
+            _log.error("Failed to fetch device info: %s", exc)
 
-            # Verify thread started successfully
-            if not self.acquire_thread.isRunning():
-                Debug.error("Failed to start acquisition thread")
-                return False
-
-            return True
-        except Exception as exc:  # pylint: disable=broad-except
-            Debug.error(f"Failed to start acquisition thread: {exc}")
-            return False
-
-    def stop_acquisition(self) -> None:
-        """Stop the acquisition thread if running."""
-        if self.acquire_thread and self.acquire_thread.isRunning():
-            try:
-                self.stop_event.set()
-                self.acquire_thread.stop()
-                self.acquire_thread.wait(2000)  # Wait up to 2 seconds
-                if self.acquire_thread.isRunning():
-                    Debug.warning("Acquisition thread did not stop in time")
-            except Exception as exc:  # pylint: disable=broad-except
-                Debug.error(f"Error stopping acquisition thread: {exc}")
-            finally:
-                self.stop_event.clear()
+    # ------------------------------------------------------------------
+    # Measurement control
 
     def start_measurement(self) -> bool:
-        """Send start command to device and enable fast acquisition.
-
-        The Arduino firmware now handles buffer clearing internally when receiving s1.
-        """
         if not (self.device and self.connected):
-            Debug.warning("Cannot start measurement: device not connected")
+            _log.warning("Cannot start: device not connected")
             return False
-
         try:
-            start_time = time.time()
-
-            # Reset index counter for new measurement
-            if self.acquire_thread:
-                self.acquire_thread.reset_index()
-
-            Debug.debug("=== MEASUREMENT START SEQUENCE ===")
-
-            # Send start command to Arduino (s1)
-            # Arduino firmware will:
-            # 1. Reset buffer indices (discard old ISR data)
-            # 2. Send start marker (0xFF x 6)
-            # 3. Activate measurement mode
             self.device.set_counting(True)
-            Debug.debug("Sent set_counting(True) to Arduino")
-
-            # Activate measurement mode via domain service
             self.measurement_state.start_measurement()
-
-            total_time = time.time() - start_time
-            Debug.info(f"Total start sequence: {total_time*1000:.1f} ms")
-            Debug.debug(
-                f"DeviceManager: measurement_active = {self.measurement_state.measurement_active}"
-            )
-            Debug.info("=== MEASUREMENT STARTED ===")
-
+            _log.info("Measurement started")
             return True
         except serial.SerialException as exc:
-            Debug.error(f"Serial error during start measurement: {exc}")
-            self.measurement_state.stop_measurement()
-            return False
-        except (OSError, ValueError) as exc:
-            Debug.error(f"Failed to start measurement: {exc}")
+            _log.error("Serial error starting measurement: %s", exc)
             self.measurement_state.stop_measurement()
             return False
 
     def stop_measurement(self) -> bool:
-        """Stop counting and ensure Arduino returns to command mode.
-
-        Approach:
-        1. Set measurement_active = False FIRST (stops timeout checking)
-        2. Send stop command to Arduino
-        3. Clear GM counter register to reset state
-        4. Wait briefly for processing (using QTimer callbacks)
-        5. Clear serial buffers
-
-        Note: Uses sequential QTimer.singleShot calls to avoid blocking.
-        """
-        start_time = time.time()
-
-        Debug.debug("=== MEASUREMENT STOP SEQUENCE ===")
-
-        # Set flag FIRST to prevent timeout during stop sequence
         self.measurement_state.stop_measurement()
-        Debug.debug("Set measurement_active = False at t=0.0 ms")
-
         if not (self.device and self.connected):
-            Debug.warning("Stop called but device not connected")
+            _log.warning("Stop called but device not connected")
             return False
-
         try:
-            # Send stop command to Arduino
             self.device.set_counting(False)
-            t1 = time.time()
-            Debug.debug(
-                f"Sent set_counting(False) at t={((t1 - start_time)*1000):.1f} ms"
-            )
-
-            # Schedule the rest of the stop sequence with QTimer to avoid blocking
-            QTimer.singleShot(self.STOP_SEQUENCE_DELAY_MS, self._continue_stop_sequence)
-
-            return True
-
-        except serial.SerialException as exc:
-            Debug.error(f"Serial error during stop measurement: {exc}")
-            return False
-        except (OSError, ValueError) as exc:
-            Debug.error(f"Failed to stop measurement: {exc}")
-            return False
-
-    def _continue_stop_sequence(self) -> None:
-        """Continue stop sequence after initial delay (called by QTimer)."""
-        if not (self.device and self.connected):
-            return
-
-        try:
-            # Clear GM counter register to reset its state
+            time.sleep(self.STOP_SEQUENCE_DELAY_S)
             self.device.clear_register()
-            Debug.debug("Sent clear_register()")
-
-            # Schedule buffer clearing after another delay
-            QTimer.singleShot(
-                self.CLEAR_REGISTER_DELAY_MS, self._finalize_stop_sequence
-            )
-
-        except serial.SerialException as exc:
-            Debug.error(f"Serial error during stop sequence: {exc}")
-        except (OSError, ValueError) as exc:
-            Debug.error(f"Error during stop sequence: {exc}")
-
-    def _finalize_stop_sequence(self) -> None:
-        """Finalize stop sequence by clearing buffers (called by QTimer)."""
-        if not (self.device and self.connected):
-            return
-
-        try:
-            # Clear any remaining buffered data
+            time.sleep(self.CLEAR_REGISTER_DELAY_S)
             if self.device.serial and self.device.serial.is_open:
-                bytes_waiting = self.device.serial.in_waiting
-                Debug.debug(f"Buffer status: {bytes_waiting} bytes waiting")
-
                 try:
                     self.device.serial.reset_input_buffer()
-                    Debug.debug("Cleared remaining serial buffer")
-                except OSError as e:
-                    Debug.warning(f"Could not reset buffer: {e}")
+                except OSError:
+                    pass
+            _log.info("Measurement stopped")
+            return True
+        except (serial.SerialException, OSError) as exc:
+            _log.error("Error stopping measurement: %s", exc)
+            return False
 
-            Debug.info("=== MEASUREMENT STOPPED ===")
+    # ------------------------------------------------------------------
+    # Connection-loss handler (called by AppController from the Qt signal)
 
-        except serial.SerialException as exc:
-            Debug.error(f"Serial error finalizing stop: {exc}")
-        except (OSError, ValueError) as exc:
-            Debug.error(f"Error finalizing stop: {exc}")
+    def handle_connection_lost(self) -> None:
+        """Perform cleanup when connection is detected as lost.
 
-    def _handle_connection_lost(self) -> None:
-        """Handle connection loss from acquisition thread.
-
-        Performs cleanup and notifies UI of disconnection.
-        Uses a flag to prevent race conditions from multiple signal emissions.
+        Called by AppController when DataAcquisitionThread emits
+        connection_lost — not called directly from the thread.
         """
-        # Prevent handler from running multiple times
         if self._connection_lost_handled:
-            Debug.debug("Connection lost already handled, ignoring duplicate signal")
             return
-
         self._connection_lost_handled = True
-        Debug.error("Connection lost during acquisition - initiating cleanup")
+        _log.error("Connection lost — cleaning up")
 
-        # Update state flags
         self.connected = False
         self.measurement_state.stop_measurement()
 
-        # Close device connection (doesn't require stopping thread)
         if self.device:
             try:
                 self.device.close()
-            except Exception as exc:  # pylint: disable=broad-except
-                Debug.error(f"Error closing device after connection loss: {exc}")
+            except Exception as exc:
+                _log.error("Error closing device after loss: %s", exc)
             self.device = None
 
-        # Stop acquisition thread asynchronously to avoid blocking signal handler
-        # The thread should exit naturally when device is None
-        if self.acquire_thread:
-            try:
-                self.stop_event.set()
-                # Don't wait - thread will exit when it detects device is None
-                self.acquire_thread.requestInterruption()
-            except Exception as exc:  # pylint: disable=broad-except
-                Debug.error(f"Error stopping acquisition thread: {exc}")
-
-        # Notify UI
-        self.status_update.emit("Connection lost", "red")
-        self.connection_lost.emit()
-        Debug.debug("Connection cleanup completed")
+        if self.on_status:
+            self.on_status("Verbindung unterbrochen", "red")
+        if self.on_connection_lost:
+            self.on_connection_lost()

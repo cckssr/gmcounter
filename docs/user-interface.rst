@@ -1,7 +1,7 @@
 Benutzeroberfläche
 ====================
 
-Dieses Kapitel beschreibt das Hauptfenster der HRNGGUI und erklärt die Anordnung
+Dieses Kapitel beschreibt das Hauptfenster der GMCounter und erklärt die Anordnung
 der einzelnen Elemente.
 
 Übersicht

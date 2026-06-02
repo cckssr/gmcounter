@@ -14,8 +14,8 @@ Installation
 .. code-block:: bash
 
    # Repository klonen
-   git clone https://github.com/cckssr/HRNGGUI.git
-   cd HRNGGUI
+   git clone https://github.com/cckssr/GMCounter.git
+   cd GMCounter
    
    # Abhängigkeiten installieren
    pip install -r requirements.txt
@@ -39,7 +39,7 @@ Erste Einrichtung
 
 **Hardware-Setup:**
 1. GM-Zähler per USB anschließen
-2. HRNGGUI starten: ``python main.py``
+2. GMCounter starten: ``python main.py``
 3. COM-Port wird automatisch erkannt
 4. Test-Messung durchführen
 
@@ -79,26 +79,26 @@ Deinstallation
 .. code-block:: bash
 
    # Projektverzeichnis löschen
-   rm -rf HRNGGUI/
+   rm -rf GMCounter/
 
 .. code-block:: bash
 
 Virtuelle Umgebung erstellen (empfohlen)
 ========================================
-python -m venv hrnggui-env
+python -m venv GMCounter-env
 
 Virtuelle Umgebung aktivieren
 =============================
 Windows:
 ========
-hrnggui-env\Scripts\activate
+GMCounter-env\Scripts\activate
 macOS/Linux:
 ============
-source hrnggui-env/bin/activate
+source GMCounter-env/bin/activate
 
-HRNGGUI installieren
+GMCounter installieren
 ====================
-pip install hrnggui
+pip install GMCounter
 
 
 Option 2: Quellcode-Installation
@@ -108,8 +108,8 @@ Option 2: Quellcode-Installation
 
 Repository klonen
 =================
-git clone https://github.com/cckssr/HRNGGUI.git
-cd HRNGGUI
+git clone https://github.com/cckssr/GMCounter.git
+cd GMCounter
 
 Abhängigkeiten installieren
 ===========================
@@ -123,7 +123,7 @@ python main.py
 Option 3: Download-Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Laden Sie die neueste Version von der `Releases-Seite <https://github.com/cckssr/HRNGGUI/releases>`_ herunter
+1. Laden Sie die neueste Version von der `Releases-Seite <https://github.com/cckssr/GMCounter/releases>`_ herunter
 2. Entpacken Sie das Archiv
 3. Installieren Sie die Abhängigkeiten:
 
@@ -207,7 +207,7 @@ logout
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. Schließen Sie Ihren GM-Zähler an
-2. Starten Sie HRNGGUI
+2. Starten Sie GMCounter
 3. Gehen Sie zu "Gerät" → "Verbinden"
 4. Wählen Sie den entsprechenden Port aus
 
@@ -281,7 +281,7 @@ Für detaillierte Fehlersuche:
 
 Umgebungsvariable setzen
 ========================
-export HRNGGUI_DEBUG=1
+export GMCounter_DEBUG=1
 
 Oder in der Konfigurationsdatei
 ===============================
@@ -298,7 +298,7 @@ Pip-Installation
 
 .. code-block:: bash
 
-pip uninstall hrnggui
+pip uninstall GMCounter
 
 
 Quellcode-Installation
@@ -308,11 +308,11 @@ Quellcode-Installation
 
 Verzeichnis löschen
 ===================
-rm -rf HRNGGUI
+rm -rf GMCounter
 
 Virtuelle Umgebung entfernen
 ============================
-rm -rf hrnggui-env
+rm -rf GMCounter-env
 
 
 Konfigurationsdateien entfernen
@@ -322,15 +322,15 @@ Konfigurationsdateien entfernen
 
 Windows:
 ========
-del /q "%APPDATA%\HRNGGUI\*"
+del /q "%APPDATA%\GMCounter\*"
 
 macOS:
 ======
-rm -rf ~/Library/Application\ Support/HRNGGUI
+rm -rf ~/Library/Application\ Support/GMCounter
 
 Linux:
 ======
-rm -rf ~/.config/HRNGGUI
+rm -rf ~/.config/GMCounter
 
 
 Aktualisierung
@@ -341,7 +341,7 @@ Pip-Installation
 
 .. code-block:: bash
 
-pip install --upgrade hrnggui
+pip install --upgrade GMCounter
 
 
 Quellcode-Installation
@@ -349,7 +349,7 @@ Quellcode-Installation
 
 .. code-block:: bash
 
-cd HRNGGUI
+cd GMCounter
 git pull origin main
 pip install -r requirements.txt
 
@@ -363,7 +363,7 @@ Nach der Installation können Sie die Funktionalität testen:
 
 Version anzeigen
 ================
-python -c "import hrnggui; print(hrnggui.__version__)"
+python -c "import GMCounter; print(GMCounter.__version__)"
 
 Testlauf im Demo-Modus
 ======================
@@ -376,7 +376,7 @@ Unterstützung
 Bei Installationsproblemen:
 
 * Konsultieren Sie die `Fehlerbehebung <troubleshooting>`_
-* Öffnen Sie ein `Issue auf GitHub <https://github.com/cckssr/HRNGGUI/issues>`_
+* Öffnen Sie ein `Issue auf GitHub <https://github.com/cckssr/GMCounter/issues>`_
 * Prüfen Sie die `FAQ <faq>`_
 
 Nächste Schritte

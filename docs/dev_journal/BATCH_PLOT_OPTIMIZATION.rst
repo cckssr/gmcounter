@@ -4,7 +4,7 @@ Batch Plot Update Optimierung
 Übersicht
 ---------
 
-Diese Dokumentation beschreibt die Optimierung der Plot-Updates für hochfrequente Datenverarbeitung in der HRNGGUI-Anwendung. Die Optimierung löst Performance-Probleme bei hohen Datenraten durch die Implementierung von Batch-Updates.
+Diese Dokumentation beschreibt die Optimierung der Plot-Updates für hochfrequente Datenverarbeitung in der GMCounter-Anwendung. Die Optimierung löst Performance-Probleme bei hohen Datenraten durch die Implementierung von Batch-Updates.
 
 Problem
 -------

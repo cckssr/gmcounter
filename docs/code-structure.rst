@@ -1,10 +1,10 @@
-HRNGGUI Code-Struktur und Funktionsweise
+GMCounter Code-Struktur und Funktionsweise
 ========================================
 
 Programmaufbau und Klassenbeziehungen
 -------------------------------------
 
-Die HRNGGUI-Anwendung ist eine GUI für die Steuerung und Datenerfassung mit einem GM-Zähler. Sie ist in mehrere Module und Klassen unterteilt, die miteinander interagieren:
+Die GMCounter-Anwendung ist eine GUI für die Steuerung und Datenerfassung mit einem GM-Zähler. Sie ist in mehrere Module und Klassen unterteilt, die miteinander interagieren:
 
 1. Hauptklassen und ihre Beziehungen
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -167,4 +167,4 @@ Das System verwendet eine zentrale ``Debug``-Klasse für das Logging:
 Zusammenfassung
 ---------------
 
-Die HRNGGUI-Anwendung ist eine gut strukturierte PySide6-basierte GUI für die Steuerung eines GM-Zählers. Die verbesserten Implementierungen im DeviceManager haben die Robustheit der Datenerfassung erhöht und die Fehlerbehandlung verbessert. Das Programm unterstützt sowohl reale Geräte als auch einen Demonstrationsmodus mit realistischen simulierten Daten.
+Die GMCounter-Anwendung ist eine gut strukturierte PySide6-basierte GUI für die Steuerung eines GM-Zählers. Die verbesserten Implementierungen im DeviceManager haben die Robustheit der Datenerfassung erhöht und die Fehlerbehandlung verbessert. Das Programm unterstützt sowohl reale Geräte als auch einen Demonstrationsmodus mit realistischen simulierten Daten.

@@ -11,8 +11,7 @@ from ...infrastructure.logging import Debug
 
 
 class StatusBarManager:
-    """
-    Manager for status bar messages and styles.
+    """Manager for status bar messages and styles.
 
     Attributes:
         statusbar (QStatusBar): The status bar widget.
@@ -60,6 +59,7 @@ class StatusBarManager:
         self, message: str, index: int = 0, backcolor: str = ""
     ) -> None:
         """Add a permanent message widget to the status bar.
+
         This message or widget will remain in the status bar until removed.
 
         Args:

@@ -5,4 +5,6 @@
 .venv/bin/pyside6-uic ./gmcounter/pyqt/connection.ui -o ./gmcounter/pyqt/ui_connection.py
 .venv/bin/pyside6-uic ./gmcounter/pyqt/alert.ui -o ./gmcounter/pyqt/ui_alert.py
 
+.venv/bin/ruff format ./gmcounter/pyqt/ui_*.py
+
 echo "UI files converted successfully"

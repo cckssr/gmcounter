@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""
-Debug script to check DataController queue processing.
-"""
+"""Debug script to check DataController queue processing."""
 
 import sys
 import time
 
 # Add the project root to Python path
-sys.path.insert(0, "/Users/cedric.kessler/TU_Berlin_offline/TutorGP/HRNGGUI")
+sys.path.insert(0, "/Users/cedric.kessler/TU_Berlin_offline/TutorGP/GMCounter")
 
 # Create QApplication for QTimer support
 try:

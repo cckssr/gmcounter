@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """Data controller for managing measurements and plot updates."""
 
 from typing import Optional, List, Tuple, Dict, Union
@@ -9,97 +6,25 @@ import threading
 from time import time
 from datetime import datetime
 
-try:  # pragma: no cover - optional dependency for headless testing
-    from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
-        QLCDNumber,
-        QTableView,
-        QLineEdit,
-    )  # type: ignore
-    from PySide6.QtGui import (  # pylint: disable=no-name-in-module
-        QStandardItemModel,
-        QStandardItem,
-    )
-    from PySide6.QtCore import (
-        QTimer,
-        QObject,
-        Signal,
-    )  # pylint: disable=no-name-in-module
-
-
-except Exception:  # ImportError or missing Qt libraries
-
-    class QLCDNumber:  # pragma: no cover - fallback stub
-        def display(self, *args, **kwargs):
-            pass
-
-    class QListWidget:  # pragma: no cover - fallback stub
-        def insertItem(self, *args, **kwargs):
-            pass
-
-        def item(self, *args, **kwargs):
-            class _Item:
-                def setTextAlignment(self, *a, **k):
-                    pass
-
-            return _Item()
-
-        def count(self) -> int:
-            return 0
-
-        def takeItem(self, *args, **kwargs):
-            pass
-
-        def clear(self):
-            pass
-
-    class QTableView:  # pragma: no cover - fallback stub
-        def setModel(self, *args, **kwargs):
-            pass
-
-    class QStandardItemModel:  # pragma: no cover - fallback stub
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def setHorizontalHeaderLabels(self, *args, **kwargs):
-            pass
-
-        def appendRow(self, *args, **kwargs):
-            pass
-
-        def rowCount(self):
-            return 0
-
-        def removeRow(self, *args, **kwargs):
-            pass
-
-    class _Alignment:
-        AlignRight = 0
-
-    class _Qt:
-        AlignmentFlag = _Alignment
-
-    class QTimer:  # pragma: no cover - fallback stub
-        def __init__(self):
-            self.timeout = self._MockSignal()
-
-        def start(self, interval):
-            pass
-
-        def stop(self):
-            pass
-
-        class _MockSignal:
-            def connect(self, callback):
-                pass
-
-    Qt = _Qt()
+from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
+    QLCDNumber,
+    QTableView,
+    QLineEdit,
+)  # type: ignore
+from PySide6.QtGui import (  # pylint: disable=no-name-in-module
+    QStandardItemModel,
+    QStandardItem,
+)
+from PySide6.QtCore import (
+    QTimer,
+    QObject,
+    Signal,
+)  # pylint: disable=no-name-in-module
 
 from ..widgets.plot import GeneralPlot, HistogramWidget
 from ...infrastructure.logging import Debug
 from ...infrastructure.config import import_config
-from ...helper_classes_compat import (
-    SaveManager,
-)
+from ...core.services import SaveService
 from ..common import dialogs as MessageHelper
 
 # Configuration constants
@@ -142,6 +67,7 @@ class DataController(QObject):
                 [count, min, max, avg, standardDeviation]
             table_widget: Optional table widget for data display.
             max_history: Maximum number of data points for GUI display (not file storage).
+            gui_update_interval: Interval in milliseconds for GUI updates (default 500ms).
         """
         super().__init__()
         self.plot = plot_widget
@@ -187,9 +113,9 @@ class DataController(QObject):
 
         # HIGH_SPEED_MODE: Batch-based detection
         self._high_speed_mode = False
-        self._batch_history: List[Tuple[float, int]] = (
-            []
-        )  # List of (timestamp, batch_size)
+        self._batch_history: List[
+            Tuple[float, int]
+        ] = []  # List of (timestamp, batch_size)
         self._histogram_update_timer = (
             None  # Separate timer for histogram in high-speed mode
         )
@@ -557,7 +483,6 @@ class DataController(QObject):
         Note: ``add_data_point_fast`` should be used for high frequency data
         acquisition, this method is kept for compatibility.
         """
-
         # Ensure numeric values
         try:
             # Ensure values are numeric
@@ -784,19 +709,22 @@ class DataController(QObject):
     # ============= Integrated SaveManager Methods =============
 
     def init_save_manager(self, base_dir: Optional[str] = None) -> None:
-        """Initialize the integrated SaveManager.
-
-        Args:
-            base_dir: Base directory for saving files. If None, uses default from CONFIG.
-        """
+        """Initialize the integrated SaveService."""
         if base_dir is None:
             base_dir = CONFIG.get("data_controller", {}).get(
                 "default_save_dir", "GMCounter"
             )
-        self.save_manager = SaveManager(base_dir=base_dir)
+        tk = CONFIG.get("save", {}).get("tk_designation", "TK47")
+        self._save_service = SaveService(base_dir=base_dir, tk_designation=tk)
+        self._auto_save_enabled = False
+        self._data_saved = False
         self.measurement_start: Optional[datetime] = None
         self.measurement_end: Optional[datetime] = None
-        Debug.info(f"SaveManager initialized with base_dir: {base_dir}")
+        Debug.info(f"SaveService initialized with base_dir: {base_dir}")
+
+    def _ensure_save_service(self) -> None:
+        if not hasattr(self, "_save_service"):
+            self.init_save_manager()
 
     def save_measurement_auto(
         self,
@@ -816,15 +744,13 @@ class DataController(QObject):
         Returns:
             Path to saved file or None if failed
         """
-        if not hasattr(self, "save_manager"):
-            self.init_save_manager()
+        self._ensure_save_service()
 
-        if not self.save_manager.auto_save or self.save_manager.last_saved:
+        if not self._auto_save_enabled or self._data_saved:
             return None
 
         data = self.get_csv_data()
-
-        saved_path = self.save_manager.auto_save_measurement(
+        saved_path = self._save_service.auto_save(
             rad_sample,
             group_letter,
             data,
@@ -833,7 +759,6 @@ class DataController(QObject):
             subterm,
             suffix,
         )
-
         return str(saved_path) if saved_path else None
 
     def save_measurement_manual(
@@ -843,24 +768,12 @@ class DataController(QObject):
         group_letter: str,
         subterm: str = "",
     ) -> Optional[str]:
-        """Manually save measurement via file dialog.
-
-        Args:
-            parent: Parent widget for dialog
-            rad_sample: Radioactive sample name
-            group_letter: Group identifier
-            subterm: Subgroup term for folder structure
-
-        Returns:
-            Path to saved file or None if cancelled/failed
-        """
-        if not hasattr(self, "save_manager"):
-            self.init_save_manager()
+        """Manually save measurement via file dialog."""
+        self._ensure_save_service()
 
         data = self.get_csv_data()
-
-        if not data or len(data) <= 1:  # Only header row
-            MessageHelper.info(
+        if not data or len(data) <= 1:
+            MessageHelper.show_info(
                 parent,
                 CONFIG.get("messages", {}).get(
                     "no_data_to_save", "Keine Messdaten zum Speichern vorhanden."
@@ -870,7 +783,7 @@ class DataController(QObject):
             return None
 
         if not rad_sample or not group_letter:
-            MessageHelper.info(
+            MessageHelper.show_info(
                 parent,
                 CONFIG.get("messages", {}).get(
                     "select_sample_and_group",
@@ -880,46 +793,56 @@ class DataController(QObject):
             )
             return None
 
-        saved_path = self.save_manager.manual_save_measurement(
+        file_path, _ = QFileDialog.getSaveFileName(
             parent,
-            rad_sample,
-            group_letter,
-            data,
+            "Messung speichern",
+            str(self._save_service.base_dir),
+            "CSV-Dateien (*.csv);;Alle Dateien (*)",
+            "CSV-Dateien (*.csv)",
+        )
+        if not file_path:
+            return None
+        if not file_path.lower().endswith(".csv"):
+            file_path += ".csv"
+
+        meta = self._save_service.create_metadata(
             self.measurement_start or datetime.now(),
             self.measurement_end or datetime.now(),
+            group_letter,
+            rad_sample,
             subterm,
         )
-
+        saved_path = self._save_service.save_measurement(file_path, data, meta)
+        self._save_service.mark_saved()
+        self._data_saved = True
         return str(saved_path) if saved_path else None
 
     def has_unsaved_data(self) -> bool:
         """Check if there is unsaved measurement data."""
-        if not hasattr(self, "save_manager"):
+        if not hasattr(self, "_save_service"):
             return len(self.data_points) > 0
-        return self.save_manager.has_unsaved()
+        return self._save_service.has_unsaved()
 
     def mark_data_unsaved(self) -> None:
         """Mark current data as unsaved."""
-        if not hasattr(self, "save_manager"):
-            self.init_save_manager()
-        self.save_manager.mark_unsaved()
+        self._ensure_save_service()
+        self._save_service.mark_unsaved()
+        self._data_saved = False
 
     def mark_data_saved(self) -> None:
         """Mark current data as saved."""
-        if hasattr(self, "save_manager"):
-            self.save_manager.last_saved = True
+        if hasattr(self, "_save_service"):
+            self._save_service.mark_saved()
+        self._data_saved = True
 
     def set_auto_save(self, enabled: bool) -> None:
         """Enable or disable auto-save."""
-        if not hasattr(self, "save_manager"):
-            self.init_save_manager()
-        self.save_manager.auto_save = enabled
+        self._ensure_save_service()
+        self._auto_save_enabled = enabled
 
     def is_auto_save_enabled(self) -> bool:
         """Check if auto-save is enabled."""
-        if not hasattr(self, "save_manager"):
-            return False
-        return self.save_manager.auto_save
+        return getattr(self, "_auto_save_enabled", False)
 
     def set_measurement_times(self, start: datetime, end: datetime) -> None:
         """Set measurement start and end times."""

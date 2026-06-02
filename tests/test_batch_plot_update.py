@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""
-Test script to verify the batch plot update functionality.
+"""Test script to verify the batch plot update functionality.
+
 Tests both the new update_plot_batch method and the updated DataController logic.
 """
 
@@ -11,7 +11,7 @@ from typing import List, Tuple
 import numpy as np
 
 # Add the project root to Python path
-sys.path.insert(0, "/Users/cedric.kessler/TU_Berlin_offline/TutorGP/HRNGGUI")
+sys.path.insert(0, "/Users/cedric.kessler/TU_Berlin_offline/TutorGP/GMCounter")
 
 # Create QApplication for QTimer support
 try:
@@ -90,22 +90,22 @@ def test_plot_batch_update():
 
         print(f"✓ Single updates (10 points): {single_update_time:.4f}s")
         print(f"✓ Batch update (10 points): {batch_update_time:.4f}s")
-        print(f"✓ Speedup ratio: {single_update_time/batch_update_time:.2f}x")
+        print(f"✓ Speedup ratio: {single_update_time / batch_update_time:.2f}x")
 
         # Verify data is correctly stored
         expected_points = 20  # 10 single + 10 batch
-        assert (
-            plot._data_count == expected_points
-        ), f"Expected {expected_points} points, got {plot._data_count}"
+        assert plot._data_count == expected_points, (
+            f"Expected {expected_points} points, got {plot._data_count}"
+        )
         print("✓ Batch update method works correctly")
 
         # Test that batch update works on empty plot
         plot.clear()
         test_points = [(i, i * 3) for i in range(5)]
         plot.update_plot_batch(test_points)
-        assert (
-            plot._data_count == 5
-        ), f"Expected 5 points after batch update on empty plot, got {plot._data_count}"
+        assert plot._data_count == 5, (
+            f"Expected 5 points after batch update on empty plot, got {plot._data_count}"
+        )
         print("✓ Batch update works on empty plot")
 
         return True
@@ -163,12 +163,12 @@ def test_data_controller_batch_processing():
         print(f"✓ Added 100 points in {processing_time:.4f}s")
 
         # Verify data was processed
-        assert (
-            len(controller.data_points) == 100
-        ), f"Expected 100 points, got {len(controller.data_points)}"
-        assert (
-            plot._data_count == 100
-        ), f"Expected 100 points in plot, got {plot._data_count}"
+        assert len(controller.data_points) == 100, (
+            f"Expected 100 points, got {len(controller.data_points)}"
+        )
+        assert plot._data_count == 100, (
+            f"Expected 100 points in plot, got {plot._data_count}"
+        )
 
         print(f"✓ All {len(controller.data_points)} data points processed correctly")
         print(f"✓ Plot contains {plot._data_count} points")
@@ -212,7 +212,7 @@ def test_performance_comparison():
 
         print(f"✓ Individual updates: {individual_time:.4f}s")
         print(f"✓ Batch update: {batch_time:.4f}s")
-        print(f"✓ Performance improvement: {individual_time/batch_time:.2f}x faster")
+        print(f"✓ Performance improvement: {individual_time / batch_time:.2f}x faster")
 
         # Both methods should result in the same data
         assert plot._data_count == 100, f"Expected 100 points, got {plot._data_count}"

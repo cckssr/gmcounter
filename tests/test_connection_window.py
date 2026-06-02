@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-Unit-Tests für die ConnectionWindow-Klasse.
+"""Unit-Tests für die ConnectionWindow-Klasse.
 
 Dieser Test testet das Connection Window, das für die Verbindung mit seriellen Geräten
 und Mock-Geräten (Demo-Modus) zuständig ist.
@@ -23,12 +22,11 @@ if str(project_root) not in sys.path:
 
 # Qt-Abhängigkeiten überprüfen
 pytest.importorskip("PySide6.QtWidgets")
-from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox
+from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 from PySide6.QtCore import Qt, QTimer
 
 from gmcounter.ui.dialogs.connection import ConnectionWindow
-from gmcounter.device_manager import DeviceManager
-from gmcounter.helper_classes import AlertWindow
+from gmcounter.infrastructure.device_manager import DeviceManager
 
 
 class TestConnectionWindow(unittest.TestCase):
@@ -41,18 +39,15 @@ class TestConnectionWindow(unittest.TestCase):
         if not cls.app:
             cls.app = QApplication([])
 
+    _MOD = "gmcounter.ui.dialogs.connection"
+
     def setUp(self):
         """Testumgebung für jeden Test einrichten."""
-        # Mock für externe Abhängigkeiten
-        self.list_ports_patcher = patch("gmcounter.connection.list_ports")
-        self.debug_patcher = patch("gmcounter.connection.Debug")
-        self.device_manager_patcher = patch("gmcounter.connection.DeviceManager")
-        self.alert_window_patcher = patch("gmcounter.connection.AlertWindow")
+        self.list_ports_patcher = patch(f"{self._MOD}.list_ports")
+        self.device_manager_patcher = patch(f"{self._MOD}.DeviceManager")
 
         self.mock_list_ports = self.list_ports_patcher.start()
-        self.mock_debug = self.debug_patcher.start()
         self.mock_device_manager_class = self.device_manager_patcher.start()
-        self.mock_alert_window = self.alert_window_patcher.start()
 
         # Mock für list_ports.comports()
         self.mock_port1 = Mock()
@@ -74,9 +69,7 @@ class TestConnectionWindow(unittest.TestCase):
     def tearDown(self):
         """Testumgebung nach jedem Test aufräumen."""
         self.list_ports_patcher.stop()
-        self.debug_patcher.stop()
         self.device_manager_patcher.stop()
-        self.alert_window_patcher.stop()
 
     def test_initialization_normal_mode(self):
         """Test der normalen Initialisierung ohne Demo-Modus."""
@@ -133,7 +126,10 @@ class TestConnectionWindow(unittest.TestCase):
             temp_file_path = temp_file.name
 
         try:
-            with patch("gmcounter.connection.os.path.join", return_value=temp_file_path):
+            with patch(
+                "gmcounter.ui.dialogs.connection.os.path.join",
+                return_value=temp_file_path,
+            ):
                 connection_window = ConnectionWindow()
                 result = connection_window.check_mock_port()
                 self.assertEqual(result, mock_port_content)
@@ -143,7 +139,9 @@ class TestConnectionWindow(unittest.TestCase):
 
     def test_check_mock_port_not_exists(self):
         """Test für check_mock_port wenn der Mock-Port nicht existiert."""
-        with patch("gmcounter.connection.os.path.exists", return_value=False):
+        with patch(
+            "gmcounter.ui.dialogs.connection.os.path.exists", return_value=False
+        ):
             connection_window = ConnectionWindow()
             result = connection_window.check_mock_port()
             self.assertIsNone(result)
@@ -256,87 +254,71 @@ class TestConnectionWindow(unittest.TestCase):
 
         connection_window.close()
 
-    def test_accept_failed_connection_alert_creation(self):
-        """Test ob AlertWindow bei fehlgeschlagener Verbindung erstellt wird."""
-        # Mock für AlertWindow
-        mock_alert_instance = Mock()
-        mock_alert_instance.exec.return_value = QDialog.DialogCode.Rejected
-        mock_alert_instance.get_clicked_role.return_value = (
-            QDialogButtonBox.ButtonRole.RejectRole
-        )
-        self.mock_alert_window.return_value = mock_alert_instance
-
-        connection_window = ConnectionWindow()
-        connection_window.combo.setCurrentText("/dev/ttyUSB0")
-
-        # Simuliere fehlgeschlagene Verbindung
-        with patch.object(
-            connection_window, "attempt_connection", return_value=(False, None)
-        ):
-            with patch("PySide6.QtWidgets.QDialog.reject") as mock_super_reject:
-                result = connection_window.accept()
-
-                # Überprüfen, dass AlertWindow erstellt wurde
-                self.mock_alert_window.assert_called_once()
-
-                # Überprüfen, dass die korrekten Parameter übergeben wurden
-                call_args = self.mock_alert_window.call_args
-                self.assertEqual(call_args[1]["title"], "Connection Error")
-                self.assertIn(
-                    "Failed to connect to /dev/ttyUSB0", call_args[1]["message"]
-                )
-
-        connection_window.close()
-
     def test_accept_failed_connection_cancel(self):
-        """Test der accept Methode bei fehlgeschlagener Verbindung mit Cancel."""
-        self.mock_device_manager.connect.return_value = False
-
-        # Mock für AlertWindow
-        mock_alert_instance = Mock()
-        mock_alert_instance.exec.return_value = QDialog.DialogCode.Rejected
-        mock_alert_instance.get_clicked_role.return_value = (
-            QDialogButtonBox.ButtonRole.RejectRole
-        )
-        self.mock_alert_window.return_value = mock_alert_instance
-
+        """Test der accept Methode bei fehlgeschlagener Verbindung mit Abbrechen."""
         connection_window = ConnectionWindow()
         connection_window.combo.setCurrentText("/dev/ttyUSB0")
+
+        cancel_btn = Mock()
+        mock_msg = Mock()
+        mock_msg.clickedButton.return_value = cancel_btn
+        mock_msg.buttonRole.return_value = QMessageBox.ButtonRole.RejectRole
 
         with patch.object(
             connection_window, "attempt_connection", return_value=(False, None)
         ):
-            with patch("PySide6.QtWidgets.QDialog.reject") as mock_super_reject:
-                result = connection_window.accept()
-
-                # Überprüfen, dass super().reject() aufgerufen wurde
-                mock_super_reject.assert_called_once()
+            with patch(f"{self._MOD}.QMessageBox", return_value=mock_msg):
+                with patch("PySide6.QtWidgets.QDialog.reject") as mock_reject:
+                    connection_window.accept()
+                    mock_reject.assert_called_once()
 
         connection_window.close()
 
     def test_accept_failed_connection_select_another_port(self):
-        """Test der accept Methode bei fehlgeschlagener Verbindung mit 'Select Another Port'."""
-        self.mock_device_manager.connect.return_value = False
-
-        # Mock für AlertWindow
-        mock_alert_instance = Mock()
-        mock_alert_instance.exec.return_value = QDialog.DialogCode.Accepted
-        mock_alert_instance.get_clicked_role.return_value = (
-            QDialogButtonBox.ButtonRole.ActionRole
-        )
-        self.mock_alert_window.return_value = mock_alert_instance
-
+        """Test: Dialog bleibt offen wenn 'Anderen Port wählen' geklickt wird."""
         connection_window = ConnectionWindow()
         connection_window.combo.setCurrentText("/dev/ttyUSB0")
+
+        other_btn = Mock()
+        mock_msg = Mock()
+        mock_msg.clickedButton.return_value = other_btn
+        mock_msg.buttonRole.return_value = QMessageBox.ButtonRole.ResetRole
 
         with patch.object(
             connection_window, "attempt_connection", return_value=(False, None)
         ):
-            result = connection_window.accept()
+            with patch(f"{self._MOD}.QMessageBox", return_value=mock_msg):
+                result = connection_window.accept()
+                # No return value means dialog stays open (None / implicit None)
+                self.assertIsNone(result)
 
-            # Überprüfen, dass False zurückgegeben wird (Dialog bleibt offen)
-            self.assertFalse(result)
+        connection_window.close()
 
+    def test_accept_failed_connection_retry(self):
+        """Test: Wiederholen ruft accept() rekursiv auf."""
+        connection_window = ConnectionWindow()
+        connection_window.combo.setCurrentText("/dev/ttyUSB0")
+
+        retry_btn = Mock()
+        mock_msg = Mock()
+        mock_msg.clickedButton.return_value = retry_btn
+        mock_msg.buttonRole.return_value = QMessageBox.ButtonRole.AcceptRole
+
+        call_count = {"n": 0}
+
+        def fake_attempt():
+            call_count["n"] += 1
+            # Fail first time, succeed second so recursion terminates
+            return (call_count["n"] > 1, None)
+
+        with patch.object(
+            connection_window, "attempt_connection", side_effect=fake_attempt
+        ):
+            with patch(f"{self._MOD}.QMessageBox", return_value=mock_msg):
+                with patch("PySide6.QtWidgets.QDialog.accept"):
+                    connection_window.accept()
+
+        self.assertGreaterEqual(call_count["n"], 2)
         connection_window.close()
 
     def test_refresh_button_functionality(self):
@@ -401,8 +383,10 @@ class TestConnectionWindowIntegration(unittest.TestCase):
 
     def test_window_creation_and_closure(self):
         """Integration Test: Fenster erstellen und schließen."""
-        with patch("gmcounter.connection.list_ports.comports", return_value=[]):
-            with patch("gmcounter.connection.DeviceManager"):
+        with patch(
+            "gmcounter.ui.dialogs.connection.list_ports.comports", return_value=[]
+        ):
+            with patch("gmcounter.ui.dialogs.connection.DeviceManager"):
                 connection_window = ConnectionWindow()
 
                 # Fenster sollte erstellt werden
@@ -421,10 +405,13 @@ class TestConnectionWindowIntegration(unittest.TestCase):
             temp_file_path = temp_file.name
 
         try:
-            with patch("gmcounter.connection.list_ports.comports", return_value=[]):
-                with patch("gmcounter.connection.DeviceManager"):
+            with patch(
+                "gmcounter.ui.dialogs.connection.list_ports.comports", return_value=[]
+            ):
+                with patch("gmcounter.ui.dialogs.connection.DeviceManager"):
                     with patch(
-                        "gmcounter.connection.os.path.join", return_value=temp_file_path
+                        "gmcounter.ui.dialogs.connection.os.path.join",
+                        return_value=temp_file_path,
                     ):
                         connection_window = ConnectionWindow(demo_mode=True)
 

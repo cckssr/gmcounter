@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""
-Test-Skript für die Autodoc-Funktionalität
+"""Test-Skript für die Autodoc-Funktionalität.
+
 Dieses Skript testet, ob die automatische API-Dokumentation korrekt funktioniert
 """
 
@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 def test_autodoc():
-    """Testet die Autodoc-Funktionalität von Sphinx"""
+    """Testet die Autodoc-Funktionalität von Sphinx."""
     print("🔍 Teste Autodoc-Funktionalität...")
 
     # Ins docs-Verzeichnis wechseln
@@ -100,7 +100,7 @@ Test Autodoc
 
 
 def check_docstrings():
-    """Prüft die Qualität der Docstrings im Code"""
+    """Prüft die Qualität der Docstrings im Code."""
     print("\n📝 Prüfe Docstring-Qualität...")
 
     src_dir = Path(__file__).parent / "src"
@@ -139,8 +139,8 @@ def check_docstrings():
 
 
 def main():
-    """Hauptfunktion"""
-    print("🎯 Autodoc-Funktionalität Test für HRNGGUI")
+    """Hauptfunktion."""
+    print("🎯 Autodoc-Funktionalität Test für GMCounter")
     print("=" * 50)
 
     # Prüfe Docstrings

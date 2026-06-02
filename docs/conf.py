@@ -43,7 +43,7 @@ for mod_name in MOCK_MODULES:
 
 # -- Project information -----------------------------------------------------
 
-project = "HRNGGUI"
+project = "GMCounter"
 copyright_notice = "2025, Cedric Kessler"
 author = "Cedric Kessler"
 
@@ -110,7 +110,7 @@ html_static_path = []
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "HRNGGUIdoc"
+htmlhelp_basename = "GMCounterdoc"
 
 # -- Options for LaTeX output ------------------------------------------------
 
@@ -133,14 +133,14 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    ("index", "HRNGGUI.tex", "HRNGGUI Documentation", "Cedric Kessler", "manual"),
+    ("index", "GMCounter.tex", "GMCounter Documentation", "Cedric Kessler", "manual"),
 ]
 
 # -- Options for manual page output ------------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [("index", "hrnggui", "HRNGGUI Documentation", [author], 1)]
+man_pages = [("index", "GMCounter", "GMCounter Documentation", [author], 1)]
 
 # -- Options for Texinfo output ----------------------------------------------
 
@@ -150,10 +150,10 @@ man_pages = [("index", "hrnggui", "HRNGGUI Documentation", [author], 1)]
 texinfo_documents = [
     (
         "index",
-        "HRNGGUI",
-        "HRNGGUI Documentation",
+        "GMCounter",
+        "GMCounter Documentation",
         author,
-        "HRNGGUI",
+        "GMCounter",
         "GUI für Hardware-Zufallszahlengeneratoren mit GM-Zähler.",
         "Miscellaneous",
     ),

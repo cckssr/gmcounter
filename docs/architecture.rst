@@ -1,4 +1,4 @@
-HRNGGUI-Architektur
+GMCounter-Architektur
 ====================
 
 Die Anwendung folgt einem schichtbasierten Aufbau, der die Benutzerschnittstelle von der Datenverarbeitung und der Hardwarekommunikation trennt. Dadurch lässt sich das Programm leichter erweitern und warten.

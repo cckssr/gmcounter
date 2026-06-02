@@ -1,0 +1,180 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version component to bump"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+      prerelease:
+        description: "Prerelease type (none = stable release)"
+        required: true
+        default: "none"
+        type: choice
+        options:
+          - none
+          - a
+          - b
+          - rc
+      prerelease_number:
+        description: "Prerelease number (only used when prerelease != none)"
+        required: false
+        default: "1"
+
+env:
+  VERSION_FILES: |
+    pyproject.toml
+    gmcounter/__init__.py
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    name: Bump version and create tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Compute new version
+        id: ver
+        run: |
+          python - <<'PYEOF'
+          from __future__ import annotations
+
+          import os
+          import re
+          from pathlib import Path
+
+          def read_version(pyproject_path: Path) -> str:
+            match = re.search(r'^version\s*=\s*"([^"]+)"$', pyproject_path.read_text(encoding="utf-8"), re.MULTILINE)
+            if not match:
+              raise RuntimeError("Could not find version in pyproject.toml")
+            return match.group(1)
+
+          pyproject_path = Path("pyproject.toml")
+          current = read_version(pyproject_path)
+
+          base = re.sub(r"(?:a|b|rc)\d+$", "", current)
+          major, minor, patch = (int(part) for part in base.split("."))
+
+          bump = "${{ inputs.bump_type }}"
+          if bump == "major":
+            major += 1
+            minor = 0
+            patch = 0
+          elif bump == "minor":
+            minor += 1
+            patch = 0
+          else:
+            patch += 1
+
+          new_version = f"{major}.{minor}.{patch}"
+
+          prerelease = "${{ inputs.prerelease }}"
+          prerelease_number = "${{ inputs.prerelease_number }}"
+          if prerelease != "none":
+            new_version = f"{new_version}{prerelease}{prerelease_number}"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            output.write(f"new_version={new_version}\n")
+
+          print(f"Current version: {current}")
+          print(f"New version:     {new_version}")
+          PYEOF
+
+      - name: Update version files
+        run: |
+          VERSION="${{ steps.ver.outputs.new_version }}" python - <<'PYEOF'
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+          targets = [Path(line) for line in os.environ["VERSION_FILES"].splitlines() if line.strip()]
+
+          for target in targets:
+            if not target.exists():
+              raise RuntimeError(f"Missing version target: {target}")
+
+            if target.suffix == ".toml":
+              text = target.read_text(encoding="utf-8")
+              updated, count = re.subn(r'^version\s*=\s*"[^"]*"$', f'version = "{version}"', text, count=1, flags=re.MULTILINE)
+              if count != 1:
+                raise RuntimeError(f"Could not update version in {target}")
+              target.write_text(updated, encoding="utf-8")
+              continue
+
+            if target.suffix == ".py":
+              text = target.read_text(encoding="utf-8")
+              updated, count = re.subn(r'^__version__\s*=\s*"[^"]*"$', f'__version__ = "{version}"', text, count=1, flags=re.MULTILINE)
+              if count != 1:
+                raise RuntimeError(f"Could not update version in {target}")
+              target.write_text(updated, encoding="utf-8")
+              continue
+
+            if target.suffix == ".json":
+              payload = json.loads(target.read_text(encoding="utf-8"))
+              if not isinstance(payload, dict) or "version" not in payload:
+                raise RuntimeError(f"JSON target does not contain a top-level version field: {target}")
+              payload["version"] = version
+              target.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+              continue
+
+            raise RuntimeError(f"Unsupported version target: {target}")
+
+          PYEOF
+
+      - name: Verify changes
+        run: |
+          echo "=== pyproject.toml ===" && grep "^version" pyproject.toml
+          echo "=== gmcounter/__init__.py ===" && grep "__version__" gmcounter/__init__.py
+
+      - name: Commit and tag
+        run: |
+          VERSION="${{ steps.ver.outputs.new_version }}"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add pyproject.toml gmcounter/__init__.py
+          git commit -m "chore: bump version to v$VERSION"
+          git tag "v$VERSION"
+          git push origin HEAD
+          git push origin "v$VERSION"
+          echo "Created and pushed tag v$VERSION"
+
+      - name: Summary
+        run: |
+          VERSION="${{ steps.ver.outputs.new_version }}"
+          echo "## Version Bump Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **New version** | \`$VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Bump type** | ${{ inputs.bump_type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Prerelease** | ${{ inputs.prerelease }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Tag pushed** | \`v$VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ secrets.PAT_TOKEN }}" != "" ]; then
+            echo "The tag push will trigger **release.yml** automatically." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "> **Note:** No \`PAT_TOKEN\` secret configured — tag push will NOT" >> $GITHUB_STEP_SUMMARY
+            echo "> automatically trigger \`release.yml\`. Run it manually from the Actions tab." >> $GITHUB_STEP_SUMMARY
+          fi

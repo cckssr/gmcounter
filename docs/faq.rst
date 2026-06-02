@@ -1,13 +1,13 @@
 FAQ
 ===
 
-Häufige Fragen zur HRNGGUI-Nutzung.
+Häufige Fragen zur GMCounter-Nutzung.
 
 Grundlagen
 ----------
 
-**Was ist HRNGGUI?**
-HRNGGUI erfasst und analysiert Daten von Geiger-Müller-Zählern für wissenschaftliche Zufallszahlengenerierung.
+**Was ist GMCounter?**
+GMCounter erfasst und analysiert Daten von Geiger-Müller-Zählern für wissenschaftliche Zufallszahlengenerierung.
 
 **Welche Hardware wird unterstützt?**
 - Arduino-basierte GM-Zähler mit serieller Ausgabe
@@ -69,4 +69,4 @@ Support
 Weitere Fragen?
 ~~~~~~~~~~~~~~~
 
-Öffnen Sie ein Issue auf `GitHub <https://github.com/cckssr/HRNGGUI/issues>`_.
+Öffnen Sie ein Issue auf `GitHub <https://github.com/cckssr/GMCounter/issues>`_.

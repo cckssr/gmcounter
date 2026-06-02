@@ -1,5 +1,4 @@
-"""!/usr/bin/env python
-Logging and debugging utility module for the GM Counter application.
+"""Logging and debugging utility module for the GM Counter application.
 
 This module provides a centralized Debug class that handles logging to both console
 and file outputs with configurable debug levels. It supports systematic logging of
@@ -39,8 +38,8 @@ import inspect
 
 
 class Debug:
-    """
-    Debug utility class originally for fringe counter program.
+    """Debug utility class originally for fringe counter program.
+
     This class provides central debug and logging functions,
     to systematically log errors and program flow.
     The logger will log messages to both the console and a file if debugging is enabled.
@@ -65,8 +64,8 @@ class Debug:
 
     @classmethod
     def init(cls, debug_level=DEBUG_LEVEL, log_dir=None, app_name="Application"):
-        """
-        Initialise the logger with the specified debug level and log directory.
+        """Initialise the logger with the specified debug level and log directory.
+
         If no log directory is specified, a platform-specific temp directory is used.
 
         Args:
@@ -76,9 +75,15 @@ class Debug:
         """
         cls.DEBUG_LEVEL = debug_level
 
-        # Create logger
-        cls.logger = logging.getLogger(app_name)
+        # Use the "gmcounter" logger — parent of every gmcounter.* module logger.
+        # This ensures all logging.getLogger(__name__) calls in the package
+        # propagate here and respect the configured level/handlers.
+        cls.logger = logging.getLogger("gmcounter")
         cls.logger.setLevel(logging.DEBUG)
+        cls.logger.propagate = False  # don't double-print via root logger
+
+        # Remove any handlers added by a previous Debug.init() call
+        cls.logger.handlers.clear()
 
         # Handler for console output
         console_handler = logging.StreamHandler()
@@ -117,9 +122,10 @@ class Debug:
                     return
 
             # Always create a log.txt in the specified directory
+            safe_name = app_name.replace(" ", "_")
             cls.LOG_FILE = os.path.join(
                 log_directory,
-                f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{app_name}.txt",
+                f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{safe_name}.txt",
             )
 
             file_handler = logging.FileHandler(cls.LOG_FILE, encoding="utf-8")
@@ -136,8 +142,7 @@ class Debug:
 
     @classmethod
     def error(cls, message, exc_info=None):
-        """
-        Log an error message.
+        """Log an error message.
 
         Args:
             message: Error message to log
@@ -159,8 +164,7 @@ class Debug:
 
     @classmethod
     def info(cls, message):
-        """
-        Log an informational message.
+        """Log an informational message.
 
         Args:
             message: Information to log
@@ -179,8 +183,7 @@ class Debug:
 
     @classmethod
     def debug(cls, message):
-        """
-        Log detailed debug information.
+        """Log detailed debug information.
 
         Args:
             message: Debug information to log
@@ -199,8 +202,7 @@ class Debug:
 
     @classmethod
     def warning(cls, message):
-        """
-        Log information as warning for non critical issues.
+        """Log information as warning for non critical issues.
 
         Args:
             message: Warning information to log
@@ -219,8 +221,7 @@ class Debug:
 
     @classmethod
     def critical(cls, message):
-        """
-        Log a critical error message.
+        """Log a critical error message.
 
         Args:
             message: Critical error message to log
@@ -238,8 +239,8 @@ class Debug:
 
     @classmethod
     def exception_hook(cls, exc_type, exc_value, exc_traceback):
-        """
-        Callback function for unhandled exceptions.
+        """Callback function for unhandled exceptions.
+
         Logs the exception and forwards it to sys.__excepthook__.
 
         Args:
@@ -257,8 +258,7 @@ class Debug:
 
     @classmethod
     def _get_caller_info(cls):
-        """
-        Retrieve information about the caller (class and function).
+        """Retrieve information about the caller (class and function).
 
         Returns:
             str: Formatted information about the caller in the format [Class.Function]

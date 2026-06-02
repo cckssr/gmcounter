@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Optimierte Version des DataAcquisitionThread für maximale Performance.
-"""
+"""Optimierte Version des DataAcquisitionThread für maximale Performance."""
 
 import sys
 import os
@@ -13,7 +11,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 def create_optimized_thread():
     """Erstelle eine performance-optimierte Version des DataAcquisitionThread."""
-
     optimized_code = '''
 class OptimizedDataAcquisitionThread(QThread):
     """Hochperformante Version für Datenraten bis 10kHz."""
@@ -151,7 +148,6 @@ class OptimizedDataAcquisitionThread(QThread):
 
 def create_performance_config():
     """Erstelle optimierte Konfigurationen."""
-
     configs = {
         "arduino_optimizations": {
             "baudrate": 115200,  # Höhere Baudrate
@@ -176,7 +172,6 @@ def create_performance_config():
 
 def benchmark_serial_rates():
     """Benchmark verschiedene serielle Konfigurationen."""
-
     print("\n=== Serial Performance Benchmark ===")
 
     # Simuliere verschiedene Baudrates und deren theoretische Limits

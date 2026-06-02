@@ -136,7 +136,7 @@ Die API-Dokumentation wird automatisch aus den Docstrings im Code generiert. Ste
 .. code-block:: python
 
     class MainWindow(QMainWindow):
-        """Main window of the HRNGGUI application.
+        """Main window of the GMCounter application.
 
         It handles the user interface, the device connection and the
         processing of the recorded data.  The implementation is split

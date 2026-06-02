@@ -8,8 +8,7 @@ from .logging import Debug
 
 
 def import_config(language: str = "de") -> dict:
-    """
-    Imports the language-specific configuration from config.json.
+    """Imports the language-specific configuration from config.json.
 
     Args:
         language (str): The language code to load the configuration for (default is "de").
@@ -17,7 +16,6 @@ def import_config(language: str = "de") -> dict:
     Returns:
         dict: The configuration dictionary.
     """
-
     # Mögliche Pfade für config.json (in Prioritätsreihenfolge)
     # WICHTIG: Dateipfade haben Vorrang vor Package-Resources,
     # damit während Development/Release die aktuelle Config verwendet wird

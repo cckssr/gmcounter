@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""
-Test script for the enhanced binary protocol with START_BYTE (0xAA) and END_BYTE (0x55).
+"""Test script for the enhanced binary protocol with START_BYTE (0xAA) and END_BYTE (0x55).
+
 Tests packet validation and invalid data rejection.
 """
 
@@ -9,7 +9,7 @@ import io
 from unittest.mock import Mock, patch
 
 # Add the project root to Python path
-sys.path.insert(0, "/Users/cedric.kessler/TU_Berlin_offline/TutorGP/HRNGGUI")
+sys.path.insert(0, "/Users/cedric.kessler/TU_Berlin_offline/TutorGP/GMCounter")
 
 from gmcounter.device_manager import DataAcquisitionThread, DeviceManager
 
@@ -91,13 +91,13 @@ def test_enhanced_protocol():
         else:
             break
 
-    assert len(received_data) == len(
-        test_values
-    ), f"Expected {len(test_values)} packets, got {len(received_data)}"
+    assert len(received_data) == len(test_values), (
+        f"Expected {len(test_values)} packets, got {len(received_data)}"
+    )
     for i, expected_val in enumerate(test_values):
-        assert received_data[i][1] == float(
-            expected_val
-        ), f"Value mismatch at index {i}"
+        assert received_data[i][1] == float(expected_val), (
+            f"Value mismatch at index {i}"
+        )
 
     print(f"✓ All {len(test_values)} valid packets processed correctly")
 
@@ -153,9 +153,9 @@ def test_enhanced_protocol():
 
     # Should have processed only the 3 valid packets (1000, 3000, 4000)
     expected_valid_count = 3
-    assert (
-        processed_valid == expected_valid_count
-    ), f"Expected {expected_valid_count} valid packets, got {processed_valid}"
+    assert processed_valid == expected_valid_count, (
+        f"Expected {expected_valid_count} valid packets, got {processed_valid}"
+    )
     print(
         f"✓ Correctly processed {processed_valid} valid packets, rejected invalid ones"
     )
@@ -207,9 +207,9 @@ def test_enhanced_protocol():
 
     # Should have recovered both valid packets (5000, 6000)
     expected_recovered = 2
-    assert (
-        len(received_data) == expected_recovered
-    ), f"Expected {expected_recovered} recovered packets, got {len(received_data)}"
+    assert len(received_data) == expected_recovered, (
+        f"Expected {expected_recovered} recovered packets, got {len(received_data)}"
+    )
     print(
         f"✓ Successfully recovered {len(received_data)} valid packets from corrupted stream"
     )

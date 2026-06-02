@@ -1,16 +1,4 @@
-"""Infrastructure layer - handles external world interactions."""
-
-from .logging import Debug
-from .arduino import Arduino, GMCounter
-from .device_manager import DeviceManager
-from .qt_threads import DataAcquisitionThread
-from .config import import_config
-
-__all__ = [
-    "Debug",
-    "Arduino",
-    "GMCounter",
-    "DeviceManager",
-    "DataAcquisitionThread",
-    "import_config",
-]
+# Layer: infrastructure — adapters for external I/O (serial, files, config, logging).
+# PySide6 is allowed ONLY inside qt_threads.py — nowhere else in this package.
+# May import: core/, stdlib, serial, vendor SDKs.
+# Must NOT import: ui/.

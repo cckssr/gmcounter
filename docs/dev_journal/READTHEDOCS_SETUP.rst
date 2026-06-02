@@ -1,7 +1,7 @@
-Read the Docs Setup für HRNGGUI
+Read the Docs Setup für GMCounter
 ===============================
 
-Dieses Verzeichnis enthält alle notwendigen Dateien für die Verwendung von Read the Docs mit dem HRNGGUI-Projekt.
+Dieses Verzeichnis enthält alle notwendigen Dateien für die Verwendung von Read the Docs mit dem GMCounter-Projekt.
 
 Erstellte Dateien
 -----------------
@@ -90,7 +90,7 @@ Read the Docs Integration
    - Gehen Sie zu https://readthedocs.org
    - Melden Sie sich mit Ihrem GitHub-Account an
    - Klicken Sie auf "Import a Project"
-   - Wählen Sie Ihr HRNGGUI-Repository aus
+   - Wählen Sie Ihr GMCounter-Repository aus
 
 2. **Projekt konfigurieren**:
 

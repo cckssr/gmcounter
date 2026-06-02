@@ -1,6 +1,6 @@
-# HRNGGUI Testplan
+# GMCounter Testplan
 
-Dieser Testplan dient zur systematischen Überprüfung der HRNGGUI-Anwendung nach Änderungen. Er deckt die wichtigsten Funktionen ab und stellt sicher, dass die Kernfunktionalität nach dem Refactoring weiterhin korrekt funktioniert.
+Dieser Testplan dient zur systematischen Überprüfung der GMCounter-Anwendung nach Änderungen. Er deckt die wichtigsten Funktionen ab und stellt sicher, dass die Kernfunktionalität nach dem Refactoring weiterhin korrekt funktioniert.
 
 ## 1. Initialisierung und grundlegende UI-Funktionen
 

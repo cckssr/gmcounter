@@ -1,1 +1,1 @@
-# Tests package for HRNGGUI
+# Tests package for GMCounter

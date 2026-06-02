@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  PROJECT_NAME: GMCounter
+  CLI_COMMAND: gmcounter
+  MODULE_COMMAND: python -m gmcounter
+  REPOSITORY_URL: https://github.com/${{ github.repository }}
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build wheel and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build tool
+        run: python -m pip install build
+
+      - name: Build wheel and sdist
+        run: python -m build
+
+      - name: List artifacts
+        run: ls -lh dist/
+
+      - name: Detect prerelease
+        id: pre
+        run: |
+          if echo "${{ github.ref_name }}" | grep -qE "(a|b|rc)[0-9]+$"; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "This is a pre-release: ${{ github.ref_name }}"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "This is a stable release: ${{ github.ref_name }}"
+          fi
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          prerelease: ${{ steps.pre.outputs.is_prerelease }}
+          generate_release_notes: true
+          body: |
+            ## ${{ env.PROJECT_NAME }} ${{ github.ref_name }}
+
+            Python package release published from this repository.
+
+            ### Installation
+
+            ```bash
+            pip install git+${{ env.REPOSITORY_URL }}.git@${{ github.ref_name }}
+            ```
+
+            Or install the latest stable release:
+
+            ```bash
+            pip install git+${{ env.REPOSITORY_URL }}.git
+            ```
+
+            ### Launch
+
+            ```bash
+            ${{ env.CLI_COMMAND }}
+            ```
+
+            or via python:
+
+            ```bash
+            ${{ env.MODULE_COMMAND }}
+            ```
+
+            See the [README](${{ env.REPOSITORY_URL }}#readme) for package-specific
+            installation details and configuration options.
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pre-release:** ${{ steps.pre.outputs.is_prerelease }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifacts:**" >> $GITHUB_STEP_SUMMARY
+          ls dist/ | while read f; do echo "  - \`$f\`" >> $GITHUB_STEP_SUMMARY; done

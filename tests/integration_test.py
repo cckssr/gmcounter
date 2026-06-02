@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Integrationstest für die refaktorierte HRNGGUI-Anwendung.
+"""Integrationstest für die refaktorierte GMCounter-Anwendung.
+
 Überprüft die Grundfunktionalität der Anwendung nach der Umstrukturierung.
 """
 
@@ -28,7 +28,7 @@ from gmcounter.device_manager import DeviceManager
 
 
 class IntegrationTest(unittest.TestCase):
-    """Integrationstest für die HRNGGUI-Anwendung."""
+    """Integrationstest für die GMCounter-Anwendung."""
 
     @classmethod
     def setUpClass(cls):

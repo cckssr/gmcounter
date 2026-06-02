@@ -6,44 +6,61 @@ on:
       - main
       - master
     paths:
-      - 'pyproject.toml'
+      - pyproject.toml
   workflow_dispatch:
     inputs:
       force_release:
-        description: 'Force release even if version unchanged'
+        description: Force release even if version unchanged
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 permissions:
   contents: write
 
+env:
+  PROJECT_NAME: GMCounter
+  REPOSITORY_URL: https://github.com/${{ github.repository }}
+  CLI_COMMAND: gmcounter
+  MODULE_COMMAND: python -m gmcounter
+
 jobs:
   sync-version-and-release:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.12"
+          cache: pip
 
       - name: Install dependencies
         run: |
-          pip install toml
+          python -m pip install --upgrade pip
 
       - name: Extract version from pyproject.toml
         id: get_version
         run: |
-          VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted version: $VERSION"
+          python - <<'PYEOF'
+          from __future__ import annotations
+
+          import os
+          import tomllib
+
+          with open("pyproject.toml", "rb") as file_handle:
+              version = tomllib.load(file_handle)["project"]["version"]
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"version={version}\n")
+
+          print(f"Extracted version: {version}")
+          PYEOF
 
       - name: Check if version tag already exists
         id: check_tag
@@ -56,34 +73,33 @@ jobs:
             echo "Tag v${{ steps.get_version.outputs.version }} does not exist"
           fi
 
-      - name: Sync version in Python files
+      - name: Sync version in Python package
         if: steps.check_tag.outputs.tag_exists == 'false' || github.event.inputs.force_release == 'true'
         run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
-          
-          echo "Syncing version $VERSION to Python files..."
-          
-          # Update src/__init__.py
-          if [ -f "src/__init__.py" ]; then
-            sed -i "s/__version__ = \"[^\"]*\"/__version__ = \"$VERSION\"/" src/__init__.py
-            echo "Updated src/__init__.py"
-          fi
-          
-          # Update any other Python files with __version__
-          find . -name "*.py" -type f ! -path "./.venv/*" ! -path "./build/*" ! -path "./dist/*" | while read file; do
-            if grep -q "__version__ = " "$file"; then
-              sed -i "s/__version__ = \"[^\"]*\"/__version__ = \"$VERSION\"/" "$file"
-              echo "Updated $file"
-            fi
-          done
-          
-          # Update config.json
-          if [ -f "config.json" ]; then
-            jq --arg version "$VERSION" '.version = $version' config.json > tmp.$$.json && mv tmp.$$.json config.json
-            echo "Updated config.json"
-          fi
-          
-          echo "Version sync complete"
+          VERSION="${{ steps.get_version.outputs.version }}" python - <<'PYEOF'
+          from __future__ import annotations
+
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+          target = Path("gmcounter/__init__.py")
+
+          text = target.read_text(encoding="utf-8")
+          updated, count = re.subn(
+              r'^__version__\s*=\s*"[^"]*"$',
+              f'__version__ = "{version}"',
+              text,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if count != 1:
+              raise RuntimeError("Could not update version in gmcounter/__init__.py")
+
+          target.write_text(updated, encoding="utf-8")
+          print(f"Updated {target}")
+          PYEOF
 
       - name: Check for changes
         id: check_changes
@@ -105,25 +121,33 @@ jobs:
           git push
 
       - name: Create Release
-        if: (steps.check_tag.outputs.tag_exists == 'false' || github.event.inputs.force_release == 'true')
+        if: steps.check_tag.outputs.tag_exists == 'false' || github.event.inputs.force_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           name: Release v${{ steps.get_version.outputs.version }}
           body: |
-            ## HRNGGUI v${{ steps.get_version.outputs.version }}
-            
+            ## ${{ env.PROJECT_NAME }} v${{ steps.get_version.outputs.version }}
+
             ### Installation
-            
+
             ```bash
-            pip install .
+            pip install git+${{ env.REPOSITORY_URL }}.git@v${{ steps.get_version.outputs.version }}
             ```
-            
-            ### Änderungen
-            
-            Siehe [CHANGELOG](CHANGELOG.md) oder die Commit-Historie für Details.
+
+            ### Launch
+
+            ```bash
+            ${{ env.CLI_COMMAND }}
+            ```
+
+            or via python:
+
+            ```bash
+            ${{ env.MODULE_COMMAND }}
+            ```
           draft: false
-          prerelease: ${{ contains(steps.get_version.outputs.version, 'alpha') || contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'rc') }}
+          prerelease: ${{ contains(steps.get_version.outputs.version, 'a') || contains(steps.get_version.outputs.version, 'b') || contains(steps.get_version.outputs.version, 'rc') }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -135,7 +159,7 @@ jobs:
           echo "- **Version:** ${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Tag exists:** ${{ steps.check_tag.outputs.tag_exists }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Files changed:** ${{ steps.check_changes.outputs.changes }}" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.check_tag.outputs.tag_exists }}" == "false" ]; then
+          if [ "${{ steps.check_tag.outputs.tag_exists }}" = "false" ]; then
             echo "- **Release created:** ✅ v${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           else
             echo "- **Release created:** ❌ (tag already exists)" >> $GITHUB_STEP_SUMMARY

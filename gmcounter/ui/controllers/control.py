@@ -9,8 +9,7 @@ CONFIG = import_config()
 
 class ControlWidget:
     def __init__(self, device_manager: DeviceManager):
-        """
-        Initializes the hardware control widget to display and set GM counter parameters.
+        """Initializes the hardware control widget to display and set GM counter parameters.
 
         Args:
             device_manager: The device manager for controlling the GM counter
@@ -25,9 +24,7 @@ class ControlWidget:
             return
 
     def apply_settings(self, settings: dict[str, Union[bool, int]]) -> bool:
-        """
-        Apply all settings to the GM counter.
-        """
+        """Apply all settings to the GM counter."""
         try:
             # Get values from UI
             repeat = settings.get("repeat", False)
@@ -60,8 +57,7 @@ class ControlWidget:
             return False
 
     def get_settings(self) -> dict[str, Union[bool, int]]:
-        """
-        Retrieve the current settings from the GM counter.
+        """Retrieve the current settings from the GM counter.
 
         Returns:
             dict[str, Union[bool, int]]: The current counter settings.
@@ -83,9 +79,7 @@ class ControlWidget:
             return {}
 
     def reset_settings(self) -> bool:
-        """
-        Reset the GM counter settings to default values.
-        """
+        """Reset the GM counter settings to default values."""
         try:
             # Reset to default values
             self.gm_counter.set_repeat(False)
@@ -103,9 +97,7 @@ class ControlWidget:
             return False
 
     def get_device_info(self) -> dict:
-        """
-        Retrieve device information from the GM counter.
-        """
+        """Retrieve device information from the GM counter."""
         try:
             info = self.gm_counter.get_information()
             Debug.debug(f"Geräteinformationen abgerufen: {info}")

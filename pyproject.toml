@@ -1,13 +1,12 @@
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+[tool.setuptools.package-data]
+"gmcounter" = ["pyqt/*.ui", "pyqt/*.py", "config.json"]
 
 [project]
 name = "GMCounter"
 version = "1.2.3"
 description = "Geiger-Müller Counter GUI"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     {name = "Cedric Kessler", email = "c.kessler@tu-berlin.de"}
 ]
@@ -16,7 +15,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -44,8 +42,7 @@ docs = [
 ]
 
 dev = [
-    "black>=23.0.0",
-    "flake8>=6.0.0",
+    "ruff>=0.15.15",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
 ]
@@ -62,28 +59,21 @@ gmcounter = "gmcounter.main:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["gmcounter", "gmcounter.*"]
+# Exclude mocks from the wheel (§11 — mocks are implementations, not fixtures)
+exclude = ["gmcounter.infrastructure.mocks", "gmcounter.infrastructure.mocks.*"]
 
-[tool.setuptools.package-data]
-"gmcounter" = ["pyqt/*.ui", "config.json"]
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.black]
-line-length = 88
-target-version = ['py39']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-  | docs/_build
-)/
-'''
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint]
+select = ["D"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
