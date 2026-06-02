@@ -4,39 +4,34 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-pytest.importorskip("PySide6.QtWidgets")
-from gmcounter.helper_classes import SaveManager
+from gmcounter.core.services import SaveService
 
 
-def test_filename_auto_basic():
-    manager = SaveManager()
+def test_filename_auto_basic(tmp_path):
+    manager = SaveService(base_dir=tmp_path)
     rad_sample = "TestSample"
-    result = manager.filename_auto(rad_sample)
-    assert result.endswith("-TestSample.csv")
-    assert result.count("-TestSample.csv") == 1
+    result = manager.generate_filename(rad_sample, "A")
+    assert result != ""
+    # Filename part (after last /) must end with -TestSample.csv
+    filename = result.split("/")[-1]
+    assert filename.endswith(f"-{rad_sample}.csv")
 
 
-def test_filename_auto_with_suffix():
-    manager = SaveManager()
-    rad_sample = "Sample"
-    suffix = "run1"
-    result = manager.filename_auto(rad_sample, suffix)
-    assert result.endswith("-Sample-run1.csv")
-    assert "-run1.csv" in result
+def test_filename_auto_with_suffix(tmp_path):
+    manager = SaveService(base_dir=tmp_path)
+    result = manager.generate_filename("Sample", "A", suffix="run1")
+    filename = result.split("/")[-1]
+    assert filename.endswith("-Sample-run1.csv")
 
 
-def test_filename_auto_with_suffix_dash():
-    manager = SaveManager()
-    rad_sample = "Sample"
-    suffix = "-run2"
-    result = manager.filename_auto(rad_sample, suffix)
-    assert result.endswith("-Sample-run2.csv")
-    assert "-run2.csv" in result
+def test_filename_auto_with_suffix_dash(tmp_path):
+    manager = SaveService(base_dir=tmp_path)
+    result = manager.generate_filename("Sample", "A", suffix="-run2")
+    filename = result.split("/")[-1]
+    assert filename.endswith("-Sample-run2.csv")
 
 
-def test_filename_auto_empty_sample(monkeypatch):
-    manager = SaveManager()
-    # Patch Debug.error to avoid unwanted output
-    monkeypatch.setattr("gmcounter.helper_classes.Debug.error", lambda msg: None)
-    result = manager.filename_auto("")
+def test_filename_auto_empty_sample(tmp_path):
+    manager = SaveService(base_dir=tmp_path)
+    result = manager.generate_filename("", "A")
     assert result == ""
