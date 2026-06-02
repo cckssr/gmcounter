@@ -6,38 +6,41 @@ on:
       - "v*"
 
 env:
+  PROJECT_NAME: GMCounter
+  CLI_COMMAND: gmcounter
+  MODULE_COMMAND: python -m gmcounter
+  REPOSITORY_URL: https://github.com/${{ github.repository }}
   RELEASE_BODY: |
-    ## GM-Counter ${{ github.ref_name }}
+    ## ${{ env.PROJECT_NAME }} ${{ github.ref_name }}
 
-    Desktop application for radioactivity monitoring with a PHYWE Geiger-Müller tube.
-    Built with PySide6 and SCPI communication to an Arduino UNO R4 Minima.
+    Python package release published from this repository.
 
     ### Installation
 
     ```bash
-    pip install git+https://github.com/cckssr/gmcounter.git@${{ github.ref_name }}
+    pip install git+${{ env.REPOSITORY_URL }}.git@${{ github.ref_name }}
     ```
 
     Or install the latest stable release:
 
     ```bash
-    pip install git+https://github.com/cckssr/gmcounter.git
+    pip install git+${{ env.REPOSITORY_URL }}.git
     ```
 
     ### Launch
 
     ```bash
-    gmcounter
+    ${{ env.CLI_COMMAND }}
     ```
 
     or via python:
 
     ```bash
-    python -m gmcounter
+    ${{ env.MODULE_COMMAND }}
     ```
 
-    See the [README](https://github.com/cckssr/gmcounter#readme) for full
-    hardware requirements and configuration options.
+    See the [README](${{ env.REPOSITORY_URL }}#readme) for package-specific
+    installation details and configuration options.
 
 permissions:
   contents: write
@@ -55,9 +58,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
 
       - name: Install build tool
-        run: pip install build
+        run: python -m pip install build
 
       - name: Build wheel and sdist
         run: python -m build
@@ -83,7 +87,7 @@ jobs:
           name: Release ${{ github.ref_name }}
           prerelease: ${{ steps.pre.outputs.is_prerelease }}
           generate_release_notes: true
-          body: $RELEASE_BODY
+          body: ${{ env.RELEASE_BODY }}
           files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

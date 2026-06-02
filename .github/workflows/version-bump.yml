@@ -1,5 +1,4 @@
 name: Version Bump
-# This workflow updates the version in pyproject.toml and __init__.py, creates a git tag, and pushes the changes. It 
 
 on:
   workflow_dispatch:
@@ -28,6 +27,11 @@ on:
         required: false
         default: "1"
 
+env:
+  VERSION_FILES: |
+    pyproject.toml
+    gmcounter/__init__.py
+
 permissions:
   contents: write
 
@@ -40,87 +44,116 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Use PAT_TOKEN if available so the tag push triggers release.yml.
-          # Falls back to GITHUB_TOKEN (tag push will NOT trigger other workflows).
           token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
 
       - name: Compute new version
         id: ver
         run: |
-          python3 - <<'PYEOF'
-          import re, os
+          python - <<'PYEOF'
+          from __future__ import annotations
 
-          with open("pyproject.toml") as f:
-              content = f.read()
+          import os
+          import re
+          from pathlib import Path
 
-          m = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
-          if not m:
+          def read_version(pyproject_path: Path) -> str:
+            match = re.search(r'^version\s*=\s*"([^"]+)"$', pyproject_path.read_text(encoding="utf-8"), re.MULTILINE)
+            if not match:
               raise RuntimeError("Could not find version in pyproject.toml")
-          current = m.group(1)
+            return match.group(1)
 
-          # Strip any existing prerelease suffix (PEP 440: 1.2.3a1 → 1.2.3)
-          base = re.sub(r"(a|b|rc)\d+$", "", current)
-          parts = base.split(".")
-          major, minor, patch = int(parts[0]), int(parts[1]), int(parts[2])
+          pyproject_path = Path("pyproject.toml")
+          current = read_version(pyproject_path)
+
+          base = re.sub(r"(?:a|b|rc)\d+$", "", current)
+          major, minor, patch = (int(part) for part in base.split("."))
 
           bump = "${{ inputs.bump_type }}"
           if bump == "major":
-              major += 1; minor = 0; patch = 0
+            major += 1
+            minor = 0
+            patch = 0
           elif bump == "minor":
-              minor += 1; patch = 0
+            minor += 1
+            patch = 0
           else:
-              patch += 1
+            patch += 1
 
-          new = f"{major}.{minor}.{patch}"
+          new_version = f"{major}.{minor}.{patch}"
 
-          pre = "${{ inputs.prerelease }}"
-          pre_num = "${{ inputs.prerelease_number }}"
-          if pre != "none":
-              new = f"{new}{pre}{pre_num}"
+          prerelease = "${{ inputs.prerelease }}"
+          prerelease_number = "${{ inputs.prerelease_number }}"
+          if prerelease != "none":
+            new_version = f"{new_version}{prerelease}{prerelease_number}"
 
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"new_version={new}\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            output.write(f"new_version={new_version}\n")
 
           print(f"Current version: {current}")
-          print(f"New version:     {new}")
+          print(f"New version:     {new_version}")
           PYEOF
 
-      - name: Update pyproject.toml
+      - name: Update version files
         run: |
-          VERSION="${{ steps.ver.outputs.new_version }}"
-          sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" pyproject.toml
-          echo "pyproject.toml → version = \"$VERSION\""
+          VERSION="${{ steps.ver.outputs.new_version }}" python - <<'PYEOF'
+          from __future__ import annotations
 
-      - name: Update polarisation_ui/__init__.py
-        run: |
-          VERSION="${{ steps.ver.outputs.new_version }}"
-          sed -i "s/__version__ = \"[^\"]*\"/__version__ = \"$VERSION\"/" polarisation_ui/__init__.py
-          echo "polarisation_ui/__init__.py → __version__ = \"$VERSION\""
+          import json
+          import os
+          import re
+          from pathlib import Path
 
-      - name: Update polarisation_ui/config.json
-        run: |
-          VERSION="${{ steps.ver.outputs.new_version }}"
-          jq --arg v "$VERSION" '. + {"version": $v}' \
-            polarisation_ui/config.json > /tmp/cfg.json \
-            && mv /tmp/cfg.json polarisation_ui/config.json
-          echo "polarisation_ui/config.json → version: \"$VERSION\""
+          version = os.environ["VERSION"]
+          targets = [Path(line) for line in os.environ["VERSION_FILES"].splitlines() if line.strip()]
+
+          for target in targets:
+            if not target.exists():
+              raise RuntimeError(f"Missing version target: {target}")
+
+            if target.suffix == ".toml":
+              text = target.read_text(encoding="utf-8")
+              updated, count = re.subn(r'^version\s*=\s*"[^"]*"$', f'version = "{version}"', text, count=1, flags=re.MULTILINE)
+              if count != 1:
+                raise RuntimeError(f"Could not update version in {target}")
+              target.write_text(updated, encoding="utf-8")
+              continue
+
+            if target.suffix == ".py":
+              text = target.read_text(encoding="utf-8")
+              updated, count = re.subn(r'^__version__\s*=\s*"[^"]*"$', f'__version__ = "{version}"', text, count=1, flags=re.MULTILINE)
+              if count != 1:
+                raise RuntimeError(f"Could not update version in {target}")
+              target.write_text(updated, encoding="utf-8")
+              continue
+
+            if target.suffix == ".json":
+              payload = json.loads(target.read_text(encoding="utf-8"))
+              if not isinstance(payload, dict) or "version" not in payload:
+                raise RuntimeError(f"JSON target does not contain a top-level version field: {target}")
+              payload["version"] = version
+              target.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+              continue
+
+            raise RuntimeError(f"Unsupported version target: {target}")
+
+          PYEOF
 
       - name: Verify changes
         run: |
           echo "=== pyproject.toml ===" && grep "^version" pyproject.toml
-          echo "=== __init__.py ===" && grep "__version__" polarisation_ui/__init__.py
-          echo "=== config.json ===" && python3 -c "import json; d=json.load(open('polarisation_ui/config.json')); print('version:', d['version'])"
+          echo "=== gmcounter/__init__.py ===" && grep "__version__" gmcounter/__init__.py
 
       - name: Commit and tag
         run: |
           VERSION="${{ steps.ver.outputs.new_version }}"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          git add pyproject.toml polarisation_ui/__init__.py polarisation_ui/config.json
+          git add pyproject.toml gmcounter/__init__.py
           git commit -m "chore: bump version to v$VERSION"
           git tag "v$VERSION"
           git push origin HEAD
