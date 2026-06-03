@@ -224,13 +224,21 @@ class AppController(QObject):
             stream=4 if auto_query else 1,
         )
         if self.device_manager.device:
-            self.device_manager._apply_device_settings(
-                self._desired_state.to_device_settings()
-            )
+            # Pause the poller first so no FETC:STAT? is in-flight while the
+            # CONF:* commands are being written — both share the same serial port.
+            self._state_poller.pause()
+            try:
+                self.device_manager._apply_device_settings(
+                    self._desired_state.to_device_settings()
+                )
+            finally:
+                self._state_poller.resume()
         self._notify(
             CONFIG.get("messages", {}).get("settings_applied", "Einstellungen gesetzt"),
             CONFIG.get("colors", {}).get("green", "green"),
         )
+        # Trigger a fresh state poll ~300 ms after the device processes the commands.
+        QTimer.singleShot(300, self._state_poller.force_poll_soon)
 
     # ------------------------------------------------------------------
     # Cleanup

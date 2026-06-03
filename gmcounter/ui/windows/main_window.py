@@ -104,6 +104,7 @@ class MainWindow(QMainWindow):
             plot_container=self.ui.voltagePlot,
             table_view=self.ui.voltageTable,
             status_label=self.ui.voltageStatus,
+            param_input=self.ui.sVoltage,
             param_provider=lambda: float(self.ui.cVoltage.value()),
         )
         self._voltage_tab.build()
@@ -149,7 +150,9 @@ class MainWindow(QMainWindow):
         # Wire buttons
         self._setup_buttons()
         self._setup_radioactive_sample_input()
+        self._setup_detector_code_input()
         self._setup_voltage_warning()
+        self._setup_global_distance_visibility()
 
         # Initial device info — set callback before fetch so it fires on initial connect
         device_manager.on_device_info = self._on_device_info
@@ -197,7 +200,7 @@ class MainWindow(QMainWindow):
         self.ui.buttonReset.setEnabled(False)
 
         # autoSave — gates incremental backup; reflect true initial state
-        self.ui.autoSave.setChecked(True)
+        self.ui.autoSave.setChecked(False)
         self.ui.autoSave.toggled.connect(self._on_auto_save_toggled)
 
         self.ui.autoScroll.toggled.connect(self._on_auto_scroll_toggled)
@@ -228,11 +231,32 @@ class MainWindow(QMainWindow):
         completer.setFilterMode(Qt.MatchFlag.MatchContains)
         self.ui.radSample.setCompleter(completer)
 
+    def _setup_detector_code_input(self) -> None:
+        codes = CONFIG.get("detektor_codes", [])
+        self.ui.detectorCode.clear()
+        self.ui.detectorCode.addItems(codes)
+        self.ui.detectorCode.setCurrentIndex(-1)
+        completer = QCompleter(codes)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.ui.detectorCode.setCompleter(completer)
+
+    def _setup_global_distance_visibility(self) -> None:
+        self.ui.tabWidget.currentChanged.connect(self._on_tab_changed)
+        self._on_tab_changed(self.ui.tabWidget.currentIndex())
+
     def _setup_voltage_warning(self) -> None:
         self.ui.sVoltage.valueChanged.connect(self._on_voltage_changed)
 
     # ------------------------------------------------------------------
     # AppController signal handlers
+
+    def _on_tab_changed(self, index: int) -> None:
+        on_distance_tab = self.ui.tabWidget.widget(index) is self.ui.distance
+        self.ui.lblDistance.setVisible(not on_distance_tab)
+        self.ui.distanceGlobalDistance.setVisible(not on_distance_tab)
+        if on_distance_tab:
+            self.ui.distanceGlobalDistance.setValue(0.0)
 
     def _on_tab_status(self, level: str, text: str) -> None:
         color = {"info": "green", "warning": "orange", "error": "red"}.get(
@@ -450,6 +474,17 @@ class MainWindow(QMainWindow):
                 )
                 return
 
+            # Inject shared metadata into the summary
+            sweep_extra: dict = {}
+            detector = self.ui.detectorCode.currentText().strip()
+            if detector:
+                sweep_extra["detector_code"] = detector
+            global_dist = self.ui.distanceGlobalDistance.value()
+            if global_dist > 0.0:
+                sweep_extra["sample_distance_cm"] = global_dist
+            if sweep_extra:
+                summary.metadata.update(sweep_extra)
+
             saved = self._file_dialog_manager.manual_save_export(
                 self,
                 summary,
@@ -465,6 +500,8 @@ class MainWindow(QMainWindow):
             individual = sweep.individual_exports
             ok_count = 0
             for i, exp in enumerate(individual):
+                if sweep_extra:
+                    exp.metadata.update(sweep_extra)
                 param_val = exp.metadata.get(sweep.param_metadata_key, "?")
                 auto_name = (
                     f"{saved.stem}_p{param_val}{sweep.param_unit}_m{i + 1:02d}.csv"
@@ -486,6 +523,7 @@ class MainWindow(QMainWindow):
             self._gm_tab.set_high_speed_autoswitch(True)
             self._gm_tab.on_reset()
             self._save_service.mark_saved()
+            self._ctrl.finalize_journal()
 
             self.ui.buttonSave.setEnabled(False)
             self.ui.buttonStart.setEnabled(True)
@@ -520,6 +558,12 @@ class MainWindow(QMainWindow):
                 extra["counter_firmware_version"] = fw
             if export.rows:
                 extra["total_count"] = len(export.rows)
+            detector = self.ui.detectorCode.currentText().strip()
+            if detector:
+                extra["detector_code"] = detector
+            global_dist = self.ui.distanceGlobalDistance.value()
+            if global_dist > 0.0:
+                extra["sample_distance_cm"] = global_dist
             export.metadata.update(extra)
 
             saved = self._file_dialog_manager.manual_save_export(
@@ -531,6 +575,7 @@ class MainWindow(QMainWindow):
             )
             if saved and saved.exists():
                 self._save_service.mark_saved()
+                self._ctrl.finalize_journal()
                 self.ui.buttonSave.setEnabled(False)
                 self.ui.buttonStart.setEnabled(True)
                 self._status_bar.show_message("Gespeichert.", duration=3000)

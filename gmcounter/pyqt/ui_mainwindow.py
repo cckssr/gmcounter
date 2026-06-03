@@ -363,34 +363,6 @@ class Ui_MainWindow(object):
         self.formLayout_2.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_6)
 
         self.radSample = QComboBox(self.groupBox)
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
         self.radSample.setObjectName("radSample")
         sizePolicy10 = QSizePolicy(
             QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed
@@ -409,7 +381,7 @@ class Ui_MainWindow(object):
         self.label_7.setObjectName("label_7")
         self.label_7.setFont(font1)
 
-        self.formLayout_2.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_7)
+        self.formLayout_2.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_7)
 
         self.groupLetter = QComboBox(self.groupBox)
         self.groupLetter.addItem("")
@@ -445,13 +417,13 @@ class Ui_MainWindow(object):
         self.groupLetter.setMaxCount(24)
         self.groupLetter.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
 
-        self.formLayout_2.setWidget(1, QFormLayout.ItemRole.FieldRole, self.groupLetter)
+        self.formLayout_2.setWidget(3, QFormLayout.ItemRole.FieldRole, self.groupLetter)
 
         self.label_5 = QLabel(self.groupBox)
         self.label_5.setObjectName("label_5")
         self.label_5.setFont(font1)
 
-        self.formLayout_2.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label_5)
+        self.formLayout_2.setWidget(4, QFormLayout.ItemRole.LabelRole, self.label_5)
 
         self.suffix = QLineEdit(self.groupBox)
         self.suffix.setObjectName("suffix")
@@ -461,7 +433,41 @@ class Ui_MainWindow(object):
         self.suffix.setText("")
         self.suffix.setMaxLength(20)
 
-        self.formLayout_2.setWidget(2, QFormLayout.ItemRole.FieldRole, self.suffix)
+        self.formLayout_2.setWidget(4, QFormLayout.ItemRole.FieldRole, self.suffix)
+
+        self.label_20 = QLabel(self.groupBox)
+        self.label_20.setObjectName("label_20")
+        self.label_20.setFont(font1)
+
+        self.formLayout_2.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_20)
+
+        self.detectorCode = QComboBox(self.groupBox)
+        self.detectorCode.setObjectName("detectorCode")
+        sizePolicy10.setHeightForWidth(
+            self.detectorCode.sizePolicy().hasHeightForWidth()
+        )
+        self.detectorCode.setSizePolicy(sizePolicy10)
+        self.detectorCode.setFont(font1)
+        self.detectorCode.setEditable(True)
+        self.detectorCode.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+
+        self.formLayout_2.setWidget(
+            1, QFormLayout.ItemRole.FieldRole, self.detectorCode
+        )
+
+        self.lblDistance = QLabel(self.groupBox)
+        self.lblDistance.setObjectName("lblDistance")
+        self.lblDistance.setFont(font1)
+
+        self.formLayout_2.setWidget(2, QFormLayout.ItemRole.LabelRole, self.lblDistance)
+
+        self.distanceGlobalDistance = QDoubleSpinBox(self.groupBox)
+        self.distanceGlobalDistance.setObjectName("distanceGlobalDistance")
+        self.distanceGlobalDistance.setDecimals(1)
+
+        self.formLayout_2.setWidget(
+            2, QFormLayout.ItemRole.FieldRole, self.distanceGlobalDistance
+        )
 
         self.verticalLayout.addLayout(self.formLayout_2)
 
@@ -494,7 +500,7 @@ class Ui_MainWindow(object):
         self.autoSave.setMaximumSize(QSize(850, 16777215))
         self.autoSave.setFont(font1)
         self.autoSave.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.autoSave.setChecked(True)
+        self.autoSave.setChecked(False)
         self.autoSave.setTristate(False)
 
         self.horizontalLayout_5.addWidget(self.autoSave)
@@ -772,8 +778,8 @@ class Ui_MainWindow(object):
         self.distanceInput.setObjectName("distanceInput")
         self.distanceInput.setFont(font1)
         self.distanceInput.setDecimals(1)
-        self.distanceInput.setSingleStep(0.500000000000000)
         self.distanceInput.setMaximum(99999.000000000000000)
+        self.distanceInput.setSingleStep(0.500000000000000)
 
         self.horizontalLayout_distance.addWidget(self.distanceInput)
 
@@ -787,7 +793,9 @@ class Ui_MainWindow(object):
         self.distanceStatus.setObjectName("distanceStatus")
         self.distanceStatus.setFont(font1)
         self.distanceStatus.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignTrailing
+            | Qt.AlignmentFlag.AlignVCenter
         )
 
         self.horizontalLayout_distance.addWidget(self.distanceStatus)
@@ -846,7 +854,9 @@ class Ui_MainWindow(object):
         self.voltageStatus.setObjectName("voltageStatus")
         self.voltageStatus.setFont(font1)
         self.voltageStatus.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignTrailing
+            | Qt.AlignmentFlag.AlignVCenter
         )
 
         self.horizontalLayout_voltage.addWidget(self.voltageStatus)
@@ -1224,6 +1234,7 @@ class Ui_MainWindow(object):
 
         self.gridLayout_3.setColumnStretch(2, 1)
         self.gridLayout_3.setColumnStretch(3, 1)
+        self.gridLayout_3.setColumnStretch(4, 1)
 
         self.gridLayout_2.addLayout(self.gridLayout_3, 0, 0, 1, 1)
 
@@ -1254,7 +1265,8 @@ class Ui_MainWindow(object):
         self.buttonSetting.setDefault(False)
         self.radSample.setCurrentIndex(-1)
         self.groupLetter.setCurrentIndex(-1)
-        self.tabWidget.setCurrentIndex(0)
+        self.detectorCode.setCurrentIndex(-1)
+        self.tabWidget.setCurrentIndex(3)
 
         QMetaObject.connectSlotsByName(MainWindow)
 
@@ -1352,91 +1364,6 @@ class Ui_MainWindow(object):
         self.label_6.setText(
             QCoreApplication.translate("MainWindow", "Radioaktive Probe*", None)
         )
-        self.radSample.setItemText(
-            0, QCoreApplication.translate("MainWindow", "E00200", None)
-        )
-        self.radSample.setItemText(
-            1, QCoreApplication.translate("MainWindow", "E03607", None)
-        )
-        self.radSample.setItemText(
-            2, QCoreApplication.translate("MainWindow", "E23303", None)
-        )
-        self.radSample.setItemText(
-            3, QCoreApplication.translate("MainWindow", "E30347", None)
-        )
-        self.radSample.setItemText(
-            4, QCoreApplication.translate("MainWindow", "E32090", None)
-        )
-        self.radSample.setItemText(
-            5, QCoreApplication.translate("MainWindow", "E34316", None)
-        )
-        self.radSample.setItemText(
-            6, QCoreApplication.translate("MainWindow", "E38069", None)
-        )
-        self.radSample.setItemText(
-            7, QCoreApplication.translate("MainWindow", "E43002", None)
-        )
-        self.radSample.setItemText(
-            8, QCoreApplication.translate("MainWindow", "E44367", None)
-        )
-        self.radSample.setItemText(
-            9, QCoreApplication.translate("MainWindow", "E52165", None)
-        )
-        self.radSample.setItemText(
-            10, QCoreApplication.translate("MainWindow", "E54024", None)
-        )
-        self.radSample.setItemText(
-            11, QCoreApplication.translate("MainWindow", "E55600", None)
-        )
-        self.radSample.setItemText(
-            12, QCoreApplication.translate("MainWindow", "E62894", None)
-        )
-        self.radSample.setItemText(
-            13, QCoreApplication.translate("MainWindow", "E63699", None)
-        )
-        self.radSample.setItemText(
-            14, QCoreApplication.translate("MainWindow", "E67594", None)
-        )
-        self.radSample.setItemText(
-            15, QCoreApplication.translate("MainWindow", "E75572", None)
-        )
-        self.radSample.setItemText(
-            16, QCoreApplication.translate("MainWindow", "E76054", None)
-        )
-        self.radSample.setItemText(
-            17, QCoreApplication.translate("MainWindow", "E78857", None)
-        )
-        self.radSample.setItemText(
-            18, QCoreApplication.translate("MainWindow", "E80533", None)
-        )
-        self.radSample.setItemText(
-            19, QCoreApplication.translate("MainWindow", "E82518", None)
-        )
-        self.radSample.setItemText(
-            20, QCoreApplication.translate("MainWindow", "E87198", None)
-        )
-        self.radSample.setItemText(
-            21, QCoreApplication.translate("MainWindow", "E89152", None)
-        )
-        self.radSample.setItemText(
-            22, QCoreApplication.translate("MainWindow", "E92206", None)
-        )
-        self.radSample.setItemText(
-            23, QCoreApplication.translate("MainWindow", "E93652", None)
-        )
-        self.radSample.setItemText(
-            24, QCoreApplication.translate("MainWindow", "E93945", None)
-        )
-        self.radSample.setItemText(
-            25, QCoreApplication.translate("MainWindow", "E95829", None)
-        )
-        self.radSample.setItemText(
-            26, QCoreApplication.translate("MainWindow", "E96269", None)
-        )
-        self.radSample.setItemText(
-            27, QCoreApplication.translate("MainWindow", "E99208", None)
-        )
-
         # if QT_CONFIG(tooltip)
         self.radSample.setToolTip(
             QCoreApplication.translate(
@@ -1542,6 +1469,34 @@ class Ui_MainWindow(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
+        self.label_20.setText(
+            QCoreApplication.translate("MainWindow", "Detektor*", None)
+        )
+        # if QT_CONFIG(tooltip)
+        self.detectorCode.setToolTip(
+            QCoreApplication.translate(
+                "MainWindow",
+                '<html><head/><body><p>Auswahl des verwendeten Detektors (Geiger-M\u00fcller-Z\u00e4hlrohr) <span style=" color:#ff001a;">(Pflichtfeld)</span></p></body></html>',
+                None,
+            )
+        )
+        # endif // QT_CONFIG(tooltip)
+        self.detectorCode.setCurrentText("")
+        self.lblDistance.setText(
+            QCoreApplication.translate("MainWindow", "Probenabstand", None)
+        )
+        # if QT_CONFIG(tooltip)
+        self.distanceGlobalDistance.setToolTip(
+            QCoreApplication.translate(
+                "MainWindow",
+                "Abstand zwischen Detektoroberfl\u00e4che und radioaktiver Probe in cm",
+                None,
+            )
+        )
+        # endif // QT_CONFIG(tooltip)
+        self.distanceGlobalDistance.setSuffix(
+            QCoreApplication.translate("MainWindow", " cm", None)
+        )
         # if QT_CONFIG(tooltip)
         self.buttonSave.setToolTip(
             QCoreApplication.translate(

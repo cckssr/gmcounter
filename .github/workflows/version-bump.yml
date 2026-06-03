@@ -31,6 +31,7 @@ env:
   VERSION_FILES: |
     pyproject.toml
     gmcounter/__init__.py
+    gmcounter/config.json
 
 permissions:
   contents: write

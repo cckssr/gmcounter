@@ -578,149 +578,9 @@
              <property name="insertPolicy">
               <enum>QComboBox::InsertPolicy::NoInsert</enum>
              </property>
-             <item>
-              <property name="text">
-               <string>E00200</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E03607</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E23303</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E30347</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E32090</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E34316</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E38069</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E43002</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E44367</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E52165</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E54024</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E55600</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E62894</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E63699</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E67594</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E75572</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E76054</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E78857</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E80533</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E82518</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E87198</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E89152</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E92206</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E93652</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E93945</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E95829</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E96269</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>E99208</string>
-              </property>
-             </item>
             </widget>
            </item>
-           <item row="1" column="0">
+           <item row="3" column="0">
             <widget class="QLabel" name="label_7">
              <property name="font">
               <font>
@@ -732,7 +592,7 @@
              </property>
             </widget>
            </item>
-           <item row="1" column="1">
+           <item row="3" column="1">
             <widget class="QComboBox" name="groupLetter">
              <property name="sizePolicy">
               <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -879,7 +739,7 @@
              </item>
             </widget>
            </item>
-           <item row="2" column="0">
+           <item row="4" column="0">
             <widget class="QLabel" name="label_5">
              <property name="font">
               <font>
@@ -891,7 +751,7 @@
              </property>
             </widget>
            </item>
-           <item row="2" column="1">
+           <item row="4" column="1">
             <widget class="QLineEdit" name="suffix">
              <property name="sizePolicy">
               <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -912,6 +772,73 @@
              </property>
              <property name="maxLength">
               <number>20</number>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_20">
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
+             <property name="text">
+              <string>Detektor*</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QComboBox" name="detectorCode">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Auswahl des verwendeten Detektors (Geiger-Müller-Zählrohr) &lt;span style=&quot; color:#ff001a;&quot;&gt;(Pflichtfeld)&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="editable">
+              <bool>true</bool>
+             </property>
+             <property name="currentText">
+              <string/>
+             </property>
+             <property name="currentIndex">
+              <number>-1</number>
+             </property>
+             <property name="insertPolicy">
+              <enum>QComboBox::InsertPolicy::NoInsert</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="lblDistance">
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+              </font>
+             </property>
+             <property name="text">
+              <string>Probenabstand</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QDoubleSpinBox" name="distanceGlobalDistance">
+             <property name="toolTip">
+              <string>Abstand zwischen Detektoroberfläche und radioaktiver Probe in cm</string>
+             </property>
+             <property name="suffix">
+              <string> cm</string>
+             </property>
+             <property name="decimals">
+              <number>1</number>
              </property>
             </widget>
            </item>
@@ -990,7 +917,7 @@
               <string>Automatische Speicherung. </string>
              </property>
              <property name="checked">
-              <bool>true</bool>
+              <bool>false</bool>
              </property>
              <property name="tristate">
               <bool>false</bool>
@@ -1188,7 +1115,7 @@
             <bool>false</bool>
            </property>
            <property name="currentIndex">
-            <number>0</number>
+            <number>3</number>
            </property>
            <widget class="QWidget" name="time">
             <attribute name="title">
@@ -1529,11 +1456,11 @@
                  <property name="decimals">
                   <number>1</number>
                  </property>
-                 <property name="singleStep">
-                  <double>0.500000000000000</double>
-                 </property>
                  <property name="maximum">
                   <double>99999.000000000000000</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>0.500000000000000</double>
                  </property>
                 </widget>
                </item>
@@ -1561,7 +1488,7 @@
                   <string>Keine Messpunkte aufgezeichnet.</string>
                  </property>
                  <property name="alignment">
-                  <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter</set>
+                  <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                  </property>
                 </widget>
                </item>
@@ -1670,7 +1597,7 @@
                   <string>Keine Messpunkte aufgezeichnet.</string>
                  </property>
                  <property name="alignment">
-                  <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter</set>
+                  <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                  </property>
                 </widget>
                </item>
@@ -1713,7 +1640,7 @@
                </property>
                <property name="selectionMode">
                 <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
-                </property>
+               </property>
               </widget>
              </item>
             </layout>
@@ -1721,7 +1648,7 @@
           </widget>
          </item>
          <item row="0" column="0">
-          <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,0,0,0" columnstretch="0,0,1,1,0">
+          <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,0,0,0" columnstretch="0,0,1,1,1">
            <item row="2" column="3">
             <widget class="QLabel" name="label_4">
              <property name="sizePolicy">
@@ -2538,12 +2465,12 @@
    <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>228</x>
-     <y>653</y>
+     <x>254</x>
+     <y>833</y>
     </hint>
     <hint type="destinationlabel">
-     <x>134</x>
-     <y>594</y>
+     <x>127</x>
+     <y>774</y>
     </hint>
    </hints>
   </connection>
@@ -2554,12 +2481,12 @@
    <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>259</x>
-     <y>653</y>
+     <x>276</x>
+     <y>833</y>
     </hint>
     <hint type="destinationlabel">
      <x>275</x>
-     <y>594</y>
+     <y>774</y>
     </hint>
    </hints>
   </connection>

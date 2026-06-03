@@ -35,6 +35,7 @@ class VoltageResponseTab(ParameterSweepTabBase):
     param_format = "{:.0f}"
     # MainWindow applies the sVoltage setpoint to the device before each Start
     applies_device_voltage_on_start = True
+    clear_param_input_after_stop = True
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)

@@ -190,9 +190,12 @@ def main():
 
     finally:
         if "ser" in locals() and ser.is_open:
-            send_command(ser, "ABOR")
+            send_command(ser, "ABOR\n")
+            ser.read_all()  # flush any remaining data
+            ser.flush()
             print("Sent ABOR — acquisition stopped.")
-            sleep(0.5)
+            sleep(1)
+            send_command(ser, "DIAG:STAT?")
 
             stats = read_diag_stat(ser)
             print("\nDIAG:STAT? — last acquisition statistics:")

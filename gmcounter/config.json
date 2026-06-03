@@ -4,12 +4,12 @@
 
     "application": {
       "name": "GM-Counter_GUI",
-      "version": "1.0.0",
+      "version": "2.1.0",
       "author": "C. Kessler, H. Celik"
     },
 
     "debug": {
-      "level_default": "info"
+      "level_default": "verbose"
     },
     "connection": {
       "max_retry_attempts": 10,
@@ -50,7 +50,7 @@
     },
 
     "save": {
-      "tk_designation": "TK47",
+      "tk_designation": "Radioaktivität",
       "base_folder": "GMCounter"
     },
 
@@ -114,6 +114,18 @@
       "E67594",
       "E63699",
       "E75572"
+    ],
+    "detektor_codes": [
+      "E47438",
+      "E29608",
+      "E94155",
+      "E30845",
+      "E47230",
+      "E71803",
+      "E01119",
+      "E55257",
+      "E76673",
+      "E66390"
     ],
 
     "messages": {

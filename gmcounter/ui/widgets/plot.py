@@ -19,7 +19,7 @@ Performance Features:
 
 from __future__ import annotations
 
-from typing import Iterable, Optional, Tuple, List, Dict, Any
+from typing import Iterable, Optional, Tuple, List, Any
 import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import Signal, Slot, QTimer  # pylint: disable=no-name-in-module

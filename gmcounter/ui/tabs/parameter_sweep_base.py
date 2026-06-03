@@ -16,12 +16,16 @@ import logging
 from datetime import datetime
 from typing import Callable, Optional, List, TYPE_CHECKING
 
-from PySide6.QtGui import QStandardItemModel, QStandardItem  # pylint: disable=no-name-in-module
+from PySide6.QtGui import (
+    QStandardItemModel,
+    QStandardItem,
+)  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QWidget,
     QTableView,
     QLabel,
     QDoubleSpinBox,
+    QSpinBox,
     QVBoxLayout,
     QHeaderView,
 )
@@ -70,6 +74,9 @@ class ParameterSweepTabBase(PlotTabBase):
     param_format: str = "{:.1f}"
     # Set True if the tab requires the device voltage to be applied on each Start
     applies_device_voltage_on_start: bool = False
+    # Set True to select _param_input after each measurement so the user can
+    # immediately type the next value without manually clicking/clearing.
+    clear_param_input_after_stop: bool = False
 
     # -- Internal -------------------------------------------------------
     def __init__(self, parent: Optional[QWidget] = None) -> None:
@@ -107,7 +114,7 @@ class ParameterSweepTabBase(PlotTabBase):
         plot_container: QWidget,
         table_view: QTableView,
         status_label: QLabel,
-        param_input: Optional[QDoubleSpinBox] = None,
+        param_input: Optional[QDoubleSpinBox | QSpinBox] = None,
         param_provider: Optional[Callable[[], float]] = None,
     ) -> None:
         """Receive the .ui container widgets. Call before build().
@@ -199,6 +206,8 @@ class ParameterSweepTabBase(PlotTabBase):
         self._append_table_row(entry)
         self._refresh_plot()
         self._update_status()
+        if self.clear_param_input_after_stop:
+            self._focus_param_input()
 
     # ------------------------------------------------------------------
     # Data model
@@ -269,6 +278,12 @@ class ParameterSweepTabBase(PlotTabBase):
 
     # ------------------------------------------------------------------
     # Private helpers
+
+    def _focus_param_input(self) -> None:
+        """Select all text in the param input and give it keyboard focus."""
+        if self._param_input is not None:
+            self._param_input.selectAll()
+            self._param_input.setFocus()
 
     def _append_table_row(self, entry: dict) -> None:
         if self._table_model is None:

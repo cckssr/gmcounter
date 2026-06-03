@@ -114,12 +114,15 @@ class SessionJournal:
 
 
 def find_orphan_journals() -> list[Path]:
-    """Return paths to unfinalized journals from previous sessions."""
+    """Return paths to unfinalized journals from today's sessions."""
     if not JOURNAL_DIR.exists():
         return []
 
+    today = datetime.now().strftime("%Y%m%d")
     orphans: list[Path] = []
     for session_dir in sorted(JOURNAL_DIR.iterdir()):
+        if not session_dir.name.startswith(today):
+            continue
         journal = session_dir / "journal.csv"
         if not journal.exists():
             continue

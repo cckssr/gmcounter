@@ -32,6 +32,7 @@ class DistanceLawTab(ParameterSweepTabBase):
     param_metadata_key = "sample_distance_cm"
     summary_filename_hint = "abstandsgesetz"
     summary_title = "Abstandsgesetz — Zusammenfassung"
+    clear_param_input_after_stop = True
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
