@@ -202,6 +202,11 @@ class AppController(QObject):
             "Messung gestoppt.", CONFIG.get("colors", {}).get("green", "green")
         )
 
+    def finalize_journal(self) -> None:
+        """Mark the current session journal as cleanly saved."""
+        if self._journal:
+            self._journal.finalize()
+
     @property
     def is_measuring(self) -> bool:
         return self._is_measuring

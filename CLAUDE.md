@@ -190,3 +190,5 @@ The shared **Start / Stop / Speichern / Reset** buttons route automatically: `Ma
 **Deprecated files**: `gmcounter/helper_classes.py` is marked _DEPRECATED NEVER USE_. `gmcounter/helper_classes_compat.py` re-exports from it for backwards compatibility — do not add new code to either. These will be removed in a future cleanup.
 
 **Mocks excluded from wheel**: `infrastructure/mocks/` is in `pyproject.toml`'s exclude list.
+
+**Logging**: Use `infrastructure.logging.Debug` for all logging. It has four levels: `DEBUG_OFF`, `INFO`, `VERBOSE`, and `ERROR`. Logs are printed to the console with timestamps and exception handler.
