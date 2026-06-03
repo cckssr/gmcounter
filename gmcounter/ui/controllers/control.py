@@ -1,3 +1,5 @@
+"""DEPRECATED: Check new direct control in serial_device.py instead."""
+
 import time
 from typing import Union
 from ...infrastructure.logging import Debug
@@ -72,6 +74,7 @@ class ControlWidget:
             if not self.measurement_active and data["progress"] > 0:
                 self.measurement_active = True
                 Debug.info("Messung wurde gestartet.")
+            Debug.debug(f"Aktuelle Einstellungen abgerufen: {data}")
             return data
 
         except Exception as e:

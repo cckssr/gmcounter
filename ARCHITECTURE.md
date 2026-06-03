@@ -62,27 +62,51 @@ readers can't accidentally introduce a back-edge.
 
 ## 2. Qt Designer is the source of truth for visual structure
 
-Every visible widget, layout, label, button, group box, menu, and dock lives
-in a `.ui` file edited in Qt Designer. Python files contain only **signal
-connections, slot logic, and state manipulation** — never widget construction.
+Every visible widget, layout, label, button, group box, menu, dock, table
+view, and spinbox lives in a `.ui` file edited in Qt Designer. Python files
+contain only **signal connections, slot logic, and state manipulation** —
+never widget construction.
 
 ### The rule, precisely
 
-- Allowed Qt imports in window/dialog Python files: base classes
-  (`QMainWindow`, `QDialog`, `QWidget`), modal helpers (`QFileDialog`,
-  `QMessageBox`), event types (`QCloseEvent`), and `@Slot` / `QTimer`.
+- Allowed Qt object creation in window/dialog Python: base classes
+  (`QMainWindow`, `QDialog`, `QWidget`), model classes attached to `.ui`
+  views (`QStandardItemModel`), modal helpers (`QFileDialog`, `QMessageBox`),
+  event types (`QCloseEvent`), and `@Slot` / `QTimer`.
 - `QButtonGroup` may be instantiated in Python because it is a non-visual
   logical helper. Its member buttons must still live in the `.ui`.
 - `pyuic.sh` regenerates `ui_*.py` from `*.ui`. Generated files are committed
-  but never edited by hand.
+  but never edited by hand. After every `.ui` change: `bash gmcounter/pyqt/pyuic.sh`.
 
-### Exceptions (allowed, but each one is justified in writing)
+### Injection pattern (how tabs interact with .ui widgets)
 
-| Kind of file                                 | Why Python builds widgets here                      |
-| -------------------------------------------- | --------------------------------------------------- |
-| `*_plot.py` (pyqtgraph widgets)              | Designer can't host third-party custom widgets      |
-| `PlotTabBase` subclasses                     | Tab-extensibility pattern uses `build()` for layout |
-| One-off windows with no Designer counterpart | User-approved; document the exception in CLAUDE.md  |
+Tabs receive `.ui` widget references via an `inject_*()` call before `build()`.
+They never import `Ui_MainWindow` or walk the widget tree. `build()` has exactly
+one purpose: create the pyqtgraph widget and install it inside the `.ui`
+native-QWidget container. It must not build any other widgets.
+
+```python
+# In MainWindow.__init__:
+self._gm_tab.inject_ui_containers(
+    plot_container=self.ui.timePlot,   # QWidget native="true" declared in .ui
+    hist_container=self.ui.histWidget,
+    table_view=self.ui.tableView,
+    ...
+)
+self._gm_tab.build()   # creates GeneralPlot inside timePlot — nothing else
+```
+
+### Justified exceptions (allowed, each one documented here)
+
+| Kind of object                             | Why Python creates it                                |
+| ------------------------------------------ | ---------------------------------------------------- |
+| `GeneralPlot`, `HistogramWidget`           | pyqtgraph — Designer cannot host third-party widgets |
+| `QStandardItemModel` on a `.ui` QTableView | Non-visual data model; the view itself is in `.ui`   |
+| `QStandardItem` rows appended at runtime   | Dynamic data, not static structure                   |
+
+Everything else — inputs, labels, buttons, group boxes, table views,
+splitters, status labels — must be in `.ui`. If you find yourself writing
+`QPushButton(…)` in a tab or window class, stop and add it to the `.ui` first.
 
 ### Why this rule
 
@@ -90,15 +114,15 @@ PyQt projects rot fastest when widget construction sprawls across Python. You
 end up with three different ways to add a "save" button (`.ui`, Python, copy-
 pasted from another window), and you can't diff visual changes. Forcing
 Designer also gives you free internationalisation hooks and the WYSIWYG
-preview as a sanity check.
+preview as a sanity check. It also makes parameter-sweep tabs trivially
+copyable: add a page to `.ui`, set six class attributes, done.
 
 ### How to apply
 
 1. For each existing window/dialog, create a `.ui` file in `pyqt/`.
 2. Move every widget into it. The Python file shrinks to: `setupUi(self)`,
    `_connect_signals()`, and slot methods.
-3. Run `pyuic.sh` (or `pyside6-uic`) to regenerate `ui_*.py` on every `.ui`
-   change. Put this in a pre-commit hook if you can.
+3. Run `pyuic.sh` to regenerate `ui_*.py` on every `.ui` change.
 4. Add a CI check that imports each window class — broken `setupUi()` is
    loud and immediate.
 
@@ -261,15 +285,19 @@ user-chosen path and renames it `finalized`.
 ## 6. Extensibility: experiment tabs as a plugin point
 
 A measurement application accumulates experiment modes. Bake the extension
-seam in from day one — even if you only have one tab today.
+seam in from day one — even if you only have one tab today. There are two
+tab patterns; choose based on whether the experiment needs real-time frames.
 
-### The tab contract
+### Pattern A — Frame-based tab (PlotTabBase)
+
+For experiments that process every acquired data point live (time-series,
+histogram). The controller's `set_active_tab()` wires frames to it.
 
 ```python
 class PlotTabBase(QWidget):
     tab_id:           str        = ""        # stable key, used in tests & persistence
     tab_title:        str        = ""        # user-visible label
-    required_sources: set[str]   = set()     # data streams the tab needs (e.g. {"ADC"})
+    required_sources: set[str]   = set()     # data streams the tab needs
     required_modules: set[str]   = set()     # host modules required (e.g. {"kdc101"})
 
     # outbound signals (uniform across all tabs)
@@ -280,14 +308,84 @@ class PlotTabBase(QWidget):
     # lifecycle hooks (override only what you need)
     def build(self) -> None: ...
     def on_frame(self, frame: Frame) -> None: ...
+    def on_frames(self, frames: list[Frame]) -> None: ...   # prefer this; batch-efficient
     def on_reset(self) -> None: ...
-    def on_connection_state(self, state: ConnState) -> None: ...
-    def on_activated(self)   -> None: ...
-    def on_deactivated(self) -> None: ...
     def on_measurement_started(self) -> None: ...
     def on_measurement_stopped(self) -> None: ...
-    def inject_modules(self, modules: dict[str, object]) -> None: ...
+    def export(self) -> Optional[TabExport]: ...
+    def get_statistics(self) -> dict: ...       # {count, min, max, avg, stdev}
 ```
+
+Adding a frame-based tab: subclass `PlotTabBase`, declare the tab page in
+`.ui`, call `inject_ui_containers()` + `build()` in `MainWindow`, register.
+
+### Pattern B — Parameter-sweep tab (ParameterSweepTabBase)
+
+For experiments that sweep one external parameter (distance, voltage) across
+multiple complete measurements and accumulate a summary. These tabs are
+**overlay listeners**: they never receive frames directly; they snapshot
+`GMTimingTab`'s completed measurement on `measurement_stopped`.
+
+```python
+class ParameterSweepTabBase(PlotTabBase):
+    # class attributes subclasses set:
+    param_label:           str   # axis / column label, e.g. "Probenabstand (cm)"
+    param_unit:            str   # unit string, e.g. "cm"
+    param_metadata_key:    str   # key stamped on individual exports, e.g. "sample_distance_cm"
+    summary_filename_hint: str   # CSV stem, e.g. "abstandsgesetz"
+    summary_title:         str   # metadata title
+
+    # injection before build():
+    def set_gm_tab(self, gm_tab): ...
+    def inject_ui(self, plot_container, table_view, param_input, status_label): ...
+
+    # called by MainWindow (connected to AppController.measurement_stopped):
+    def on_measurement_stopped(self) -> None: ...   # snapshots export, appends summary row
+
+    # data model:
+    def has_data(self) -> bool: ...
+    def has_unsaved_data(self) -> bool: ...
+    def mark_saved(self) -> None: ...
+    def reset_summary(self) -> None: ...
+    @property
+    def individual_exports(self) -> list[TabExport]: ...
+    def summary_export(self) -> Optional[TabExport]: ...
+```
+
+Adding a sweep tab is **set six class attributes + add one `.ui` page**:
+
+```python
+class VoltageResponseTab(ParameterSweepTabBase):
+    tab_id = "voltage_response"
+    tab_title = "Spannungskurve"
+    required_modules: set[str] = set()
+
+    param_label          = "Spannung (V)"
+    param_unit           = "V"
+    param_metadata_key   = "gm_voltage_v"
+    summary_filename_hint = "spannungskurve"
+    summary_title        = "Spannungskurve — Zusammenfassung"
+
+TabRegistry.register(VoltageResponseTab)
+```
+
+The `.ui` page needs: `<prefix>Input` (QDoubleSpinBox), `<prefix>Plot`
+(QWidget native), `<prefix>Table` (QTableView), `<prefix>Status` (QLabel).
+
+The shared Start / Stop / Speichern / Reset buttons route via
+`MainWindow._current_sweep_tab()` — no per-tab button logic.
+
+**Sweep session managed by MainWindow:**
+
+- On Start → disable GM view tabs (indices 0-2), suppress GMTimingTab
+  high-speed auto-switch (`set_high_speed_autoswitch(False)`), set
+  `_sweep_session = True`
+- On Stop → Start re-enabled for next parameter point; save service unsaved
+  guard bypassed (sweep tab tracks its own unsaved state)
+- On Speichern → write summary CSV via file dialog; auto-write individual
+  timing CSVs alongside it; call `reset_summary()`, re-enable view tabs,
+  `set_high_speed_autoswitch(True)`, clear `_sweep_session`
+- On Reset → discard summary, re-enable view tabs
 
 ### The registry
 
@@ -301,28 +399,23 @@ class TabRegistry:
         return [t for t in cls._tabs if t.required_modules.issubset(modules.keys())]
 ```
 
-Adding a new experiment is three steps:
-
-1. Subclass `PlotTabBase`, implement `build()` and `on_frame()`.
-2. `TabRegistry.register(MyTab)` at import time.
-3. The main window iterates the registry; the new tab appears.
-
 Tabs declaring `required_modules = {"kdc101"}` only become visible when the
-matching module is registered in the `ModuleRegistry` at runtime. When the
-device is unplugged, `_refresh_tab_visibility()` hides them again without
-destroying state.
+matching module is registered in the `ModuleRegistry` at runtime.
 
 ### Why
 
 Without this seam, every new experiment becomes a fork of the main window.
 With it, the main window is _closed for modification, open for extension_.
+The two-pattern split (frame vs. sweep) keeps `GMTimingTab` as the sole data
+sink — sweep tabs are analytical overlays that reuse its completed exports.
 
 ### How to apply
 
 When refactoring, identify the chunks of `MainWindow` that change per
-experiment (controls, plots, save logic) and pull them behind `PlotTabBase`.
-Anything that stays in the main window is shared chrome: connection panel,
-status bar, menus, file naming.
+experiment (controls, plots, save logic) and pull them behind `PlotTabBase`
+or `ParameterSweepTabBase`. Anything that stays in the main window is shared
+chrome: connection panel, status bar, menus, file naming, Start/Stop/Save
+button routing.
 
 ---
 
@@ -587,8 +680,13 @@ When you find these in an existing PyQt project, prioritise removing them:
 - [ ] Every new poll loop pauses during synchronous device commands.
 - [ ] Every new error path either silently retries (first failure), updates
       the status bar (recoverable), or shows a modal (terminal/question).
-- [ ] Every new tab subclasses `PlotTabBase`, declares `tab_id` and
-      `tab_title`, and registers in `tabs/__init__.py`.
+- [ ] Every new frame-based tab subclasses `PlotTabBase`; every new sweep
+      tab subclasses `ParameterSweepTabBase`. Both declare `tab_id` and
+      `tab_title` and call `TabRegistry.register()` at import time.
+- [ ] Every new sweep tab's `.ui` page declares the four named widgets
+      (`<prefix>Input`, `<prefix>Plot`, `<prefix>Table`, `<prefix>Status`).
+- [ ] No widgets are constructed in Python for a sweep tab — only six class
+      attribute strings differ from the template.
 - [ ] Every new tunable lives in `config.json`, not hardcoded.
 - [ ] Tests exist next to the change: `core/` → unit, `infrastructure/` →
       against mock, `ui/` → `QTest`.

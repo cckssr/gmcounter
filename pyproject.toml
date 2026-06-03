@@ -3,7 +3,7 @@
 
 [project]
 name = "GMCounter"
-version = "1.2.4"
+version = "2.1.0"
 description = "Geiger-Müller Counter GUI"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -141,7 +141,7 @@ class Debug:
             cls.LOG_FILE = None
 
     @classmethod
-    def error(cls, message, exc_info=None):
+    def error(cls, message, exc_info: object = None):
         """Log an error message.
 
         Args:
@@ -158,6 +158,7 @@ class Debug:
             return
 
         if exc_info:
+            # Pass through exc_info (can be True or an exc_info tuple)
             cls.logger.error(message, exc_info=True)
         else:
             cls.logger.error(message)

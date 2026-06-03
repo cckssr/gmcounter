@@ -1,127 +1,54 @@
-# GMCounter - Geiger-Müller Counter GUI
+# GMCounter
 
-Eine grafische Benutzeroberfläche zur Steuerung und Datenerfassung eines Geiger-Müller-Zählrohrs für Zufallszahlengenerierung.
+GMCounter is a PySide6 desktop application for a Geiger-Müller counter connected over USB serial. It measures inter-event timing in microseconds and is used for random number generation research.
 
-## Projektstruktur
+## Quick Start
 
-Das Projekt verwendet eine modulare Struktur mit dem Paket `gmcounter`:
-
-```
-GMCounter/
-├── main.py                 # Einstiegspunkt (Alternative)
-├── pyproject.toml          # Projekt-Konfiguration und Abhängigkeiten
-├── requirements.txt        # Python Abhängigkeiten (Alternative)
-│
-├── gmcounter/              # Hauptpaket
-│   ├── __init__.py         # Paket-Initialisierung
-│   ├── __main__.py         # Entry Point für `python -m gmcounter`
-│   ├── main.py             # Hauptprogramm
-│   ├── arduino.py          # GM-Counter Kommunikation
-│   ├── config.json         # Zentrale Konfiguration
-│   ├── connection.py       # Verbindungsverwaltung
-│   ├── data_controller.py  # Datenverwaltung und -verarbeitung
-│   ├── device_manager.py   # Geräte-Management
-│   ├── debug_utils.py      # Debug-Hilfsfunktionen
-│   ├── helper_classes.py   # Hilfsklassen (SaveManager, etc.)
-│   ├── main_window.py      # Hauptfensterklasse
-│   ├── control.py          # Steuerungs-Widget
-│   ├── plot.py             # Plotting-Funktionalität
-│   └── pyqt/               # Qt UI-Definitionen
-│       ├── ui_mainwindow.py
-│       └── ui_connection.py
-│
-├── tests/                  # Testdateien
-├── docs/                   # Dokumentation
-└── logs/                   # Logdateien (automatisch erstellt)
-```
-
-## Installation
-
-### Option 1: Installation via pip (empfohlen)
+Install the package in editable mode for development:
 
 ```bash
-# Aus dem Projektverzeichnis installieren
-pip install .
-
-# Oder im Entwicklungsmodus (für Entwicklung)
-pip install -e .
+pip install -e ".[dev]"
 ```
 
-### Option 2: Direkte Installation der Abhängigkeiten
+Run the application:
 
 ```bash
-pip install -r requirements.txt
-```
-
-## Anwendung starten
-
-### Nach pip-Installation
-
-```bash
-# Als GUI-Anwendung (ohne Terminal-Fenster unter Windows)
 gmcounter
 ```
 
-### Ohne Installation
+Or start it as a module:
 
 ```bash
-# Als Python-Modul
 python -m gmcounter
-
-# Oder über main.py
-python main.py
 ```
 
-### Windows ohne CMD-Fenster
+## Testing
+
+Run the full test suite:
 
 ```bash
-pythonw -m gmcounter
-```
-
-## Verwendung
-
-1. Nach dem Start wird ein Verbindungsdialog angezeigt, in dem Sie den seriellen Port auswählen können.
-
-2. Im Hauptfenster können Sie:
-   - Die Messparameter (Spannung, Zähldauer, etc.) einstellen
-   - Messungen starten und stoppen
-   - Messdaten in Echtzeit anzeigen
-   - Statistiken zur laufenden Messung anzeigen
-   - Messdaten als CSV exportieren
-
-## Entwicklung
-
-Die Anwendung wurde mit einer sauberen Architektur entwickelt:
-
-- **Model**: `DataController` und andere Datenklassen verwalten die Daten
-- **View**: Qt-basierte Benutzeroberfläche (PySide6)
-- **Controller**: `MainWindow` und Hilfsklassen steuern den Ablauf
-
-Die `config.json` enthält zentrale Konfigurationsoptionen.
-
-## Tests
-
-Das Projekt enthält umfangreiche Tests:
-
-### Automatisierte Tests
-
-```bash
-# Mit pytest
 pytest
+```
 
-# Mit Coverage
+Run the package tests with coverage:
+
+```bash
 pytest --cov=gmcounter
 ```
 
-### Manueller Testplan
+## Project Structure
 
-Der Datei `testplan.md` enthält einen strukturierten Plan für manuelle Tests.
+- `gmcounter/core/`: pure application logic and data models
+- `gmcounter/infrastructure/`: device adapters, persistence, and Qt-free services
+- `gmcounter/ui/`: PySide6 presentation layer
+- `gmcounter/pyqt/`: generated Qt UI code
+- `tests/`: automated tests
+- `docs/`: Sphinx documentation
 
-## Lizenz
+## Documentation
 
-MIT License - siehe [LICENSE](LICENSE)
+Project documentation is published at [gmcounter.readthedocs.io](https://gmcounter.readthedocs.io).
 
-## Repository
+## License
 
-- **GitHub**: https://github.com/cckssr/gmcounter
-- **Dokumentation**: https://gmcounter.readthedocs.io
+MIT License. See [LICENSE](LICENSE).

@@ -363,34 +363,6 @@ class Ui_MainWindow(object):
         self.formLayout_2.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_6)
 
         self.radSample = QComboBox(self.groupBox)
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
-        self.radSample.addItem("")
         self.radSample.setObjectName("radSample")
         sizePolicy10 = QSizePolicy(
             QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed
@@ -409,7 +381,7 @@ class Ui_MainWindow(object):
         self.label_7.setObjectName("label_7")
         self.label_7.setFont(font1)
 
-        self.formLayout_2.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_7)
+        self.formLayout_2.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_7)
 
         self.groupLetter = QComboBox(self.groupBox)
         self.groupLetter.addItem("")
@@ -445,19 +417,13 @@ class Ui_MainWindow(object):
         self.groupLetter.setMaxCount(24)
         self.groupLetter.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
 
-        self.formLayout_2.setWidget(1, QFormLayout.ItemRole.FieldRole, self.groupLetter)
-
-        self.label_20 = QLabel(self.groupBox)
-        self.label_20.setObjectName("label_20")
-        self.label_20.setFont(font1)
-
-        self.formLayout_2.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label_20)
+        self.formLayout_2.setWidget(3, QFormLayout.ItemRole.FieldRole, self.groupLetter)
 
         self.label_5 = QLabel(self.groupBox)
         self.label_5.setObjectName("label_5")
         self.label_5.setFont(font1)
 
-        self.formLayout_2.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_5)
+        self.formLayout_2.setWidget(4, QFormLayout.ItemRole.LabelRole, self.label_5)
 
         self.suffix = QLineEdit(self.groupBox)
         self.suffix.setObjectName("suffix")
@@ -467,15 +433,40 @@ class Ui_MainWindow(object):
         self.suffix.setText("")
         self.suffix.setMaxLength(20)
 
-        self.formLayout_2.setWidget(3, QFormLayout.ItemRole.FieldRole, self.suffix)
+        self.formLayout_2.setWidget(4, QFormLayout.ItemRole.FieldRole, self.suffix)
 
-        self.sampleDistance = QDoubleSpinBox(self.groupBox)
-        self.sampleDistance.setObjectName("sampleDistance")
-        self.sampleDistance.setFont(font1)
-        self.sampleDistance.setMaximum(19999.000000000000000)
+        self.label_20 = QLabel(self.groupBox)
+        self.label_20.setObjectName("label_20")
+        self.label_20.setFont(font1)
+
+        self.formLayout_2.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_20)
+
+        self.detectorCode = QComboBox(self.groupBox)
+        self.detectorCode.setObjectName("detectorCode")
+        sizePolicy10.setHeightForWidth(
+            self.detectorCode.sizePolicy().hasHeightForWidth()
+        )
+        self.detectorCode.setSizePolicy(sizePolicy10)
+        self.detectorCode.setFont(font1)
+        self.detectorCode.setEditable(True)
+        self.detectorCode.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
 
         self.formLayout_2.setWidget(
-            2, QFormLayout.ItemRole.FieldRole, self.sampleDistance
+            1, QFormLayout.ItemRole.FieldRole, self.detectorCode
+        )
+
+        self.lblDistance = QLabel(self.groupBox)
+        self.lblDistance.setObjectName("lblDistance")
+        self.lblDistance.setFont(font1)
+
+        self.formLayout_2.setWidget(2, QFormLayout.ItemRole.LabelRole, self.lblDistance)
+
+        self.distanceGlobalDistance = QDoubleSpinBox(self.groupBox)
+        self.distanceGlobalDistance.setObjectName("distanceGlobalDistance")
+        self.distanceGlobalDistance.setDecimals(1)
+
+        self.formLayout_2.setWidget(
+            2, QFormLayout.ItemRole.FieldRole, self.distanceGlobalDistance
         )
 
         self.verticalLayout.addLayout(self.formLayout_2)
@@ -509,7 +500,7 @@ class Ui_MainWindow(object):
         self.autoSave.setMaximumSize(QSize(850, 16777215))
         self.autoSave.setFont(font1)
         self.autoSave.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.autoSave.setChecked(True)
+        self.autoSave.setChecked(False)
         self.autoSave.setTristate(False)
 
         self.horizontalLayout_5.addWidget(self.autoSave)
@@ -768,11 +759,281 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.tableView, 0, 0, 1, 1)
 
         self.tabWidget.addTab(self.list, "")
+        self.distance = QWidget()
+        self.distance.setObjectName("distance")
+        sizePolicy16.setHeightForWidth(self.distance.sizePolicy().hasHeightForWidth())
+        self.distance.setSizePolicy(sizePolicy16)
+        self.gridLayout_distance = QGridLayout(self.distance)
+        self.gridLayout_distance.setObjectName("gridLayout_distance")
+        self.gridLayout_distance.setContentsMargins(10, 10, 10, 5)
+        self.horizontalLayout_distance = QHBoxLayout()
+        self.horizontalLayout_distance.setObjectName("horizontalLayout_distance")
+        self.label_distanceInput = QLabel(self.distance)
+        self.label_distanceInput.setObjectName("label_distanceInput")
+        self.label_distanceInput.setFont(font1)
+
+        self.horizontalLayout_distance.addWidget(self.label_distanceInput)
+
+        self.distanceInput = QDoubleSpinBox(self.distance)
+        self.distanceInput.setObjectName("distanceInput")
+        self.distanceInput.setFont(font1)
+        self.distanceInput.setDecimals(1)
+        self.distanceInput.setMaximum(99999.000000000000000)
+        self.distanceInput.setSingleStep(0.500000000000000)
+
+        self.horizontalLayout_distance.addWidget(self.distanceInput)
+
+        self.horizontalSpacer_distance = QSpacerItem(
+            40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )
+
+        self.horizontalLayout_distance.addItem(self.horizontalSpacer_distance)
+
+        self.distanceStatus = QLabel(self.distance)
+        self.distanceStatus.setObjectName("distanceStatus")
+        self.distanceStatus.setFont(font1)
+        self.distanceStatus.setAlignment(
+            Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignTrailing
+            | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        self.horizontalLayout_distance.addWidget(self.distanceStatus)
+
+        self.gridLayout_distance.addLayout(self.horizontalLayout_distance, 0, 0, 1, 1)
+
+        self.distancePlot = QWidget(self.distance)
+        self.distancePlot.setObjectName("distancePlot")
+        sizePolicy15.setHeightForWidth(
+            self.distancePlot.sizePolicy().hasHeightForWidth()
+        )
+        self.distancePlot.setSizePolicy(sizePolicy15)
+
+        self.gridLayout_distance.addWidget(self.distancePlot, 1, 0, 1, 1)
+
+        self.distanceTable = QTableView(self.distance)
+        self.distanceTable.setObjectName("distanceTable")
+        sizePolicy5.setHeightForWidth(
+            self.distanceTable.sizePolicy().hasHeightForWidth()
+        )
+        self.distanceTable.setSizePolicy(sizePolicy5)
+        self.distanceTable.setMaximumSize(QSize(16777215, 200))
+        self.distanceTable.setFont(font1)
+        self.distanceTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.distanceTable.setAlternatingRowColors(True)
+        self.distanceTable.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+
+        self.gridLayout_distance.addWidget(self.distanceTable, 2, 0, 1, 1)
+
+        self.gridLayout_distance.setRowStretch(1, 1)
+        self.tabWidget.addTab(self.distance, "")
+        self.voltage = QWidget()
+        self.voltage.setObjectName("voltage")
+        sizePolicy16.setHeightForWidth(self.voltage.sizePolicy().hasHeightForWidth())
+        self.voltage.setSizePolicy(sizePolicy16)
+        self.gridLayout_voltage = QGridLayout(self.voltage)
+        self.gridLayout_voltage.setObjectName("gridLayout_voltage")
+        self.gridLayout_voltage.setContentsMargins(10, 10, 10, 5)
+        self.horizontalLayout_voltage = QHBoxLayout()
+        self.horizontalLayout_voltage.setObjectName("horizontalLayout_voltage")
+        self.label_voltageHint = QLabel(self.voltage)
+        self.label_voltageHint.setObjectName("label_voltageHint")
+        self.label_voltageHint.setFont(font1)
+
+        self.horizontalLayout_voltage.addWidget(self.label_voltageHint)
+
+        self.horizontalSpacer_voltage = QSpacerItem(
+            40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )
+
+        self.horizontalLayout_voltage.addItem(self.horizontalSpacer_voltage)
+
+        self.voltageStatus = QLabel(self.voltage)
+        self.voltageStatus.setObjectName("voltageStatus")
+        self.voltageStatus.setFont(font1)
+        self.voltageStatus.setAlignment(
+            Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignTrailing
+            | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        self.horizontalLayout_voltage.addWidget(self.voltageStatus)
+
+        self.gridLayout_voltage.addLayout(self.horizontalLayout_voltage, 0, 0, 1, 1)
+
+        self.voltagePlot = QWidget(self.voltage)
+        self.voltagePlot.setObjectName("voltagePlot")
+        sizePolicy15.setHeightForWidth(
+            self.voltagePlot.sizePolicy().hasHeightForWidth()
+        )
+        self.voltagePlot.setSizePolicy(sizePolicy15)
+
+        self.gridLayout_voltage.addWidget(self.voltagePlot, 1, 0, 1, 1)
+
+        self.voltageTable = QTableView(self.voltage)
+        self.voltageTable.setObjectName("voltageTable")
+        sizePolicy5.setHeightForWidth(
+            self.voltageTable.sizePolicy().hasHeightForWidth()
+        )
+        self.voltageTable.setSizePolicy(sizePolicy5)
+        self.voltageTable.setMaximumSize(QSize(16777215, 200))
+        self.voltageTable.setFont(font1)
+        self.voltageTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.voltageTable.setAlternatingRowColors(True)
+        self.voltageTable.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+
+        self.gridLayout_voltage.addWidget(self.voltageTable, 2, 0, 1, 1)
+
+        self.gridLayout_voltage.setRowStretch(1, 1)
+        self.tabWidget.addTab(self.voltage, "")
 
         self.gridLayout_2.addWidget(self.tabWidget, 4, 0, 1, 1)
 
         self.gridLayout_3 = QGridLayout()
         self.gridLayout_3.setObjectName("gridLayout_3")
+        self.label_4 = QLabel(self.gridGroupBox)
+        self.label_4.setObjectName("label_4")
+        sizePolicy17 = QSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum
+        )
+        sizePolicy17.setHorizontalStretch(0)
+        sizePolicy17.setVerticalStretch(0)
+        sizePolicy17.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
+        self.label_4.setSizePolicy(sizePolicy17)
+        self.label_4.setMaximumSize(QSize(16777215, 100))
+        self.label_4.setFont(font1)
+        self.label_4.setAlignment(
+            Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter
+        )
+
+        self.gridLayout_3.addWidget(self.label_4, 2, 3, 1, 1)
+
+        self.formLayout_4 = QFormLayout()
+        self.formLayout_4.setObjectName("formLayout_4")
+        self.formLayout_4.setHorizontalSpacing(10)
+        self.label_8 = QLabel(self.gridGroupBox)
+        self.label_8.setObjectName("label_8")
+        self.label_8.setMinimumSize(QSize(130, 0))
+        self.label_8.setFont(font1)
+        self.label_8.setAlignment(
+            Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignTrailing
+            | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        self.formLayout_4.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_8)
+
+        self.cVoltage = QLCDNumber(self.gridGroupBox)
+        self.cVoltage.setObjectName("cVoltage")
+        sizePolicy8.setHeightForWidth(self.cVoltage.sizePolicy().hasHeightForWidth())
+        self.cVoltage.setSizePolicy(sizePolicy8)
+        self.cVoltage.setMinimumSize(QSize(0, 25))
+        self.cVoltage.setMaximumSize(QSize(120, 50))
+        self.cVoltage.setFont(font1)
+        self.cVoltage.setDigitCount(3)
+
+        self.formLayout_4.setWidget(0, QFormLayout.ItemRole.FieldRole, self.cVoltage)
+
+        self.label_9 = QLabel(self.gridGroupBox)
+        self.label_9.setObjectName("label_9")
+        self.label_9.setMinimumSize(QSize(130, 0))
+        self.label_9.setFont(font1)
+        self.label_9.setAlignment(
+            Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignTrailing
+            | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        self.formLayout_4.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_9)
+
+        self.cDuration = QLCDNumber(self.gridGroupBox)
+        self.cDuration.setObjectName("cDuration")
+        sizePolicy8.setHeightForWidth(self.cDuration.sizePolicy().hasHeightForWidth())
+        self.cDuration.setSizePolicy(sizePolicy8)
+        self.cDuration.setMinimumSize(QSize(100, 25))
+        self.cDuration.setMaximumSize(QSize(120, 50))
+        self.cDuration.setFont(font1)
+        self.cDuration.setDigitCount(3)
+
+        self.formLayout_4.setWidget(1, QFormLayout.ItemRole.FieldRole, self.cDuration)
+
+        self.query_label = QLabel(self.gridGroupBox)
+        self.query_label.setObjectName("query_label")
+        sizePolicy17.setHeightForWidth(
+            self.query_label.sizePolicy().hasHeightForWidth()
+        )
+        self.query_label.setSizePolicy(sizePolicy17)
+        self.query_label.setMinimumSize(QSize(130, 0))
+        self.query_label.setFont(font1)
+        self.query_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignTrailing
+            | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        self.formLayout_4.setWidget(2, QFormLayout.ItemRole.LabelRole, self.query_label)
+
+        self.cQueryMode = QLabel(self.gridGroupBox)
+        self.cQueryMode.setObjectName("cQueryMode")
+        sizePolicy12.setHeightForWidth(self.cQueryMode.sizePolicy().hasHeightForWidth())
+        self.cQueryMode.setSizePolicy(sizePolicy12)
+        self.cQueryMode.setMinimumSize(QSize(0, 15))
+        self.cQueryMode.setMaximumSize(QSize(120, 50))
+        self.cQueryMode.setFont(font1)
+
+        self.formLayout_4.setWidget(2, QFormLayout.ItemRole.FieldRole, self.cQueryMode)
+
+        self.label_12 = QLabel(self.gridGroupBox)
+        self.label_12.setObjectName("label_12")
+        sizePolicy17.setHeightForWidth(self.label_12.sizePolicy().hasHeightForWidth())
+        self.label_12.setSizePolicy(sizePolicy17)
+        self.label_12.setMinimumSize(QSize(130, 20))
+        self.label_12.setFont(font1)
+        self.label_12.setAlignment(
+            Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignTrailing
+            | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        self.formLayout_4.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_12)
+
+        self.cMode = QLabel(self.gridGroupBox)
+        self.cMode.setObjectName("cMode")
+        sizePolicy12.setHeightForWidth(self.cMode.sizePolicy().hasHeightForWidth())
+        self.cMode.setSizePolicy(sizePolicy12)
+        self.cMode.setMinimumSize(QSize(0, 15))
+        self.cMode.setMaximumSize(QSize(120, 50))
+        self.cMode.setFont(font1)
+
+        self.formLayout_4.setWidget(3, QFormLayout.ItemRole.FieldRole, self.cMode)
+
+        self.gridLayout_3.addLayout(self.formLayout_4, 1, 0, 3, 1)
+
+        self.lastCount = QLCDNumber(self.gridGroupBox)
+        self.lastCount.setObjectName("lastCount")
+        sizePolicy12.setHeightForWidth(self.lastCount.sizePolicy().hasHeightForWidth())
+        self.lastCount.setSizePolicy(sizePolicy12)
+        self.lastCount.setMinimumSize(QSize(200, 50))
+        self.lastCount.setMaximumSize(QSize(1000, 70))
+        self.lastCount.setFont(font1)
+        self.lastCount.setFrameShape(QFrame.Shape.Box)
+        self.lastCount.setFrameShadow(QFrame.Shadow.Raised)
+
+        self.gridLayout_3.addWidget(self.lastCount, 3, 3, 1, 1)
+
+        self.label_18 = QLabel(self.gridGroupBox)
+        self.label_18.setObjectName("label_18")
+        sizePolicy9.setHeightForWidth(self.label_18.sizePolicy().hasHeightForWidth())
+        self.label_18.setSizePolicy(sizePolicy9)
+        self.label_18.setFont(font1)
+        self.label_18.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.gridLayout_3.addWidget(self.label_18, 0, 0, 1, 1)
+
         self.line_4 = QFrame(self.gridGroupBox)
         self.line_4.setObjectName("line_4")
         self.line_4.setFont(font1)
@@ -781,13 +1042,22 @@ class Ui_MainWindow(object):
 
         self.gridLayout_3.addWidget(self.line_4, 0, 1, 4, 1)
 
+        self.currentCount = QLCDNumber(self.gridGroupBox)
+        self.currentCount.setObjectName("currentCount")
+        sizePolicy12.setHeightForWidth(
+            self.currentCount.sizePolicy().hasHeightForWidth()
+        )
+        self.currentCount.setSizePolicy(sizePolicy12)
+        self.currentCount.setMinimumSize(QSize(200, 50))
+        self.currentCount.setMaximumSize(QSize(1000, 70))
+        self.currentCount.setFont(font1)
+        self.currentCount.setFrameShape(QFrame.Shape.Box)
+        self.currentCount.setFrameShadow(QFrame.Shadow.Raised)
+
+        self.gridLayout_3.addWidget(self.currentCount, 3, 4, 1, 1)
+
         self.label_3 = QLabel(self.gridGroupBox)
         self.label_3.setObjectName("label_3")
-        sizePolicy17 = QSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum
-        )
-        sizePolicy17.setHorizontalStretch(0)
-        sizePolicy17.setVerticalStretch(0)
         sizePolicy17.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
         self.label_3.setSizePolicy(sizePolicy17)
         self.label_3.setMaximumSize(QSize(16777215, 100))
@@ -796,7 +1066,34 @@ class Ui_MainWindow(object):
             Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter
         )
 
-        self.gridLayout_3.addWidget(self.label_3, 2, 3, 1, 1)
+        self.gridLayout_3.addWidget(self.label_3, 2, 4, 1, 1)
+
+        self.label_21 = QLabel(self.gridGroupBox)
+        self.label_21.setObjectName("label_21")
+        sizePolicy17.setHeightForWidth(self.label_21.sizePolicy().hasHeightForWidth())
+        self.label_21.setSizePolicy(sizePolicy17)
+        self.label_21.setMaximumSize(QSize(16777215, 100))
+        self.label_21.setFont(font1)
+        self.label_21.setAlignment(
+            Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter
+        )
+
+        self.gridLayout_3.addWidget(self.label_21, 2, 2, 1, 1)
+
+        self.currentRate = QLCDNumber(self.gridGroupBox)
+        self.currentRate.setObjectName("currentRate")
+        sizePolicy12.setHeightForWidth(
+            self.currentRate.sizePolicy().hasHeightForWidth()
+        )
+        self.currentRate.setSizePolicy(sizePolicy12)
+        self.currentRate.setMinimumSize(QSize(200, 50))
+        self.currentRate.setMaximumSize(QSize(1000, 70))
+        self.currentRate.setFont(font1)
+        self.currentRate.setFrameShape(QFrame.Shape.Box)
+        self.currentRate.setFrameShadow(QFrame.Shadow.Raised)
+        self.currentRate.setDigitCount(6)
+
+        self.gridLayout_3.addWidget(self.currentRate, 3, 2, 1, 1)
 
         self.horizontalLayout_4 = QHBoxLayout()
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
@@ -828,42 +1125,7 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_4.addWidget(self.progressTimer)
 
-        self.gridLayout_3.addLayout(self.horizontalLayout_4, 1, 2, 1, 2)
-
-        self.lastCount = QLCDNumber(self.gridGroupBox)
-        self.lastCount.setObjectName("lastCount")
-        sizePolicy12.setHeightForWidth(self.lastCount.sizePolicy().hasHeightForWidth())
-        self.lastCount.setSizePolicy(sizePolicy12)
-        self.lastCount.setMinimumSize(QSize(200, 50))
-        self.lastCount.setMaximumSize(QSize(1000, 70))
-        self.lastCount.setFont(font1)
-        self.lastCount.setFrameShape(QFrame.Shape.Box)
-        self.lastCount.setFrameShadow(QFrame.Shadow.Raised)
-
-        self.gridLayout_3.addWidget(self.lastCount, 3, 2, 1, 1)
-
-        self.currentCount = QLCDNumber(self.gridGroupBox)
-        self.currentCount.setObjectName("currentCount")
-        sizePolicy12.setHeightForWidth(
-            self.currentCount.sizePolicy().hasHeightForWidth()
-        )
-        self.currentCount.setSizePolicy(sizePolicy12)
-        self.currentCount.setMinimumSize(QSize(200, 50))
-        self.currentCount.setMaximumSize(QSize(1000, 70))
-        self.currentCount.setFont(font1)
-        self.currentCount.setFrameShape(QFrame.Shape.Box)
-        self.currentCount.setFrameShadow(QFrame.Shadow.Raised)
-
-        self.gridLayout_3.addWidget(self.currentCount, 3, 3, 1, 1)
-
-        self.label_18 = QLabel(self.gridGroupBox)
-        self.label_18.setObjectName("label_18")
-        sizePolicy9.setHeightForWidth(self.label_18.sizePolicy().hasHeightForWidth())
-        self.label_18.setSizePolicy(sizePolicy9)
-        self.label_18.setFont(font1)
-        self.label_18.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.gridLayout_3.addWidget(self.label_18, 0, 0, 1, 1)
+        self.gridLayout_3.addLayout(self.horizontalLayout_4, 1, 2, 1, 3)
 
         self.horizontalLayout_2 = QHBoxLayout()
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
@@ -968,123 +1230,11 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_2.addLayout(self.horizontalLayout_3)
 
-        self.gridLayout_3.addLayout(self.horizontalLayout_2, 0, 2, 1, 2)
-
-        self.formLayout_4 = QFormLayout()
-        self.formLayout_4.setObjectName("formLayout_4")
-        self.formLayout_4.setHorizontalSpacing(10)
-        self.label_8 = QLabel(self.gridGroupBox)
-        self.label_8.setObjectName("label_8")
-        self.label_8.setMinimumSize(QSize(130, 0))
-        self.label_8.setFont(font1)
-        self.label_8.setAlignment(
-            Qt.AlignmentFlag.AlignRight
-            | Qt.AlignmentFlag.AlignTrailing
-            | Qt.AlignmentFlag.AlignVCenter
-        )
-
-        self.formLayout_4.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_8)
-
-        self.cVoltage = QLCDNumber(self.gridGroupBox)
-        self.cVoltage.setObjectName("cVoltage")
-        sizePolicy8.setHeightForWidth(self.cVoltage.sizePolicy().hasHeightForWidth())
-        self.cVoltage.setSizePolicy(sizePolicy8)
-        self.cVoltage.setMinimumSize(QSize(0, 25))
-        self.cVoltage.setMaximumSize(QSize(120, 50))
-        self.cVoltage.setFont(font1)
-        self.cVoltage.setDigitCount(3)
-
-        self.formLayout_4.setWidget(0, QFormLayout.ItemRole.FieldRole, self.cVoltage)
-
-        self.label_9 = QLabel(self.gridGroupBox)
-        self.label_9.setObjectName("label_9")
-        self.label_9.setMinimumSize(QSize(130, 0))
-        self.label_9.setFont(font1)
-        self.label_9.setAlignment(
-            Qt.AlignmentFlag.AlignRight
-            | Qt.AlignmentFlag.AlignTrailing
-            | Qt.AlignmentFlag.AlignVCenter
-        )
-
-        self.formLayout_4.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_9)
-
-        self.cDuration = QLCDNumber(self.gridGroupBox)
-        self.cDuration.setObjectName("cDuration")
-        sizePolicy8.setHeightForWidth(self.cDuration.sizePolicy().hasHeightForWidth())
-        self.cDuration.setSizePolicy(sizePolicy8)
-        self.cDuration.setMinimumSize(QSize(100, 25))
-        self.cDuration.setMaximumSize(QSize(120, 50))
-        self.cDuration.setFont(font1)
-        self.cDuration.setDigitCount(3)
-
-        self.formLayout_4.setWidget(1, QFormLayout.ItemRole.FieldRole, self.cDuration)
-
-        self.query_label = QLabel(self.gridGroupBox)
-        self.query_label.setObjectName("query_label")
-        sizePolicy17.setHeightForWidth(
-            self.query_label.sizePolicy().hasHeightForWidth()
-        )
-        self.query_label.setSizePolicy(sizePolicy17)
-        self.query_label.setMinimumSize(QSize(130, 0))
-        self.query_label.setFont(font1)
-        self.query_label.setAlignment(
-            Qt.AlignmentFlag.AlignRight
-            | Qt.AlignmentFlag.AlignTrailing
-            | Qt.AlignmentFlag.AlignVCenter
-        )
-
-        self.formLayout_4.setWidget(2, QFormLayout.ItemRole.LabelRole, self.query_label)
-
-        self.cQueryMode = QLabel(self.gridGroupBox)
-        self.cQueryMode.setObjectName("cQueryMode")
-        sizePolicy12.setHeightForWidth(self.cQueryMode.sizePolicy().hasHeightForWidth())
-        self.cQueryMode.setSizePolicy(sizePolicy12)
-        self.cQueryMode.setMinimumSize(QSize(0, 15))
-        self.cQueryMode.setMaximumSize(QSize(120, 50))
-        self.cQueryMode.setFont(font1)
-
-        self.formLayout_4.setWidget(2, QFormLayout.ItemRole.FieldRole, self.cQueryMode)
-
-        self.label_12 = QLabel(self.gridGroupBox)
-        self.label_12.setObjectName("label_12")
-        sizePolicy17.setHeightForWidth(self.label_12.sizePolicy().hasHeightForWidth())
-        self.label_12.setSizePolicy(sizePolicy17)
-        self.label_12.setMinimumSize(QSize(130, 20))
-        self.label_12.setFont(font1)
-        self.label_12.setAlignment(
-            Qt.AlignmentFlag.AlignRight
-            | Qt.AlignmentFlag.AlignTrailing
-            | Qt.AlignmentFlag.AlignVCenter
-        )
-
-        self.formLayout_4.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_12)
-
-        self.cMode = QLabel(self.gridGroupBox)
-        self.cMode.setObjectName("cMode")
-        sizePolicy12.setHeightForWidth(self.cMode.sizePolicy().hasHeightForWidth())
-        self.cMode.setSizePolicy(sizePolicy12)
-        self.cMode.setMinimumSize(QSize(0, 15))
-        self.cMode.setMaximumSize(QSize(120, 50))
-        self.cMode.setFont(font1)
-
-        self.formLayout_4.setWidget(3, QFormLayout.ItemRole.FieldRole, self.cMode)
-
-        self.gridLayout_3.addLayout(self.formLayout_4, 1, 0, 3, 1)
-
-        self.label_4 = QLabel(self.gridGroupBox)
-        self.label_4.setObjectName("label_4")
-        sizePolicy17.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
-        self.label_4.setSizePolicy(sizePolicy17)
-        self.label_4.setMaximumSize(QSize(16777215, 100))
-        self.label_4.setFont(font1)
-        self.label_4.setAlignment(
-            Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter
-        )
-
-        self.gridLayout_3.addWidget(self.label_4, 2, 2, 1, 1)
+        self.gridLayout_3.addLayout(self.horizontalLayout_2, 0, 2, 1, 3)
 
         self.gridLayout_3.setColumnStretch(2, 1)
         self.gridLayout_3.setColumnStretch(3, 1)
+        self.gridLayout_3.setColumnStretch(4, 1)
 
         self.gridLayout_2.addLayout(self.gridLayout_3, 0, 0, 1, 1)
 
@@ -1115,7 +1265,8 @@ class Ui_MainWindow(object):
         self.buttonSetting.setDefault(False)
         self.radSample.setCurrentIndex(-1)
         self.groupLetter.setCurrentIndex(-1)
-        self.tabWidget.setCurrentIndex(0)
+        self.detectorCode.setCurrentIndex(-1)
+        self.tabWidget.setCurrentIndex(3)
 
         QMetaObject.connectSlotsByName(MainWindow)
 
@@ -1213,91 +1364,6 @@ class Ui_MainWindow(object):
         self.label_6.setText(
             QCoreApplication.translate("MainWindow", "Radioaktive Probe*", None)
         )
-        self.radSample.setItemText(
-            0, QCoreApplication.translate("MainWindow", "E00200", None)
-        )
-        self.radSample.setItemText(
-            1, QCoreApplication.translate("MainWindow", "E03607", None)
-        )
-        self.radSample.setItemText(
-            2, QCoreApplication.translate("MainWindow", "E23303", None)
-        )
-        self.radSample.setItemText(
-            3, QCoreApplication.translate("MainWindow", "E30347", None)
-        )
-        self.radSample.setItemText(
-            4, QCoreApplication.translate("MainWindow", "E32090", None)
-        )
-        self.radSample.setItemText(
-            5, QCoreApplication.translate("MainWindow", "E34316", None)
-        )
-        self.radSample.setItemText(
-            6, QCoreApplication.translate("MainWindow", "E38069", None)
-        )
-        self.radSample.setItemText(
-            7, QCoreApplication.translate("MainWindow", "E43002", None)
-        )
-        self.radSample.setItemText(
-            8, QCoreApplication.translate("MainWindow", "E44367", None)
-        )
-        self.radSample.setItemText(
-            9, QCoreApplication.translate("MainWindow", "E52165", None)
-        )
-        self.radSample.setItemText(
-            10, QCoreApplication.translate("MainWindow", "E54024", None)
-        )
-        self.radSample.setItemText(
-            11, QCoreApplication.translate("MainWindow", "E55600", None)
-        )
-        self.radSample.setItemText(
-            12, QCoreApplication.translate("MainWindow", "E62894", None)
-        )
-        self.radSample.setItemText(
-            13, QCoreApplication.translate("MainWindow", "E63699", None)
-        )
-        self.radSample.setItemText(
-            14, QCoreApplication.translate("MainWindow", "E67594", None)
-        )
-        self.radSample.setItemText(
-            15, QCoreApplication.translate("MainWindow", "E75572", None)
-        )
-        self.radSample.setItemText(
-            16, QCoreApplication.translate("MainWindow", "E76054", None)
-        )
-        self.radSample.setItemText(
-            17, QCoreApplication.translate("MainWindow", "E78857", None)
-        )
-        self.radSample.setItemText(
-            18, QCoreApplication.translate("MainWindow", "E80533", None)
-        )
-        self.radSample.setItemText(
-            19, QCoreApplication.translate("MainWindow", "E82518", None)
-        )
-        self.radSample.setItemText(
-            20, QCoreApplication.translate("MainWindow", "E87198", None)
-        )
-        self.radSample.setItemText(
-            21, QCoreApplication.translate("MainWindow", "E89152", None)
-        )
-        self.radSample.setItemText(
-            22, QCoreApplication.translate("MainWindow", "E92206", None)
-        )
-        self.radSample.setItemText(
-            23, QCoreApplication.translate("MainWindow", "E93652", None)
-        )
-        self.radSample.setItemText(
-            24, QCoreApplication.translate("MainWindow", "E93945", None)
-        )
-        self.radSample.setItemText(
-            25, QCoreApplication.translate("MainWindow", "E95829", None)
-        )
-        self.radSample.setItemText(
-            26, QCoreApplication.translate("MainWindow", "E96269", None)
-        )
-        self.radSample.setItemText(
-            27, QCoreApplication.translate("MainWindow", "E99208", None)
-        )
-
         # if QT_CONFIG(tooltip)
         self.radSample.setToolTip(
             QCoreApplication.translate(
@@ -1391,9 +1457,6 @@ class Ui_MainWindow(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
-        self.label_20.setText(
-            QCoreApplication.translate("MainWindow", "Probenabstand (cm)", None)
-        )
         self.label_5.setText(
             QCoreApplication.translate("MainWindow", "Eigenes Suffix", None)
         )
@@ -1406,6 +1469,34 @@ class Ui_MainWindow(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
+        self.label_20.setText(
+            QCoreApplication.translate("MainWindow", "Detektor*", None)
+        )
+        # if QT_CONFIG(tooltip)
+        self.detectorCode.setToolTip(
+            QCoreApplication.translate(
+                "MainWindow",
+                '<html><head/><body><p>Auswahl des verwendeten Detektors (Geiger-M\u00fcller-Z\u00e4hlrohr) <span style=" color:#ff001a;">(Pflichtfeld)</span></p></body></html>',
+                None,
+            )
+        )
+        # endif // QT_CONFIG(tooltip)
+        self.detectorCode.setCurrentText("")
+        self.lblDistance.setText(
+            QCoreApplication.translate("MainWindow", "Probenabstand", None)
+        )
+        # if QT_CONFIG(tooltip)
+        self.distanceGlobalDistance.setToolTip(
+            QCoreApplication.translate(
+                "MainWindow",
+                "Abstand zwischen Detektoroberfl\u00e4che und radioaktiver Probe in cm",
+                None,
+            )
+        )
+        # endif // QT_CONFIG(tooltip)
+        self.distanceGlobalDistance.setSuffix(
+            QCoreApplication.translate("MainWindow", " cm", None)
+        )
         # if QT_CONFIG(tooltip)
         self.buttonSave.setToolTip(
             QCoreApplication.translate(
@@ -1482,33 +1573,46 @@ class Ui_MainWindow(object):
             self.tabWidget.indexOf(self.list),
             QCoreApplication.translate("MainWindow", "Liste", None),
         )
-        self.label_3.setText(
-            QCoreApplication.translate(
-                "MainWindow", "Aktuelles Z\u00e4hlergebnis", None
-            )
-        )
-        self.progressTimer.setText(
-            QCoreApplication.translate("MainWindow", "99999 s", None)
-        )
-        self.label_18.setText(
-            QCoreApplication.translate("MainWindow", "Aktuelle GM-Parameter", None)
-        )
-        self.label.setText(
-            QCoreApplication.translate("MainWindow", "Firmware-Version", None)
+        self.label_distanceInput.setText(
+            QCoreApplication.translate("MainWindow", "Probenabstand (cm):", None)
         )
         # if QT_CONFIG(tooltip)
-        self.cVersion.setToolTip(
-            QCoreApplication.translate("MainWindow", "GM-Z\u00e4hler Firmware", None)
+        self.distanceInput.setToolTip(
+            QCoreApplication.translate(
+                "MainWindow", "Abstand der Probe vom Detektor in Zentimetern", None
+            )
         )
         # endif // QT_CONFIG(tooltip)
-        self.cVersion.setText(QCoreApplication.translate("MainWindow", "unknown", None))
-        self.label_11.setText(
-            QCoreApplication.translate("MainWindow", "OpenBIS Code", None)
+        self.distanceInput.setSuffix(
+            QCoreApplication.translate("MainWindow", " cm", None)
         )
-        self.cOpenbis.setText(QCoreApplication.translate("MainWindow", "unknown", None))
-        self.label_2.setText(QCoreApplication.translate("MainWindow", "Status:", None))
-        self.statusText.setText(
-            QCoreApplication.translate("MainWindow", "unknown", None)
+        self.distanceStatus.setText(
+            QCoreApplication.translate(
+                "MainWindow", "Keine Messpunkte aufgezeichnet.", None
+            )
+        )
+        self.tabWidget.setTabText(
+            self.tabWidget.indexOf(self.distance),
+            QCoreApplication.translate("MainWindow", "Abstandsgesetz", None),
+        )
+        self.label_voltageHint.setText(
+            QCoreApplication.translate(
+                "MainWindow",
+                "Spannung wird in der Ger\u00e4testeuerung eingestellt.",
+                None,
+            )
+        )
+        self.voltageStatus.setText(
+            QCoreApplication.translate(
+                "MainWindow", "Keine Messpunkte aufgezeichnet.", None
+            )
+        )
+        self.tabWidget.setTabText(
+            self.tabWidget.indexOf(self.voltage),
+            QCoreApplication.translate("MainWindow", "Spannungskurve", None),
+        )
+        self.label_4.setText(
+            QCoreApplication.translate("MainWindow", "Voriges Z\u00e4hlergebnis", None)
         )
         self.label_8.setText(
             QCoreApplication.translate("MainWindow", "GM-Spannung / V", None)
@@ -1556,8 +1660,38 @@ class Ui_MainWindow(object):
         )
         # endif // QT_CONFIG(tooltip)
         self.cMode.setText(QCoreApplication.translate("MainWindow", "unknown", None))
-        self.label_4.setText(
-            QCoreApplication.translate("MainWindow", "Voriges Z\u00e4hlergebnis", None)
+        self.label_18.setText(
+            QCoreApplication.translate("MainWindow", "Aktuelle GM-Parameter", None)
+        )
+        self.label_3.setText(
+            QCoreApplication.translate(
+                "MainWindow", "Aktuelles Z\u00e4hlergebnis", None
+            )
+        )
+        self.label_21.setText(
+            QCoreApplication.translate(
+                "MainWindow", "Aktuelle Z\u00e4hlrate / Hz", None
+            )
+        )
+        self.progressTimer.setText(
+            QCoreApplication.translate("MainWindow", "99999 s", None)
+        )
+        self.label.setText(
+            QCoreApplication.translate("MainWindow", "Firmware-Version", None)
+        )
+        # if QT_CONFIG(tooltip)
+        self.cVersion.setToolTip(
+            QCoreApplication.translate("MainWindow", "GM-Z\u00e4hler Firmware", None)
+        )
+        # endif // QT_CONFIG(tooltip)
+        self.cVersion.setText(QCoreApplication.translate("MainWindow", "unknown", None))
+        self.label_11.setText(
+            QCoreApplication.translate("MainWindow", "OpenBIS Code", None)
+        )
+        self.cOpenbis.setText(QCoreApplication.translate("MainWindow", "unknown", None))
+        self.label_2.setText(QCoreApplication.translate("MainWindow", "Status:", None))
+        self.statusText.setText(
+            QCoreApplication.translate("MainWindow", "unknown", None)
         )
 
     # retranslateUi

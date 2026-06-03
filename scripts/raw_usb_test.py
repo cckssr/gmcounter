@@ -13,17 +13,50 @@ one line per packet — terminal I/O is the bottleneck at high rates, not USB.
 
 import serial
 import sys
+import argparse
+from serial.tools import list_ports
 from datetime import datetime
 from collections import deque
 from time import monotonic, sleep
 
 TICKS_PER_US = 48  # RA4M1 Cortex-M4 @ 48 MHz — must match firmware TICKS_PER_US
 READ_CHUNK = 4096  # bytes per read() call — amortises syscall overhead
-PRINT_INTERVAL = 0.5  # seconds between summary lines
+PRINT_INTERVAL = 1.0  # seconds between summary lines
 
 
-def find_serial_port(default_port="cu.usbmodem101"):
-    return f"/dev/{default_port}"
+def find_serial_port(selection: str | None = None, default_port="cu.usbmodem2101"):
+    """Resolve a serial port from a selection.
+
+    If selection is None, list available ports and prompt the user to choose by
+    number. If selection is a decimal number (string or numeric), treat it as
+    an index into the displayed list. Otherwise treat selection as a port
+    device name or basename and return /dev/<selection> when appropriate.
+    """
+    ports = list(list_ports.comports())
+    if selection is None:
+        if not ports:
+            return f"/dev/{default_port}"
+        print("Available serial ports:")
+        for i, p in enumerate(ports):
+            print(f"  [{i}] {p.device}  {p.description}")
+        choice = input("Select port number: ").strip()
+    else:
+        choice = str(selection).strip()
+
+    # numeric selection -> index
+    if choice.isdigit():
+        idx = int(choice)
+        if 0 <= idx < len(ports):
+            return ports[idx].device
+        else:
+            raise SystemExit(f"Invalid port index: {idx}")
+
+    # if looks like a device path, return directly
+    if choice.startswith("/dev/"):
+        return choice
+
+    # otherwise treat as basename under /dev
+    return f"/dev/{choice}"
 
 
 def parse_packets(buf: bytearray) -> list:
@@ -76,7 +109,17 @@ def read_diag_stat(ser, timeout: float = 2.0) -> dict:
 
 
 def main():
-    port = find_serial_port()
+    p = argparse.ArgumentParser(description="Raw USB HRNG reader")
+    p.add_argument("-p", "--port", help="port device or index from the list")
+    args = p.parse_args()
+
+    try:
+        port = find_serial_port(args.port)
+    except SystemExit:
+        raise
+    except Exception as e:
+        print(f"Error selecting port: {e}", file=sys.stderr)
+        sys.exit(1)
 
     try:
         print(f"Connecting to {port}...")
@@ -147,9 +190,12 @@ def main():
 
     finally:
         if "ser" in locals() and ser.is_open:
-            send_command(ser, "ABOR")
+            send_command(ser, "ABOR\n")
+            ser.read_all()  # flush any remaining data
+            ser.flush()
             print("Sent ABOR — acquisition stopped.")
-            sleep(0.2)
+            sleep(1)
+            send_command(ser, "DIAG:STAT?")
 
             stats = read_diag_stat(ser)
             print("\nDIAG:STAT? — last acquisition statistics:")

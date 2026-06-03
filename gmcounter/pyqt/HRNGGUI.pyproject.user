@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 19.0.2, 2026-06-01T11:31:38. -->
+<!-- Written by QtCreator 19.0.2, 2026-06-03T13:18:22. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -156,7 +156,7 @@
      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">../main.py</value>
      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration.</value>
      <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">/Users/cedric.kessler/GIT/gmcounter/gmcounter/main.py</value>
-     <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">false</value>
+     <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">true</value>
      <value type="QString" key="ProjectExplorer.RunConfiguration.UniqueId"></value>
      <value type="QString" key="PythonEditor.RunConfiguation.Script">/Users/cedric.kessler/GIT/gmcounter/gmcounter/main.py</value>
      <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
@@ -194,7 +194,7 @@
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">../main.py</value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration.</value>
     <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">/Users/cedric.kessler/GIT/gmcounter/gmcounter/main.py</value>
-    <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">false</value>
+    <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">true</value>
     <value type="QString" key="ProjectExplorer.RunConfiguration.UniqueId"></value>
     <value type="QString" key="PythonEditor.RunConfiguation.Script">/Users/cedric.kessler/GIT/gmcounter/gmcounter/main.py</value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>

@@ -19,7 +19,7 @@ Performance Features:
 
 from __future__ import annotations
 
-from typing import Iterable, Optional, Tuple, List, Dict, Any
+from typing import Iterable, Optional, Tuple, List, Any
 import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import Signal, Slot, QTimer  # pylint: disable=no-name-in-module
@@ -606,6 +606,24 @@ class GeneralPlot(pg.PlotWidget):
         y_min_p, y_max_p = pad_range(y_min, y_max)
 
         return [x_min_p, x_max_p], [y_min_p, y_max_p]
+
+    def set_summary_points(self, points: List[Tuple[float, float]]) -> None:
+        """Replace the plot with an XY summary (sorted by x, symbols + line).
+
+        Designed for parameter-sweep tabs (distance law, voltage curve).
+        Sorts *points* by the x-coordinate so the connecting line follows the
+        parameter axis regardless of insertion order, then delegates to the
+        existing update_plot_data with use_symbols=True.
+
+        Args:
+            points: List of (x, y) tuples — e.g. (distance_cm, count).
+        """
+        if not points:
+            self.clear_measurement_data()
+            return
+        sorted_pts = sorted(points, key=lambda p: p[0])
+        self.enable_auto_range(True)
+        self.update_plot_data(sorted_pts, use_symbols=True)
 
     def append_data(self, x: float, y: float) -> None:
         """Append a single data point (streaming mode).

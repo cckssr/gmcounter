@@ -182,6 +182,7 @@ class StatePollerThread(QThread):
         self._running = False
         self._poll_lock = threading.Lock()
         self._enabled = True
+        self._wake_event = threading.Event()
 
     def pause(self) -> None:
         """Disable polling and wait for any in-flight get_data() to complete."""
@@ -192,6 +193,10 @@ class StatePollerThread(QThread):
         """Re-enable polling after a measurement has stopped."""
         with self._poll_lock:
             self._enabled = True
+
+    def force_poll_soon(self) -> None:
+        """Wake the poller immediately so a fresh state is fetched without waiting."""
+        self._wake_event.set()
 
     def run(self) -> None:
         _log.info("StatePollerThread started")
@@ -215,6 +220,7 @@ class StatePollerThread(QThread):
 
     def stop(self) -> None:
         self._running = False
+        self._wake_event.set()  # unblock wait() so the thread exits promptly
         self.requestInterruption()
         _log.info("Stopping StatePollerThread")
         if not self.wait(3000):
