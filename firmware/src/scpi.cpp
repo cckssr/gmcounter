@@ -191,9 +191,9 @@ static void handleCONFSTR(const String &param, bool isQuery)
         return;
     }
     int val = param.toInt();
-    if (val < 0 || val > 2)
+    if (val < 0 || val > 4)
     {
-        errParam("stream mode must be 0..2");
+        errParam("stream mode must be 0..4");
         return;
     }
     gmState.stream_mode = val;
@@ -254,10 +254,11 @@ static void handleHELP()
     Serial.println(F("  CONF:VOLT [300..900]          HV voltage in V (query/set)"));
     Serial.println(F("  CONF:TIME [0..9]              Counting time mode (query/set)"));
     Serial.println(F("  CONF:REP  [ON|OFF|1|0]        Repeat mode (query/set)"));
-    Serial.println(F("  CONF:STR  [0..2]              Stream mode (query/set)"));
+    Serial.println(F("  CONF:STR  [0..4]              Stream mode (query/set; 4=continuous)"));
     Serial.println(F("  FETC:STAT?                    GM counter status CSV"));
     Serial.println(F("  CONF:SPKR [0..3]  !           Speaker mode (0=off,1=click,2=tone,3=both)"));
     Serial.println(F("  DIAG:STAT?                    Last-acquisition statistics CSV"));
+    Serial.println(F("  DIAG:PASS  !                  Toggle Serial1 passthrough (toggle again to exit)"));
     Serial.println(F("  HELP?                         This help text"));
 }
 
@@ -278,6 +279,20 @@ static void handleCONFSPKR(const String &param, bool isQuery)
         return;
     }
     Serial1.println("U" + String(val));
+}
+
+// Toggle Serial1 passthrough mode. When active, raw lines from Serial are forwarded
+// to Serial1 and Serial1 responses are relayed back. Only DIAG:PASS and ABOR are
+// intercepted; all other SCPI commands are bypassed.
+static void handleDIAGPASS(bool isQuery)
+{
+    if (isQuery)
+    {
+        Serial.println(gmState.passthrough ? "1" : "0");
+        return;
+    }
+    gmState.passthrough = !gmState.passthrough;
+    Serial.println(gmState.passthrough ? "PASS:ON" : "PASS:OFF");
 }
 
 // Returns last-acquisition statistics: dur_ms,npoints,debounced,overflows,tx_drops
@@ -443,6 +458,12 @@ void scpiDispatch(const String &line)
             handleDIAGSTAT();
         else
             errNotQueryable("DIAG:STAT");
+        return;
+    }
+
+    if (header == "DIAG:PASS" || header == "DIAGNOSTIC:PASSTHROUGH")
+    {
+        handleDIAGPASS(isQuery);
         return;
     }
 

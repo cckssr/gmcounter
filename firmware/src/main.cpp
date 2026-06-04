@@ -69,9 +69,53 @@ void loop()
             }
         }
     }
+    else if (gmState.passthrough)
+    {
+        // ── Passthrough path: relay Serial ↔ Serial1 ─────────────────────────
+        // Forward any Serial1 output back to the host.
+        while (Serial1.available() > 0)
+            Serial.write(Serial1.read());
+
+        // Read host input; intercept DIAG:PASS (toggle off) and ABOR only.
+        while (Serial.available() > 0)
+        {
+            char c = (char)Serial.read();
+            if (c == '\n')
+            {
+                inputBuf.trim();
+                String h, p;
+                bool q;
+                if (scpiParse(inputBuf, h, p, q))
+                {
+                    if (!q && (h == "DIAG:PASS" || h == "DIAGNOSTIC:PASSTHROUGH"))
+                        scpiDispatch(inputBuf); // toggles passthrough off
+                    else if (!q && (h == "ABOR" || h == "ABORT"))
+                        scpiDispatch(inputBuf);
+                    else
+                        Serial1.println(inputBuf); // forward raw to GM counter
+                }
+                inputBuf = "";
+            }
+            else if (c != '\r')
+            {
+                appendChar(c);
+            }
+        }
+    }
     else
     {
         // ── Idle path: full SCPI command processing ───────────────────────────
+
+        // The GM counter boots into continuous-stream mode (b4). If it sends
+        // unsolicited data and the user has not explicitly configured stream_mode 4,
+        // suppress it immediately and drain the stale bytes.
+        if (Serial1.available() > 0 && gmState.stream_mode != 4)
+        {
+            Serial1.println("b0");
+            while (Serial1.available() > 0)
+                Serial1.read();
+        }
+
         while (Serial.available() > 0)
         {
             char c = (char)Serial.read();

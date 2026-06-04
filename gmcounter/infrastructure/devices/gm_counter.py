@@ -49,8 +49,22 @@ class GMCounterAdapter(SerialDevice):
 
     # ------------------------------------------------------------------
     # Data / info
-
     def get_data(self, request: bool = True) -> Dict[str, Union[int, bool]]:
+        """Fetch current counter status and data.
+
+        Args:
+            request: If True, sends a FETC:STAT? command before reading.
+
+        Returns:
+            A dictionary with keys:
+                - count: Total counts (int)
+                - last_count: Counts since last request (int)
+                - counting_time: Total counting time in seconds (int)
+                - repeat: Whether repeat mode is on (bool)
+                - progress: Progress of current counting time (0-100 int)
+                - voltage: Current voltage setting (int)
+                - error: If an error occurred (0 or 1 int)
+        """
         template: Dict[str, Union[int, bool]] = {
             "count": 0,
             "last_count": 0,
@@ -58,14 +72,17 @@ class GMCounterAdapter(SerialDevice):
             "repeat": False,
             "progress": 0,
             "voltage": 0,
+            "error": 0,
         }
         try:
             if request:
                 if not self.send_command("FETC:STAT?"):
+                    template["error"] = 1
                     return template
                 sleep(0.1)
             line = self.read_value(timeout=2.0, return_type="str")
             if not line or not isinstance(line, str):
+                template["error"] = 1
                 return template
             parts = line.split(",")
             if parts and parts[-1] == "":
@@ -79,10 +96,12 @@ class GMCounterAdapter(SerialDevice):
                 try:
                     result[key] = bool(int(part)) if key == "repeat" else int(part)
                 except (ValueError, IndexError):
+                    result["error"] = 1
                     pass
             return result
         except Exception as exc:
             _log.error("Error in get_data: %s", exc)
+            template["error"] = 1
             return template
 
     def get_information(self, use_cache: bool = True) -> Dict[str, str]:
@@ -105,37 +124,83 @@ class GMCounterAdapter(SerialDevice):
             _log.error("Error getting information: %s", exc)
         return info
 
-    # ------------------------------------------------------------------
     # Control commands
-
-    def set_stream(self, value: int = 0) -> bool:
+    def set_stream(self, value: int = 0, confirm: bool = False) -> bool:
         self.send_command(f"CONF:STR {value}")
+        if confirm:
+            self.send_command("CONF:STR?")
+            r = self.read_text_response()
+            if r is None or r.strip() != str(value):
+                _log.debug(
+                    "Stream setting confirmation failed: expected %d, got %s", value, r
+                )
+                return False
         return True
 
-    def set_voltage(self, value: int = 500) -> Optional[bool]:
+    def set_voltage(self, value: int = 500, confirm: bool = False) -> Optional[bool]:
         if not 300 <= value <= 700:
             _log.error("Voltage must be between 300 and 700, got %d", value)
             return None
         self.send_command(f"CONF:VOLT {value}")
+        if confirm:
+            self.send_command("CONF:VOLT?")
+            r = self.read_value()
+            if r is None or int(r) != value:
+                _log.debug(
+                    "Voltage setting confirmation failed: expected %d, got %s", value, r
+                )
+                return False
         return True
 
-    def set_repeat(self, value: bool = False) -> bool:
+    def set_repeat(self, value: bool = False, confirm: bool = False) -> bool:
         self.send_command(f"CONF:REP {1 if value else 0}")
+        if confirm:
+            self.send_command("CONF:REP?")
+            r = self.read_value()
+            if r is None or bool(int(r)) != value:
+                _log.debug(
+                    "Repeat setting confirmation failed: expected %s, got %s", value, r
+                )
+                return False
         return True
 
     def set_counting(self, value: bool = False) -> bool:
         self.send_command("INIT" if value else "ABOR")
         return True
 
-    def set_speaker(self, gm: bool = False, ready: bool = False) -> bool:
+    def set_speaker(
+        self, gm: bool = False, ready: bool = False, confirm: bool = False
+    ) -> bool:
         self.send_command(f"CONF:SPKR {int(gm) + 2 * int(ready)}")
+        if confirm:
+            self.send_command("CONF:SPKR?")
+            r = self.read_value()
+            if r is None or int(r) != int(gm) + 2 * int(ready):
+                _log.debug(
+                    "Speaker setting confirmation failed: expected %d, got %s",
+                    int(gm) + 2 * int(ready),
+                    r,
+                )
+                return False
         return True
 
-    def set_counting_time(self, value: int = 0) -> Optional[bool]:
+    def set_counting_time(
+        self, value: int = 0, confirm: bool = False
+    ) -> Optional[bool]:
         if not 0 <= value <= 5:
             _log.error("Counting time key must be 0–5, got %d", value)
             return None
         self.send_command(f"CONF:TIME {value}")
+        if confirm:
+            self.send_command("CONF:TIME?")
+            r = self.read_value()
+            if r is None or int(r) != value:
+                _log.debug(
+                    "Counting time setting confirmation failed: expected %d, got %s",
+                    value,
+                    r,
+                )
+                return False
         return True
 
     def clear_register(self) -> bool:
