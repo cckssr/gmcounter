@@ -1,9 +1,12 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Tag to release (e.g. v1.2.3)"
+        required: true
+        type: string
 
 env:
   PROJECT_NAME: GMCounter
@@ -41,30 +44,31 @@ jobs:
       - name: Detect prerelease
         id: pre
         run: |
-          if echo "${{ github.ref_name }}" | grep -qE "(a|b|rc)[0-9]+$"; then
+          TAG_NAME="${{ inputs.tag_name }}"
+          if echo "$TAG_NAME" | grep -qE "(a|b|rc)[0-9]+$"; then
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
-            echo "This is a pre-release: ${{ github.ref_name }}"
+            echo "This is a pre-release: $TAG_NAME"
           else
             echo "is_prerelease=false" >> $GITHUB_OUTPUT
-            echo "This is a stable release: ${{ github.ref_name }}"
+            echo "This is a stable release: $TAG_NAME"
           fi
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ inputs.tag_name }}
+          name: Release ${{ inputs.tag_name }}
           prerelease: ${{ steps.pre.outputs.is_prerelease }}
           generate_release_notes: true
           body: |
-            ## ${{ env.PROJECT_NAME }} ${{ github.ref_name }}
+            ## ${{ env.PROJECT_NAME }} ${{ inputs.tag_name }}
 
             Python package release published from this repository.
 
             ### Installation
 
             ```bash
-            pip install git+${{ env.REPOSITORY_URL }}.git@${{ github.ref_name }}
+            pip install git+${{ env.REPOSITORY_URL }}.git@${{ inputs.tag_name }}
             ```
 
             Or install the latest stable release:
@@ -94,7 +98,7 @@ jobs:
       - name: Summary
         run: |
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** \`${{ inputs.tag_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Pre-release:** ${{ steps.pre.outputs.is_prerelease }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Artifacts:**" >> $GITHUB_STEP_SUMMARY
           ls dist/ | while read f; do echo "  - \`$f\`" >> $GITHUB_STEP_SUMMARY; done
