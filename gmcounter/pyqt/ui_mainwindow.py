@@ -890,6 +890,92 @@ class Ui_MainWindow(object):
 
         self.gridLayout_voltage.setRowStretch(1, 1)
         self.tabWidget.addTab(self.voltage, "")
+        self.interval = QWidget()
+        self.interval.setObjectName("interval")
+        sizePolicy16.setHeightForWidth(self.interval.sizePolicy().hasHeightForWidth())
+        self.interval.setSizePolicy(sizePolicy16)
+        self.gridLayout_interval = QGridLayout(self.interval)
+        self.gridLayout_interval.setObjectName("gridLayout_interval")
+        self.gridLayout_interval.setContentsMargins(10, 10, 10, 5)
+        self.horizontalLayout_interval = QHBoxLayout()
+        self.horizontalLayout_interval.setObjectName("horizontalLayout_interval")
+        self.label_intervalWidth = QLabel(self.interval)
+        self.label_intervalWidth.setObjectName("label_intervalWidth")
+        self.label_intervalWidth.setFont(font1)
+
+        self.horizontalLayout_interval.addWidget(self.label_intervalWidth)
+
+        self.intervalWidthInput = QDoubleSpinBox(self.interval)
+        self.intervalWidthInput.setObjectName("intervalWidthInput")
+        self.intervalWidthInput.setFont(font1)
+        self.intervalWidthInput.setMinimum(0.100000000000000)
+        self.intervalWidthInput.setMaximum(3600.000000000000000)
+        self.intervalWidthInput.setSingleStep(1.000000000000000)
+        self.intervalWidthInput.setValue(1.000000000000000)
+
+        self.horizontalLayout_interval.addWidget(self.intervalWidthInput)
+
+        self.label_intervalRepeats = QLabel(self.interval)
+        self.label_intervalRepeats.setObjectName("label_intervalRepeats")
+        self.label_intervalRepeats.setFont(font1)
+
+        self.horizontalLayout_interval.addWidget(self.label_intervalRepeats)
+
+        self.intervalRepeatInput = QSpinBox(self.interval)
+        self.intervalRepeatInput.setObjectName("intervalRepeatInput")
+        self.intervalRepeatInput.setFont(font1)
+        self.intervalRepeatInput.setMinimum(1)
+        self.intervalRepeatInput.setMaximum(10000)
+        self.intervalRepeatInput.setValue(10)
+
+        self.horizontalLayout_interval.addWidget(self.intervalRepeatInput)
+
+        self.horizontalSpacer_interval = QSpacerItem(
+            40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+        )
+
+        self.horizontalLayout_interval.addItem(self.horizontalSpacer_interval)
+
+        self.intervalStatus = QLabel(self.interval)
+        self.intervalStatus.setObjectName("intervalStatus")
+        self.intervalStatus.setFont(font1)
+        self.intervalStatus.setAlignment(
+            Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignTrailing
+            | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        self.horizontalLayout_interval.addWidget(self.intervalStatus)
+
+        self.gridLayout_interval.addLayout(self.horizontalLayout_interval, 0, 0, 1, 1)
+
+        self.intervalPlot = QWidget(self.interval)
+        self.intervalPlot.setObjectName("intervalPlot")
+        sizePolicy15.setHeightForWidth(
+            self.intervalPlot.sizePolicy().hasHeightForWidth()
+        )
+        self.intervalPlot.setSizePolicy(sizePolicy15)
+
+        self.gridLayout_interval.addWidget(self.intervalPlot, 1, 0, 1, 1)
+
+        self.intervalTable = QTableView(self.interval)
+        self.intervalTable.setObjectName("intervalTable")
+        sizePolicy5.setHeightForWidth(
+            self.intervalTable.sizePolicy().hasHeightForWidth()
+        )
+        self.intervalTable.setSizePolicy(sizePolicy5)
+        self.intervalTable.setMaximumSize(QSize(16777215, 200))
+        self.intervalTable.setFont(font1)
+        self.intervalTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.intervalTable.setAlternatingRowColors(True)
+        self.intervalTable.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+
+        self.gridLayout_interval.addWidget(self.intervalTable, 2, 0, 1, 1)
+
+        self.gridLayout_interval.setRowStretch(1, 1)
+        self.tabWidget.addTab(self.interval, "")
 
         self.gridLayout_2.addWidget(self.tabWidget, 4, 0, 1, 1)
 
@@ -1610,6 +1696,19 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(
             self.tabWidget.indexOf(self.voltage),
             QCoreApplication.translate("MainWindow", "Spannungskurve", None),
+        )
+        self.label_intervalWidth.setText(
+            QCoreApplication.translate("MainWindow", "Intervallbreite (s):", None)
+        )
+        self.label_intervalRepeats.setText(
+            QCoreApplication.translate("MainWindow", "Wiederholungen:", None)
+        )
+        self.intervalStatus.setText(
+            QCoreApplication.translate("MainWindow", "Keine Daten.", None)
+        )
+        self.tabWidget.setTabText(
+            self.tabWidget.indexOf(self.interval),
+            QCoreApplication.translate("MainWindow", "Intervalle", None),
         )
         self.label_4.setText(
             QCoreApplication.translate("MainWindow", "Voriges Z\u00e4hlergebnis", None)

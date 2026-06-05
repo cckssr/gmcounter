@@ -61,6 +61,7 @@ struct GmState
     int counting_time_mode = DEFAULT_TIME_MODE;
     int stream_mode = DEFAULT_STREAM_MODE;
     bool debug = false;
+    bool passthrough = false;
 };
 
 // ── Globals (defined in state.cpp) ───────────────────────────────────────────

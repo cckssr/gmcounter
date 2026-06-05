@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 import gmcounter
 from PySide6.QtCore import Qt
@@ -19,6 +20,9 @@ from ..tabs.registry import TabRegistry
 from ..tabs.gm_timing_tab import GMTimingTab  # registers at import time
 from ..tabs.distance_law_tab import DistanceLawTab  # explicitly wired sweep tab
 from ..tabs.voltage_response_tab import VoltageResponseTab  # explicitly wired sweep tab
+from ..tabs.interval_repeat_tab import (
+    IntervalRepeatTab,
+)  # explicitly wired interval tab
 from ..widgets.event_log_panel import EventLogPanel
 from ..common import dialogs as MessageHelper
 from ..common.file_dialogs import FileDialogManager
@@ -121,6 +125,22 @@ class MainWindow(QMainWindow):
         self._sweep_session: bool = False
         self._active_sweep_tab = None  # type: ignore[assignment]
 
+        # Interval tab
+        self._interval_tab = IntervalRepeatTab(parent=self)
+        self._interval_tab.inject_ui(
+            plot_container=self.ui.intervalPlot,
+            table_view=self.ui.intervalTable,
+            width_input=self.ui.intervalWidthInput,
+            repeat_input=self.ui.intervalRepeatInput,
+            status_label=self.ui.intervalStatus,
+        )
+        self._interval_tab.build()
+
+        # Interval session state — True while an interval measurement is active
+        # (from Start until Save or Reset).
+        self._interval_session: bool = False
+        self._active_interval_tab: Optional[IntervalRepeatTab] = None
+
         # Measurement lifecycle is forwarded to the active sweep tab inside
         # _on_measurement_started / _on_measurement_stopped (below), which
         # fire after GMTimingTab via the AppController signal ordering.
@@ -199,6 +219,9 @@ class MainWindow(QMainWindow):
         self.ui.buttonSave.setEnabled(False)
         self.ui.buttonReset.setEnabled(False)
 
+        # Allow typing a custom duration in seconds directly into the combobox
+        self.ui.sDuration.setEditable(True)
+
         # autoSave — gates incremental backup; reflect true initial state
         self.ui.autoSave.setChecked(False)
         self.ui.autoSave.toggled.connect(self._on_auto_save_toggled)
@@ -252,11 +275,19 @@ class MainWindow(QMainWindow):
     # AppController signal handlers
 
     def _on_tab_changed(self, index: int) -> None:
-        on_distance_tab = self.ui.tabWidget.widget(index) is self.ui.distance
+        current_page = self.ui.tabWidget.widget(index)
+        on_distance_tab = current_page is self.ui.distance
         self.ui.lblDistance.setVisible(not on_distance_tab)
         self.ui.distanceGlobalDistance.setVisible(not on_distance_tab)
         if on_distance_tab:
             self.ui.distanceGlobalDistance.setValue(0.0)
+
+        # Route frames to the interval tab when its page is selected;
+        # otherwise the GM timing tab is the active receiver.
+        if current_page is self.ui.interval:
+            self._ctrl.set_active_tab(self._interval_tab)
+        elif not self._interval_session:
+            self._ctrl.set_active_tab(self._gm_tab)
 
     def _on_tab_status(self, level: str, text: str) -> None:
         color = {"info": "green", "warning": "orange", "error": "red"}.get(
@@ -311,6 +342,10 @@ class MainWindow(QMainWindow):
             # next measurement point immediately; unsaved state is tracked by
             # the sweep tab, not _save_service.
             self.ui.buttonStart.setEnabled(True)
+        elif self._interval_session:
+            # Interval session: Start disabled until data is saved or reset.
+            # interval_tab.on_measurement_stopped() fires via the ctrl signal.
+            self.ui.buttonStart.setEnabled(False)
         else:
             # Normal mode: Start disabled until data is saved/reset.
             self.ui.buttonStart.setEnabled(False)
@@ -378,6 +413,30 @@ class MainWindow(QMainWindow):
         """
         return self._sweep_tabs.get(self.ui.tabWidget.currentWidget())
 
+    def _current_interval_tab(self):
+        """Return the IntervalRepeatTab if the interval page is active, else None."""
+        return (
+            self._interval_tab
+            if self.ui.tabWidget.currentWidget() is self.ui.interval
+            else None
+        )
+
+    def _parse_duration_s(self) -> int:
+        """Parse the sDuration combobox to total seconds.
+
+        Preset indices map directly; if the user typed a custom value
+        (currentIndex == -1), it is parsed as a float and rounded.
+        Returns 0 (infinite) for the 'unendlich' preset or invalid input.
+        """
+        seconds_map = {0: 0, 1: 1, 2: 10, 3: 60, 4: 100, 5: 300}
+        idx = int(self.ui.sDuration.currentIndex())
+        if idx in seconds_map:
+            return seconds_map[idx]
+        try:
+            return max(0, int(round(float(self.ui.sDuration.currentText()))))
+        except ValueError:
+            return 0
+
     def _set_sweep_lock(self, locked: bool, active_page=None) -> None:
         """Lock or unlock tab navigation during a sweep session.
 
@@ -391,13 +450,25 @@ class MainWindow(QMainWindow):
 
     def _handle_start(self) -> None:
         sweep = self._current_sweep_tab()
+        interval = self._current_interval_tab()
 
-        if sweep is not None:
+        if interval is not None:
+            # ── Interval/Repeat mode ─────────────────────────────────────
+            total = int(interval.width_s * interval.repeat_count)
+
+            self._interval_session = True
+            self._active_interval_tab = interval
+            active_page = self.ui.tabWidget.currentWidget()
+            self._set_sweep_lock(True, active_page)
+            self._gm_tab.set_high_speed_autoswitch(False)
+
+            self._ctrl.start_measurement(total_seconds=total)
+
+        elif sweep is not None:
             # ── Sweep mode ──────────────────────────────────────────────
-            seconds_map = {0: 0, 1: 1, 2: 10, 3: 60, 4: 100, 5: 300}
-            idx = int(self.ui.sDuration.currentIndex())
+            total = self._parse_duration_s()
 
-            if idx == 0 and not self._sweep_session:
+            if total == 0 and not self._sweep_session:
                 # Warn on infinite time only at the first measurement of a session
                 if not MessageHelper.ask_question(
                     self,
@@ -429,7 +500,6 @@ class MainWindow(QMainWindow):
             if sweep.applies_device_voltage_on_start:
                 self._handle_apply_settings()
 
-            total = seconds_map.get(idx, 0)
             self._gm_tab.set_measurement_metadata(
                 rad_sample=self.ui.radSample.currentText(),
                 group=self.ui.groupLetter.currentText(),
@@ -447,10 +517,7 @@ class MainWindow(QMainWindow):
                 )
                 return
 
-            seconds_map = {0: 0, 1: 1, 2: 10, 3: 60, 4: 100, 5: 300}
-            idx = int(self.ui.sDuration.currentIndex())
-            total = seconds_map.get(idx, 0)
-
+            total = self._parse_duration_s()
             self._gm_tab.set_measurement_metadata(
                 rad_sample=self.ui.radSample.currentText(),
                 group=self.ui.groupLetter.currentText(),
@@ -462,11 +529,71 @@ class MainWindow(QMainWindow):
         self._ctrl.stop_measurement()
 
     def _handle_save(self) -> None:
+        from ...infrastructure.save_service import write_export
+
+        interval = self._active_interval_tab
+        if self._interval_session and interval is not None and interval.has_data():
+            # ── Interval save: summary CSV + per-interval CSVs ────────────
+            summary = interval.summary_export()
+            if not summary:
+                MessageHelper.show_info(
+                    self, "Keine Intervalldaten vorhanden.", "Information"
+                )
+                return
+
+            extra: dict = {}
+            detector = self.ui.detectorCode.currentText().strip()
+            if detector:
+                extra["detector_code"] = detector
+            if extra:
+                summary.metadata.update(extra)
+
+            saved = self._file_dialog_manager.manual_save_export(
+                self,
+                summary,
+                self.ui.radSample.currentText(),
+                self.ui.groupLetter.currentText(),
+                self.ui.suffix.text().strip(),
+            )
+            if not saved or not saved.exists():
+                return
+
+            per_interval = interval.interval_exports
+            ok_count = 0
+            for exp in per_interval:
+                if extra:
+                    exp.metadata.update(extra)
+                auto_name = f"{saved.stem}_{exp.filename_hint}.csv"
+                try:
+                    write_export(exp, saved.parent / auto_name)
+                    ok_count += 1
+                except Exception as exc:
+                    _log.warning(
+                        "Could not write interval export %s: %s", auto_name, exc
+                    )
+
+            interval.mark_saved()
+            interval.reset()
+            self._interval_session = False
+            self._active_interval_tab = None
+            self._set_sweep_lock(False)
+            self._gm_tab.set_high_speed_autoswitch(True)
+            self._save_service.mark_saved()
+            self._ctrl.finalize_journal()
+
+            self.ui.buttonSave.setEnabled(False)
+            self.ui.buttonStart.setEnabled(True)
+            n = len(per_interval)
+            self._status_bar.show_message(
+                f"Zusammenfassung gespeichert. {ok_count}/{n} Intervall-CSV(s) exportiert.",
+                duration=5000,
+            )
+            self._set_status_indicator("Bereit", "green")
+            return
+
         sweep = self._active_sweep_tab
         if self._sweep_session and sweep is not None and sweep.has_data():
             # ── Sweep save: summary CSV + auto-named individual timing CSVs ──
-            from ...infrastructure.save_service import write_export
-
             summary = sweep.summary_export()
             if not summary:
                 MessageHelper.show_info(
@@ -587,6 +714,29 @@ class MainWindow(QMainWindow):
             MessageHelper.show_warning(self, "Messung läuft.", "Warnung")
             return
 
+        if self._interval_session:
+            interval = self._active_interval_tab
+            if interval is not None and interval.has_data():
+                if not MessageHelper.ask_question(
+                    self,
+                    CONFIG.get("messages", {}).get(
+                        "unsaved_data", "Messdaten verwerfen?"
+                    ),
+                    "Warnung",
+                ):
+                    return
+            if interval is not None:
+                interval.reset()
+            self._interval_session = False
+            self._active_interval_tab = None
+            self._set_sweep_lock(False)
+            self._gm_tab.set_high_speed_autoswitch(True)
+            self._save_service.mark_saved()
+            self.ui.buttonSave.setEnabled(False)
+            self.ui.buttonStart.setEnabled(True)
+            self._set_status_indicator("Bereit", "green")
+            return
+
         if self._sweep_session:
             # Discard the entire sweep session without saving
             sweep = self._active_sweep_tab
@@ -627,7 +777,7 @@ class MainWindow(QMainWindow):
         auto_query = hasattr(self.ui, "sQModeAuto") and self.ui.sQModeAuto.isChecked()
         self._ctrl.apply_settings(
             voltage=int(self.ui.sVoltage.value()),
-            counting_time=int(self.ui.sDuration.currentIndex()),
+            counting_time=0,  # always infinite — host controls duration via delta accumulation
             repeat=repeat,
             auto_query=auto_query,
         )

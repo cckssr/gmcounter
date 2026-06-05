@@ -23,6 +23,7 @@ from ...infrastructure.qt_threads import (
 from ...infrastructure.config import import_config
 from ...infrastructure.session_journal import SessionJournal, find_orphan_journals
 from ...core.models import DesiredState, Frame
+from ...core.duration import accumulate_and_trim
 from ..common.statusbar import StatusBarManager
 
 if TYPE_CHECKING:
@@ -87,6 +88,10 @@ class AppController(QObject):
         self._measurement_start: Optional[datetime] = None
         self._elapsed_s = 0
         self._total_s = 0  # 0 = indeterminate
+
+        # Delta-based duration: device-time accumulator and target (in µs)
+        self._accum_us: float = 0.0
+        self._target_us: float = 0.0
 
         # Reconnect state machine
         self._reconnect_state = self._CONNECTED
@@ -177,6 +182,8 @@ class AppController(QObject):
             self._measurement_start = datetime.now()
             self._elapsed_s = 0
             self._total_s = total_seconds
+            self._target_us = total_seconds * 1_000_000.0
+            self._accum_us = 0.0
 
             # Open journal
             self._journal = SessionJournal()
@@ -298,23 +305,29 @@ class AppController(QObject):
     def _on_data_batch(self, points: list) -> None:
         """Handle a batch of (index, value_us) tuples from the acquisition thread.
 
-        Runs on the GUI thread (QueuedConnection).  One wall-clock timestamp is
-        taken per batch — at high rates a per-point host timestamp is meaningless
-        (the µs delta from the device is the real time axis), and at low rates a
-        batch holds ~one point, so this stays accurate where it matters.
+        Runs on the GUI thread (QueuedConnection).  Trims the batch to the
+        device-time target via accumulate_and_trim, journals and fans out
+        only the kept points, then stops if the target was crossed.
         """
         if not self._is_measuring or not points:
             return
-        ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        journal = self._journal
-        frames = []
-        for index, value in points:
-            if journal:
-                journal.record(index, value)
-            frames.append(Frame(index=index, value=value, timestamp=ts))
 
-        # Fan out to active tab (direct call — same thread, cheap)
-        self.frames_ready.emit(frames)
+        kept, self._accum_us, reached = accumulate_and_trim(
+            points, self._accum_us, self._target_us
+        )
+
+        if kept:
+            ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            journal = self._journal
+            frames = []
+            for index, value in kept:
+                if journal:
+                    journal.record(index, value)
+                frames.append(Frame(index=index, value=value, timestamp=ts))
+            self.frames_ready.emit(frames)
+
+        if reached:
+            self.stop_measurement()
 
     # ------------------------------------------------------------------
     # Timers
@@ -330,10 +343,12 @@ class AppController(QObject):
             _log.debug("Error emitting statistics: %s", exc)
 
     def _tick_progress(self) -> None:
-        self._elapsed_s += 1
-        self.progress_updated.emit(self._elapsed_s, self._total_s)
-        if self._total_s > 0 and self._elapsed_s >= self._total_s:
-            self.stop_measurement()
+        # Pure heartbeat: emit device-time progress from the delta accumulator so
+        # the progress bar stays live during quiet periods.  Stop decisions are made
+        # in _on_data_batch (delta-driven) — never here.
+        elapsed = int(self._accum_us / 1e6)
+        total = int(self._target_us / 1e6)
+        self.progress_updated.emit(elapsed, total)
 
     # ------------------------------------------------------------------
     # Reconnect state machine (§5 B1–B7)
