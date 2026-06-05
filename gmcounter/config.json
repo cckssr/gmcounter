@@ -38,7 +38,9 @@
       "_comment": "ticks_per_us MUST equal the firmware's TICKS_PER_US (config.h). The firmware sends inter-event deltas as raw timer ticks; the host divides by this to get microseconds. RA4M1 core clock = 48 MHz -> 48 ticks/µs (~20.8 ns resolution).",
       "ticks_per_us": 48,
       "read_chunk_bytes": 8192,
-      "read_timeout_ms": 50
+      "read_timeout_ms": 50,
+      "_comment2": "first_delta_is_from_start: if true, the firmware emits start->first-pulse as the first packet (no '+1' seeding needed). Default false: host assumes pure inter-event gaps and seeds event #1 at t=0.",
+      "first_delta_is_from_start": false
     },
 
     "data_controller": {

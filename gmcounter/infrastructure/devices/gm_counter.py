@@ -15,11 +15,14 @@ class GMCounterAdapter(SerialDevice):
     Communicates with the firmware (v2+) using SCPI commands:
       *IDN? / *RST / *CLS
       INIT / ABOR
+      MEAS:STRT / MEAS:STP
       CONF:VOLT / CONF:TIME / CONF:REP / CONF:STR
       FETC:STAT? / SYST:CLR / CONF:SPKR / SYST:ERR?
 
     Binary timing data is streamed as 0xAA [4-byte LE µs] 0x55 packets,
     preceded by a 0xFF×6 start marker when INIT is sent.
+    MEAS:STRT starts the counter without the streaming interrupt; FETC:STAT?
+    can still be used to poll counts.  MEAS:STP or ABOR stops it.
     """
 
     is_mock_device: bool = False
@@ -166,6 +169,16 @@ class GMCounterAdapter(SerialDevice):
 
     def set_counting(self, value: bool = False) -> bool:
         self.send_command("INIT" if value else "ABOR")
+        return True
+
+    def start_counter_only(self) -> bool:
+        """Start the counter without the binary-streaming interrupt routine."""
+        self.send_command("MEAS:STRT")
+        return True
+
+    def stop_counter_only(self) -> bool:
+        """Stop a counter-only measurement (also accepted: ABOR)."""
+        self.send_command("MEAS:STP")
         return True
 
     def set_speaker(

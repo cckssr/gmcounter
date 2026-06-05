@@ -61,6 +61,10 @@ class MockGMCounter:
         self.next_pulse_time = 0.0
         self._stream_mode = 0
         self._start_marker_pending = False
+        self._counting_only = False
+        self._first_pulse_done = (
+            False  # True after first pulse; suppresses start→first-pulse packet
+        )
 
         _log.info("MockGMCounter initialized on port %s", port)
 
@@ -104,16 +108,35 @@ class MockGMCounter:
     def set_counting(self, value: bool = False) -> None:
         if value and not self._counting:
             self._counting = True
+            self._counting_only = False
             self._last_count = self._count
             self._count = 0
             self._measurement_start_time = time.time()
             self._start_marker_pending = True
+            self._first_pulse_done = False  # reset so first packet is suppressed
             self._next_pulse_interval = random.uniform(self._min_tick, self.max_tick)
             self.next_pulse_time = time.time() + self._next_pulse_interval
             _log.info("MockGMCounter: counting started")
         elif not value and self._counting:
             self._counting = False
+            self._counting_only = False
             _log.info("MockGMCounter: counting stopped (count=%d)", self._count)
+
+    def set_counting_only(self, value: bool = False) -> None:
+        """Start/stop counter without the streaming interrupt (no packet emission)."""
+        if value and not self._counting:
+            self._counting = True
+            self._counting_only = True
+            self._last_count = self._count
+            self._count = 0
+            self._measurement_start_time = time.time()
+            self._next_pulse_interval = random.uniform(self._min_tick, self.max_tick)
+            self.next_pulse_time = time.time() + self._next_pulse_interval
+            _log.info("MockGMCounter: counter-only started")
+        elif not value and self._counting:
+            self._counting = False
+            self._counting_only = False
+            _log.info("MockGMCounter: counter-only stopped (count=%d)", self._count)
 
     def set_speaker(self, gm: bool = False, ready: bool = False) -> None:
         pass
@@ -142,6 +165,7 @@ class MockGMCounter:
             return f"TU Berlin,GM-Counter,MOCK-001,{info['version']}"
         if upper == "*RST":
             self.set_counting(False)
+            self._counting_only = False
             self._voltage = 500
             self._repeat = False
             self._counting_time_mode = 2
@@ -163,6 +187,14 @@ class MockGMCounter:
             return None
         if upper in ("ABOR", "ABORT"):
             self.set_counting(False)
+            return None
+
+        # ── MEASure (counter-only, no streaming interrupt) ──
+        if upper in ("MEAS:STRT", "MEASURE:START"):
+            self.set_counting_only(True)
+            return None
+        if upper in ("MEAS:STP", "MEASURE:STOP"):
+            self.set_counting_only(False)
             return None
 
         # ── FETCh ──
@@ -231,14 +263,21 @@ class MockGMCounter:
         return None
 
     def tick(self) -> Optional[int]:
-        """Return a random inter-event time in µs if a pulse is due, else None."""
+        """Return inter-event time in µs if a packet-streaming pulse is due, else None.
+
+        Returns None in counter-only mode (_counting_only=True) — the count still
+        increments but no binary packet is emitted.
+        """
         if not self._counting:
             return None
 
         ct_map = {0: 0, 1: 1, 2: 10, 3: 60, 4: 100, 5: 300}
         limit = ct_map.get(self._counting_time_mode, 0)
         if limit > 0 and (time.time() - self._measurement_start_time) >= limit:
-            self.set_counting(False)
+            if self._counting_only:
+                self.set_counting_only(False)
+            else:
+                self.set_counting(False)
             return None
 
         if time.time() >= self.next_pulse_time:
@@ -246,7 +285,13 @@ class MockGMCounter:
             self._count += 1
             self._next_pulse_interval = random.uniform(self._min_tick, self.max_tick)
             self.next_pulse_time = time.time() + self._next_pulse_interval
-            return interval_us
+            if not self._first_pulse_done:
+                # Suppress the start→first-pulse packet so the host receives pure
+                # inter-event gaps. The "+1" convention on the host accounts for this
+                # first event at t=0. Subsequent packets are first→second, second→third, …
+                self._first_pulse_done = True
+                return None
+            return None if self._counting_only else interval_us
 
         return None
 

@@ -94,9 +94,8 @@ class GMTimingTab(PlotTabBase):
         self._rate_lcd: Optional[QLCDNumber] = None
         self._tab_widget_ref: Optional[QTabWidget] = None
 
-        # Rate tracking (for currentRate LCD)
-        self._rate_sample_time: float = 0.0
-        self._rate_sample_count: int = 0
+        # Running device-time accumulator (sum of all received deltas in µs)
+        self._cum_us: float = 0.0
 
         # Lazily created widgets
         self._plot = None
@@ -219,6 +218,9 @@ class GMTimingTab(PlotTabBase):
             for frame in frames:
                 row = (frame.index, frame.value, frame.timestamp)
                 dp.append(row)
+                self._cum_us += (
+                    frame.value
+                )  # always accumulate for device-time tracking
                 try:
                     q.put_nowait(row)
                 except queue.Full:
@@ -232,6 +234,7 @@ class GMTimingTab(PlotTabBase):
         self._batch_history.clear()
         self._data_points.clear()
         self._gui_points.clear()
+        self._cum_us = 0.0
         with self._queue_lock:
             self._queue = queue.Queue(maxsize=10000)
         self._overflow_warned = False
@@ -246,8 +249,6 @@ class GMTimingTab(PlotTabBase):
             self._count_lcd.display(0)
         if self._rate_lcd:
             self._rate_lcd.display(0)
-        self._rate_sample_time = 0.0
-        self._rate_sample_count = 0
         if self._table_model:
             while self._table_model.rowCount() > 0:
                 self._table_model.removeRow(0)
@@ -299,8 +300,11 @@ class GMTimingTab(PlotTabBase):
             return {}
         values = [pt[1] for pt in self._data_points]
         s = calculate_statistics(values)
+        true_count = (
+            len(self._data_points) + 1
+        )  # +1: the event at t=0 before first delta
         return {
-            "count": s["count"],
+            "count": true_count,
             "min": s["min"],
             "max": s["max"],
             "avg": s["mean"],
@@ -363,7 +367,8 @@ class GMTimingTab(PlotTabBase):
             self._lcd_counter += 1
             if self._lcd_counter >= 5:
                 self._lcd_counter = 0
-                self._count_lcd.display(len(self._data_points))
+                true_count = len(self._data_points) + 1 if self._data_points else 0
+                self._count_lcd.display(true_count)
 
         if self._histogram and len(self._gui_points) > 1:
             if not hasattr(self, "_hist_counter"):
@@ -435,13 +440,10 @@ class GMTimingTab(PlotTabBase):
     def _update_rate_display(self, now: float) -> None:
         if not self._rate_lcd:
             return
-        if self._rate_sample_time > 0:
-            elapsed = now - self._rate_sample_time
-            if elapsed > 0:
-                rate_hz = (len(self._data_points) - self._rate_sample_count) / elapsed
-                self._rate_lcd.display(round(rate_hz, 1))
-        self._rate_sample_time = now
-        self._rate_sample_count = len(self._data_points)
+        if self._cum_us > 0 and self._data_points:
+            true_count = len(self._data_points) + 1
+            cps = true_count / (self._cum_us / 1e6)
+            self._rate_lcd.display(round(cps, 1))
 
     def _update_histogram_only(self) -> None:
         if not self._high_speed or not self._histogram:
