@@ -61,6 +61,7 @@ class MockGMCounter:
         self.next_pulse_time = 0.0
         self._stream_mode = 0
         self._start_marker_pending = False
+        self._end_marker_pending = False  # True when period ends in streaming mode
         self._counting_only = False
         self._first_pulse_done = (
             False  # True after first pulse; suppresses start→first-pulse packet
@@ -113,6 +114,7 @@ class MockGMCounter:
             self._count = 0
             self._measurement_start_time = time.time()
             self._start_marker_pending = True
+            self._end_marker_pending = False
             self._first_pulse_done = False  # reset so first packet is suppressed
             self._next_pulse_interval = random.uniform(self._min_tick, self.max_tick)
             self.next_pulse_time = time.time() + self._next_pulse_interval
@@ -277,6 +279,11 @@ class MockGMCounter:
             if self._counting_only:
                 self.set_counting_only(False)
             else:
+                # Streaming mode: emit the end-of-period sentinel before stopping.
+                # The sentinel is queued here; run_pty_server() writes it to the PTY.
+                if not self._end_marker_pending:
+                    self._end_marker_pending = True
+                    _log.info("MockGMCounter: period ended — end marker pending")
                 self.set_counting(False)
             return None
 
@@ -336,6 +343,11 @@ def run_pty_server(device_class=MockGMCounter, **device_kwargs) -> None:
             if device._start_marker_pending:
                 os.write(master, b"\xff\xff\xff\xff\xff\xff")
                 device._start_marker_pending = False
+
+            if device._end_marker_pending:
+                os.write(master, b"\xee\xee\xee\xee\xee\xee")
+                device._end_marker_pending = False
+                _log.info("MockGMCounter: end-of-period sentinel written to PTY")
 
             value = device.tick()
             if value is not None:

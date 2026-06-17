@@ -91,7 +91,7 @@ def main():
         if success and device_manager is not None:
             # Hauptfenster erstellen und anzeigen, wenn Verbindung erfolgreich
             main_window = MainWindow(device_manager)
-            main_window.show()
+            # MainWindow.__init__ already calls showMaximized(); no show() needed here.
 
             # Timer starten, wenn vorhanden
             if hasattr(main_window, "timer"):

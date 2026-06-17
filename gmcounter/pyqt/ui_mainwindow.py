@@ -90,7 +90,9 @@ class Ui_MainWindow(object):
         self.gridLayout_5.setContentsMargins(10, -1, -1, 10)
         self.verticalLayout_2 = QVBoxLayout()
         self.verticalLayout_2.setObjectName("verticalLayout_2")
-        self.verticalLayout_2.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
+        self.verticalLayout_2.setSizeConstraint(
+            QLayout.SizeConstraint.SetDefaultConstraint
+        )
         self.verticalLayout_2.setContentsMargins(0, -1, -1, 0)
         self.settings = QGroupBox(self.centralwidget)
         self.settings.setObjectName("settings")
@@ -1017,10 +1019,16 @@ class Ui_MainWindow(object):
         self.cVoltage.setObjectName("cVoltage")
         sizePolicy8.setHeightForWidth(self.cVoltage.sizePolicy().hasHeightForWidth())
         self.cVoltage.setSizePolicy(sizePolicy8)
-        self.cVoltage.setMinimumSize(QSize(0, 25))
-        self.cVoltage.setMaximumSize(QSize(120, 50))
-        self.cVoltage.setFont(font1)
+        self.cVoltage.setMinimumSize(QSize(0, 40))
+        self.cVoltage.setMaximumSize(QSize(150, 65))
+        font2 = QFont()
+        font2.setPointSize(13)
+        self.cVoltage.setFont(font2)
+        self.cVoltage.setStyleSheet(
+            "QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }"
+        )
         self.cVoltage.setDigitCount(3)
+        self.cVoltage.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
 
         self.formLayout_4.setWidget(0, QFormLayout.ItemRole.FieldRole, self.cVoltage)
 
@@ -1040,10 +1048,14 @@ class Ui_MainWindow(object):
         self.cDuration.setObjectName("cDuration")
         sizePolicy8.setHeightForWidth(self.cDuration.sizePolicy().hasHeightForWidth())
         self.cDuration.setSizePolicy(sizePolicy8)
-        self.cDuration.setMinimumSize(QSize(100, 25))
-        self.cDuration.setMaximumSize(QSize(120, 50))
-        self.cDuration.setFont(font1)
+        self.cDuration.setMinimumSize(QSize(100, 40))
+        self.cDuration.setMaximumSize(QSize(150, 65))
+        self.cDuration.setFont(font2)
+        self.cDuration.setStyleSheet(
+            "QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }"
+        )
         self.cDuration.setDigitCount(3)
+        self.cDuration.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
 
         self.formLayout_4.setWidget(1, QFormLayout.ItemRole.FieldRole, self.cDuration)
 
@@ -1103,11 +1115,17 @@ class Ui_MainWindow(object):
         self.lastCount.setObjectName("lastCount")
         sizePolicy12.setHeightForWidth(self.lastCount.sizePolicy().hasHeightForWidth())
         self.lastCount.setSizePolicy(sizePolicy12)
-        self.lastCount.setMinimumSize(QSize(200, 50))
-        self.lastCount.setMaximumSize(QSize(1000, 70))
-        self.lastCount.setFont(font1)
+        self.lastCount.setMinimumSize(QSize(200, 65))
+        self.lastCount.setMaximumSize(QSize(1000, 90))
+        font3 = QFont()
+        font3.setPointSize(14)
+        self.lastCount.setFont(font3)
+        self.lastCount.setStyleSheet(
+            "QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }"
+        )
         self.lastCount.setFrameShape(QFrame.Shape.Box)
         self.lastCount.setFrameShadow(QFrame.Shadow.Raised)
+        self.lastCount.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
 
         self.gridLayout_3.addWidget(self.lastCount, 3, 3, 1, 1)
 
@@ -1134,11 +1152,15 @@ class Ui_MainWindow(object):
             self.currentCount.sizePolicy().hasHeightForWidth()
         )
         self.currentCount.setSizePolicy(sizePolicy12)
-        self.currentCount.setMinimumSize(QSize(200, 50))
-        self.currentCount.setMaximumSize(QSize(1000, 70))
-        self.currentCount.setFont(font1)
+        self.currentCount.setMinimumSize(QSize(200, 65))
+        self.currentCount.setMaximumSize(QSize(1000, 90))
+        self.currentCount.setFont(font3)
+        self.currentCount.setStyleSheet(
+            "QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }"
+        )
         self.currentCount.setFrameShape(QFrame.Shape.Box)
         self.currentCount.setFrameShadow(QFrame.Shadow.Raised)
+        self.currentCount.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
 
         self.gridLayout_3.addWidget(self.currentCount, 3, 4, 1, 1)
 
@@ -1172,12 +1194,16 @@ class Ui_MainWindow(object):
             self.currentRate.sizePolicy().hasHeightForWidth()
         )
         self.currentRate.setSizePolicy(sizePolicy12)
-        self.currentRate.setMinimumSize(QSize(200, 50))
-        self.currentRate.setMaximumSize(QSize(1000, 70))
-        self.currentRate.setFont(font1)
+        self.currentRate.setMinimumSize(QSize(200, 65))
+        self.currentRate.setMaximumSize(QSize(1000, 90))
+        self.currentRate.setFont(font3)
+        self.currentRate.setStyleSheet(
+            "QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }"
+        )
         self.currentRate.setFrameShape(QFrame.Shape.Box)
         self.currentRate.setFrameShadow(QFrame.Shadow.Raised)
         self.currentRate.setDigitCount(6)
+        self.currentRate.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
 
         self.gridLayout_3.addWidget(self.currentRate, 3, 2, 1, 1)
 
@@ -1728,7 +1754,7 @@ class Ui_MainWindow(object):
         self.cDuration.setToolTip(
             QCoreApplication.translate(
                 "MainWindow",
-                "Aktuelle eingestellte Z\u00e4hldauer. 999 f\u00fcr unendllich",
+                "Aktuelle eingestellte Z\u00e4hldauer. 999 f\u00fcr unendlich",
                 None,
             )
         )

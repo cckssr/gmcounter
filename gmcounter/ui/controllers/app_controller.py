@@ -235,22 +235,56 @@ class AppController(QObject):
             repeat=repeat,
             stream=4 if auto_query else 1,
         )
+        unconfirmed: dict = {}
         if self.device_manager.device:
             # Pause the poller first so no FETC:STAT? is in-flight while the
             # CONF:* commands are being written — both share the same serial port.
             self._state_poller.pause()
             try:
-                self.device_manager._apply_device_settings(
+                unconfirmed = self.device_manager._apply_device_settings(
                     self._desired_state.to_device_settings()
                 )
             finally:
                 self._state_poller.resume()
-        self._notify(
-            CONFIG.get("messages", {}).get("settings_applied", "Einstellungen gesetzt"),
-            CONFIG.get("colors", {}).get("green", "green"),
-        )
-        # Trigger a fresh state poll ~300 ms after the device processes the commands.
+
+        if unconfirmed:
+            names = ", ".join(unconfirmed.keys())
+            _log.warning("Settings not confirmed by device: %s", names)
+            self._notify(
+                f"Einstellungen gesendet — warte auf Bestätigung ({names})…",
+                CONFIG.get("colors", {}).get("orange", "orange"),
+            )
+            # Schedule a re-check after 3 s; if values match after re-poll
+            # the LCD update itself confirms success.
+            QTimer.singleShot(3000, lambda: self._warn_unconfirmed(unconfirmed))
+        else:
+            self._notify(
+                CONFIG.get("messages", {}).get(
+                    "settings_applied", "Einstellungen gesetzt"
+                ),
+                CONFIG.get("colors", {}).get("green", "green"),
+            )
+        # Trigger a fresh state poll so LCDs update immediately after Apply.
         QTimer.singleShot(300, self._state_poller.force_poll_soon)
+
+    def _warn_unconfirmed(self, unconfirmed: dict) -> None:
+        """Called 3 s after apply_settings if settings were not confirmed.
+
+        Prompts a fresh read-back; the 3 s gap is enough for the device to have
+        applied the values.  If the device is still not responding the poller
+        will show stale zeros, which is already visible to the user.
+        """
+        _log.warning(
+            "3 s elapsed — settings may not have been applied: %s",
+            ", ".join(unconfirmed.keys()),
+        )
+        self._notify(
+            "Achtung: Einstellungen möglicherweise nicht angewendet — "
+            + ", ".join(unconfirmed.keys()),
+            CONFIG.get("colors", {}).get("orange", "orange"),
+        )
+        # Force an immediate re-poll so the LCDs reflect actual device state.
+        self._state_poller.force_poll_soon()
 
     # ------------------------------------------------------------------
     # Cleanup
@@ -293,11 +327,32 @@ class AppController(QObject):
         self._acquire_thread.connection_lost.connect(
             self._on_acquire_connection_lost, Qt.ConnectionType.QueuedConnection
         )
+        self._acquire_thread.measurement_complete.connect(
+            self._on_measurement_complete, Qt.ConnectionType.QueuedConnection
+        )
         self._acquire_thread.start()
 
     def _stop_acquisition(self) -> None:
         if self._acquire_thread and self._acquire_thread.isRunning():
             self._acquire_thread.stop()
+
+    # ------------------------------------------------------------------
+    # Firmware end-of-period notification
+
+    def _on_measurement_complete(self) -> None:
+        """Firmware sent the 0xEE×6 end-of-period sentinel.
+
+        This is the device-authoritative stop signal for finite-time
+        measurements.  Runs on the GUI thread (QueuedConnection).
+        """
+        if not self._is_measuring:
+            return  # already stopped (e.g. ABOR was sent manually)
+        _log.info(
+            "Firmware end-of-period received — stopping measurement "
+            "(accumulated %.2f µs)",
+            self._accum_us,
+        )
+        self.stop_measurement()
 
     # ------------------------------------------------------------------
     # Data batch handler

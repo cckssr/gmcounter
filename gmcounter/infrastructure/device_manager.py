@@ -113,18 +113,64 @@ class DeviceManager:
 
         return success
 
-    def _apply_device_settings(self, settings: DeviceSettings) -> None:
-        """Push settings to the hardware (best-effort)."""
+    def _apply_device_settings(self, settings: DeviceSettings) -> dict:
+        """Push settings to the hardware with read-back confirmation.
+
+        Each setting is sent with ``confirm=True``; on failure it is retried
+        once.  Returns a dict of ``{setting_name: desired_value}`` for every
+        setting whose final confirmed value still did not match.  An empty dict
+        means all settings were confirmed.
+        """
         if not self.device:
-            return
-        try:
-            self.device.set_repeat(settings.repeat)
-            self.device.set_stream(4 if settings.auto_query else 1)
-            self.device.set_counting_time(settings.counting_time)
-            self.device.set_voltage(settings.voltage)
-            time.sleep(0.2)
-        except Exception as exc:
-            _log.error("Failed to re-apply settings: %s", exc)
+            return {}
+
+        unconfirmed: dict = {}
+
+        def _try(name: str, fn, desired) -> None:
+            """Apply *fn* once with confirmation; retry once on failure."""
+            try:
+                ok = fn()
+                if not ok:
+                    # First attempt failed; pause briefly and retry.
+                    time.sleep(0.15)
+                    ok = fn()
+                if not ok:
+                    unconfirmed[name] = desired
+                    _log.warning(
+                        "Setting '%s' not confirmed after retry (desired=%s)",
+                        name,
+                        desired,
+                    )
+            except Exception as exc:
+                unconfirmed[name] = desired
+                _log.error("Error applying setting '%s': %s", name, exc)
+
+        _try(
+            "repeat",
+            lambda: self.device.set_repeat(settings.repeat, confirm=True),
+            settings.repeat,
+        )
+        stream_val = 4 if settings.auto_query else 1
+        _try(
+            "stream",
+            lambda: self.device.set_stream(stream_val, confirm=True),
+            stream_val,
+        )
+        _try(
+            "counting_time",
+            lambda: self.device.set_counting_time(settings.counting_time, confirm=True),
+            settings.counting_time,
+        )
+        _try(
+            "voltage",
+            lambda: self.device.set_voltage(settings.voltage, confirm=True),
+            settings.voltage,
+        )
+
+        # Brief settle time so the device can process all commands before
+        # the next FETC:STAT? poll arrives.
+        time.sleep(0.2)
+        return unconfirmed
 
     def disconnect_device(self) -> None:
         if self.device:

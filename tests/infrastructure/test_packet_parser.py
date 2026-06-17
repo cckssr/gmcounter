@@ -76,3 +76,67 @@ def test_max_uint32_value():
     p = PacketParser(ticks_per_us=1)
     p.feed(MARKER)
     assert p.feed(_packet(0xFFFFFFFF)) == [(1, float(0xFFFFFFFF))]
+
+
+# ── End-of-period sentinel (0xEE×6) ──────────────────────────────────────────
+
+EOP = b"\xee\xee\xee\xee\xee\xee"
+
+
+def test_eop_marker_sets_end_of_period():
+    p = PacketParser(ticks_per_us=1)
+    p.feed(MARKER)
+    out = p.feed(EOP)
+    assert out == []
+    assert p.end_of_period
+
+
+def test_eop_marker_after_data_packets():
+    p = PacketParser(ticks_per_us=1)
+    p.feed(MARKER)
+    out = p.feed(_packet(10) + _packet(20) + EOP)
+    assert out == [(1, 10.0), (2, 20.0)]
+    assert p.end_of_period
+
+
+def test_eop_marker_split_across_feeds():
+    p = PacketParser(ticks_per_us=1)
+    p.feed(MARKER)
+    p.feed(_packet(5))  # a normal packet first
+    # Split the EOP sentinel across two reads
+    assert not p.end_of_period
+    p.feed(EOP[:3])
+    assert not p.end_of_period  # incomplete marker — not triggered yet
+    p.feed(EOP[3:])
+    assert p.end_of_period
+
+
+def test_eop_clear_end_of_period():
+    p = PacketParser(ticks_per_us=1)
+    p.feed(MARKER)
+    p.feed(EOP)
+    assert p.end_of_period
+    p.clear_end_of_period()
+    assert not p.end_of_period
+
+
+def test_reset_clears_end_of_period():
+    p = PacketParser(ticks_per_us=1)
+    p.feed(MARKER)
+    p.feed(EOP)
+    assert p.end_of_period
+    p.reset()
+    assert not p.end_of_period
+    assert not p.synced
+
+
+def test_eop_does_not_consume_following_data():
+    """Any bytes after the EOP marker stay in the buffer for the next feed."""
+    p = PacketParser(ticks_per_us=1)
+    p.feed(MARKER)
+    # Packet after the sentinel must not be decoded in the same pass.
+    out = p.feed(EOP + _packet(99))
+    assert p.end_of_period
+    # No data packets should be decoded from the same pass (parsing stops at EOP).
+    # The residual bytes stay in the buffer for a potential subsequent feed.
+    assert out == []

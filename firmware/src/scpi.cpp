@@ -67,6 +67,8 @@ static void handleRST()
     {
         gmStopAcquisition();
         Serial1.println("s0");
+        Serial1.println("e0");
+        gmDisarmEndOfPeriod();
     }
     gmState = GmState{};
     // Re-apply all defaults to the GM counter hardware so it matches gmState.
@@ -116,8 +118,34 @@ static void handleINIT()
         errorQueue.push("-213,\"INIT ignored; acquisition already running\"");
         return;
     }
+
+    // Arm end-of-period detection when a finite counting time is configured
+    // AND repeat mode is off.  In repeat mode the GM counter restarts itself
+    // indefinitely, so the e1 event would fire only at the first period end
+    // and leave subsequent periods undetected — disable e1 for repeat mode.
+    unsigned long period_ms = gmCountingPeriodMs(gmState.counting_time_mode);
+    bool arm_eop = (period_ms > 0 && !gmState.repeat);
+
     Serial1.println("s1");
     gmStartAcquisition();
+
+    if (arm_eop)
+    {
+        // Enable e1: GM counter sends result on Serial1 when period ends.
+        Serial1.println("e1");
+        // Drain anything already in the Serial1 receive buffer — the GM
+        // counter may echo the command or send an ack; we only want data
+        // that arrives *after* the measurement starts to be treated as the
+        // end-of-period notification.
+        while (Serial1.available() > 0)
+            Serial1.read();
+        gmArmEndOfPeriod(period_ms);
+    }
+    else
+    {
+        // Disable auto-send; host uses ABOR or wall-clock to stop.
+        Serial1.println("e0");
+    }
 }
 
 static void handleABOR()
@@ -126,6 +154,8 @@ static void handleABOR()
         return;
     gmStopAcquisition();
     Serial1.println("s0");
+    Serial1.println("e0");
+    gmDisarmEndOfPeriod();
 }
 
 // ── CONFigure subsystem ───────────────────────────────────────────────────────

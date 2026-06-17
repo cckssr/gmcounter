@@ -29,7 +29,7 @@
     <item row="0" column="0">
      <layout class="QVBoxLayout" name="verticalLayout_2">
       <property name="sizeConstraint">
-       <enum>QLayout::SizeConstraint::SetFixedSize</enum>
+       <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
       </property>
       <property name="leftMargin">
        <number>0</number>
@@ -1873,25 +1873,31 @@
                <property name="minimumSize">
                 <size>
                  <width>0</width>
-                 <height>25</height>
+                 <height>40</height>
                 </size>
                </property>
                <property name="maximumSize">
                 <size>
-                 <width>120</width>
-                 <height>50</height>
+                 <width>150</width>
+                 <height>65</height>
                 </size>
                </property>
                <property name="font">
                 <font>
-                 <pointsize>11</pointsize>
+                 <pointsize>13</pointsize>
                 </font>
                </property>
                <property name="toolTip">
                 <string>Aktuelle GM-Spannung</string>
                </property>
+               <property name="styleSheet">
+                <string notr="true">QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }</string>
+               </property>
                <property name="digitCount">
                 <number>3</number>
+               </property>
+               <property name="segmentStyle">
+                <enum>QLCDNumber::SegmentStyle::Flat</enum>
                </property>
               </widget>
              </item>
@@ -1927,25 +1933,31 @@
                <property name="minimumSize">
                 <size>
                  <width>100</width>
-                 <height>25</height>
+                 <height>40</height>
                 </size>
                </property>
                <property name="maximumSize">
                 <size>
-                 <width>120</width>
-                 <height>50</height>
+                 <width>150</width>
+                 <height>65</height>
                 </size>
                </property>
                <property name="font">
                 <font>
-                 <pointsize>11</pointsize>
+                 <pointsize>13</pointsize>
                 </font>
                </property>
                <property name="toolTip">
-                <string>Aktuelle eingestellte Zähldauer. 999 für unendllich</string>
+                <string>Aktuelle eingestellte Zähldauer. 999 für unendlich</string>
+               </property>
+               <property name="styleSheet">
+                <string notr="true">QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }</string>
                </property>
                <property name="digitCount">
                 <number>3</number>
+               </property>
+               <property name="segmentStyle">
+                <enum>QLCDNumber::SegmentStyle::Flat</enum>
                </property>
               </widget>
              </item>
@@ -2082,25 +2094,31 @@
              <property name="minimumSize">
               <size>
                <width>200</width>
-               <height>50</height>
+               <height>65</height>
               </size>
              </property>
              <property name="maximumSize">
               <size>
                <width>1000</width>
-               <height>70</height>
+               <height>90</height>
               </size>
              </property>
              <property name="font">
               <font>
-               <pointsize>11</pointsize>
+               <pointsize>14</pointsize>
               </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }</string>
              </property>
              <property name="frameShape">
               <enum>QFrame::Shape::Box</enum>
              </property>
              <property name="frameShadow">
               <enum>QFrame::Shadow::Raised</enum>
+             </property>
+             <property name="segmentStyle">
+              <enum>QLCDNumber::SegmentStyle::Flat</enum>
              </property>
             </widget>
            </item>
@@ -2148,25 +2166,31 @@
              <property name="minimumSize">
               <size>
                <width>200</width>
-               <height>50</height>
+               <height>65</height>
               </size>
              </property>
              <property name="maximumSize">
               <size>
                <width>1000</width>
-               <height>70</height>
+               <height>90</height>
               </size>
              </property>
              <property name="font">
               <font>
-               <pointsize>11</pointsize>
+               <pointsize>14</pointsize>
               </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }</string>
              </property>
              <property name="frameShape">
               <enum>QFrame::Shape::Box</enum>
              </property>
              <property name="frameShadow">
               <enum>QFrame::Shadow::Raised</enum>
+             </property>
+             <property name="segmentStyle">
+              <enum>QLCDNumber::SegmentStyle::Flat</enum>
              </property>
             </widget>
            </item>
@@ -2235,19 +2259,22 @@
              <property name="minimumSize">
               <size>
                <width>200</width>
-               <height>50</height>
+               <height>65</height>
               </size>
              </property>
              <property name="maximumSize">
               <size>
                <width>1000</width>
-               <height>70</height>
+               <height>90</height>
               </size>
              </property>
              <property name="font">
               <font>
-               <pointsize>11</pointsize>
+               <pointsize>14</pointsize>
               </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }</string>
              </property>
              <property name="frameShape">
               <enum>QFrame::Shape::Box</enum>
@@ -2257,6 +2284,9 @@
              </property>
              <property name="digitCount">
               <number>6</number>
+             </property>
+             <property name="segmentStyle">
+              <enum>QLCDNumber::SegmentStyle::Flat</enum>
              </property>
             </widget>
            </item>

@@ -169,6 +169,64 @@ void gmResetAcquisition()
     acqStats.reset();
 }
 
+// ── End-of-period detection ───────────────────────────────────────────────────
+
+static uint32_t _periodMs = 0; // expected period duration in ms
+
+void gmArmEndOfPeriod(uint32_t period_ms)
+{
+    _periodMs = period_ms;
+    gmState.endPeriodArmed = true;
+}
+
+void gmDisarmEndOfPeriod()
+{
+    gmState.endPeriodArmed = false;
+    _periodMs = 0;
+}
+
+bool gmEndOfPeriodReached()
+{
+    if (!gmState.endPeriodArmed)
+        return false;
+
+    unsigned long elapsed = millis() - acqStats.startMs;
+
+    // Timer fallback: fire if the nominal period + safety margin has elapsed
+    // regardless of Serial1 activity.
+    if (elapsed >= _periodMs + GM_END_PERIOD_MARGIN_MS)
+        return true;
+
+    // Device-authoritative path: the GM counter sends its result count on
+    // Serial1 at the end of the counting period (e1 mode).  Guard: ignore
+    // Serial1 data arriving in the first half of the period — that window
+    // catches the "s1" start acknowledgement the GM counter may echo back.
+    if (Serial1.available() > 0 && elapsed >= _periodMs / 2)
+    {
+        // Drain the result line; we only need to know it arrived.
+        while (Serial1.available() > 0)
+            Serial1.read();
+        return true;
+    }
+
+    return false;
+}
+
+void gmEmitEndMarker()
+{
+    // Drain any pending data packets with retries so the sentinel is never
+    // interleaved with a partial batch.  Same approach as gmStopAcquisition.
+    for (uint8_t i = 0; i < 100 && _txLen > 0; i++)
+    {
+        txFlush();
+        delayMicroseconds(500);
+    }
+    // Write 6 x 0xEE directly to the USB TX buffer.  The host PacketParser
+    // detects this sentinel and emits a measurement_complete signal.
+    for (uint8_t i = 0; i < 6; i++)
+        Serial.write((uint8_t)END_MARKER_BYTE);
+}
+
 void gmProcessAcquisition()
 {
     while (true)

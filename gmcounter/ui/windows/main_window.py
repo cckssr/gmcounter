@@ -9,7 +9,7 @@ from typing import Optional
 
 import gmcounter
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLayout, QMainWindow, QCompleter
+from PySide6.QtWidgets import QMainWindow, QCompleter
 
 from ...infrastructure.config import import_config
 from ...infrastructure.device_manager import DeviceManager
@@ -55,9 +55,6 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.ui.verticalLayout_2.setSizeConstraint(
-            QLayout.SizeConstraint.SetDefaultConstraint
-        )
 
         self._status_bar = StatusBarManager(self.ui.statusBar)
 
@@ -353,6 +350,11 @@ class MainWindow(QMainWindow):
             self._save_service.mark_unsaved()
 
     def _on_device_state_updated(self, data: dict) -> None:
+        # Skip corrupted / incomplete reads so LCDs are never overwritten
+        # with zeros due to a bad FETC:STAT? response (e.g., right after a
+        # measurement stops when binary bytes might still be in the RX buffer).
+        if data.get("error"):
+            return
         label_map = CONFIG.get("gm_counter", {}).get("label_map", {})
         self.ui.currentCount.display(data.get("count", 0))
         self.ui.lastCount.display(data.get("last_count", 0))

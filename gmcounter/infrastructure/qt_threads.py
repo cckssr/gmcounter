@@ -34,6 +34,7 @@ class DataAcquisitionThread(QThread):
     # Public signals
     data_batch = Signal(object)  # list[tuple[int index, float value_us]]
     connection_lost = Signal()
+    measurement_complete = Signal()  # firmware end-of-period sentinel (0xEE×6)
 
     def __init__(self, manager) -> None:
         """Initialize the data acquisition thread.
@@ -122,6 +123,12 @@ class DataAcquisitionThread(QThread):
                         _log.info("Start marker found — stream synced")
                     if points:
                         self.data_batch.emit(points)
+                    if self._parser.end_of_period:
+                        _log.info(
+                            "End-of-period sentinel received — emitting measurement_complete"
+                        )
+                        self._parser.clear_end_of_period()
+                        self.measurement_complete.emit()
 
                 else:
                     if not self.manager.measurement_state.measurement_active:
@@ -219,7 +226,10 @@ class StatePollerThread(QThread):
                             self.data_ready.emit(data)
                     except Exception as exc:
                         _log.debug("State poller error: %s", exc)
-            time.sleep(self._POLL_INTERVAL_S)
+            # Use event-based wait so force_poll_soon() wakes the thread
+            # immediately instead of waiting up to _POLL_INTERVAL_S.
+            self._wake_event.wait(self._POLL_INTERVAL_S)
+            self._wake_event.clear()
         _log.info("StatePollerThread stopped")
 
     def stop(self) -> None:
