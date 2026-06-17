@@ -1,0 +1,310 @@
+name: Auto Release
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version component to bump"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+      prerelease:
+        description: "Prerelease type (none = stable release)"
+        required: true
+        default: "none"
+        type: choice
+        options:
+          - none
+          - a
+          - b
+          - rc
+      prerelease_number:
+        description: "Prerelease number (only used when prerelease != none)"
+        required: false
+        default: "1"
+
+# ── Project-specific ──────────────────────────────────────────────────────────
+# List every file that stores the version string, one per line.
+# Supported extensions: .toml (version = "x.y.z")
+#                       .py   (__version__ = "x.y.z")
+#                       .json ({"version": "x.y.z"})
+# Everything else (project name, URLs, launch hints) is auto-extracted from
+# pyproject.toml and github.repository — no other edits needed.
+env:
+  VERSION_FILES: |
+    pyproject.toml
+    gmcounter/__init__.py
+    gmcounter/config.json
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Bump version and release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.base.ref || 'main' }}
+          token: ${{ secrets.PAT_TOKEN || github.token }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Determine bump type
+        id: bump
+        env:
+          PR_LABELS_JSON: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          python - <<'PYEOF'
+          from __future__ import annotations
+          import json
+          import os
+
+          event = os.environ.get("GITHUB_EVENT_NAME", "")
+
+          if event == "workflow_dispatch":
+              bump = "${{ inputs.bump_type }}"
+              prerelease = "${{ inputs.prerelease }}"
+              prerelease_number = "${{ inputs.prerelease_number }}"
+              should_release = "true"
+              print(f"Manual dispatch: bump={bump}, prerelease={prerelease}")
+          else:
+              labels = [l.lower() for l in json.loads(os.environ.get("PR_LABELS_JSON", "[]"))]
+              major_labels = {"major", "semver:major", "release:major", "bump:major"}
+              minor_labels = {"minor", "semver:minor", "release:minor", "bump:minor"}
+              patch_labels = {"patch", "semver:patch", "release:patch", "bump:patch"}
+
+              if any(l in major_labels for l in labels):
+                  bump = "major"
+              elif any(l in minor_labels for l in labels):
+                  bump = "minor"
+              elif any(l in patch_labels for l in labels):
+                  bump = "patch"
+              else:
+                  bump = ""
+
+              prerelease = "none"
+              prerelease_number = "1"
+              should_release = "true" if bump else "false"
+              print(f"PR labels: {labels}")
+              print(f"Detected bump: {bump or '(none — skipping release)'}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"bump_type={bump}\n")
+              f.write(f"prerelease={prerelease}\n")
+              f.write(f"prerelease_number={prerelease_number}\n")
+              f.write(f"should_release={should_release}\n")
+          PYEOF
+
+      - name: No release label — skip
+        if: steps.bump.outputs.should_release != 'true'
+        run: |
+          echo "No matching release label on merged PR — skipping." >> $GITHUB_STEP_SUMMARY
+          echo "Add one of: major, minor, patch (or semver:major/minor/patch) to trigger a release." >> $GITHUB_STEP_SUMMARY
+
+      - name: Compute new version
+        if: steps.bump.outputs.should_release == 'true'
+        id: ver
+        run: |
+          python - <<'PYEOF'
+          from __future__ import annotations
+          import os
+          import re
+          from pathlib import Path
+
+          bump = "${{ steps.bump.outputs.bump_type }}"
+          prerelease = "${{ steps.bump.outputs.prerelease }}"
+          prerelease_number = "${{ steps.bump.outputs.prerelease_number }}"
+
+          m = re.search(r'^version\s*=\s*"([^"]+)"$', Path("pyproject.toml").read_text(encoding="utf-8"), re.MULTILINE)
+          if not m:
+              raise RuntimeError("Could not find version in pyproject.toml")
+          current = m.group(1)
+
+          base = re.sub(r"(?:a|b|rc)\d+$", "", current)
+          major, minor, patch = (int(p) for p in base.split("."))
+
+          if bump == "major":
+              major += 1; minor = 0; patch = 0
+          elif bump == "minor":
+              minor += 1; patch = 0
+          else:
+              patch += 1
+
+          new_version = f"{major}.{minor}.{patch}"
+          if prerelease != "none":
+              new_version = f"{new_version}{prerelease}{prerelease_number}"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"current_version={current}\n")
+              f.write(f"new_version={new_version}\n")
+
+          print(f"Current: {current}  →  New: {new_version}")
+          PYEOF
+
+      - name: Update version files
+        if: steps.bump.outputs.should_release == 'true'
+        run: |
+          VERSION="${{ steps.ver.outputs.new_version }}" python - <<'PYEOF'
+          from __future__ import annotations
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+          targets = [Path(line) for line in os.environ["VERSION_FILES"].splitlines() if line.strip()]
+
+          for target in targets:
+              if not target.exists():
+                  raise RuntimeError(f"Missing version target: {target}")
+              if target.suffix == ".toml":
+                  text = target.read_text(encoding="utf-8")
+                  updated, n = re.subn(r'^version\s*=\s*"[^"]*"$', f'version = "{version}"', text, count=1, flags=re.MULTILINE)
+                  if n != 1:
+                      raise RuntimeError(f"Could not update version in {target}")
+                  target.write_text(updated, encoding="utf-8")
+              elif target.suffix == ".py":
+                  text = target.read_text(encoding="utf-8")
+                  updated, n = re.subn(r'^__version__\s*=\s*"[^"]*"$', f'__version__ = "{version}"', text, count=1, flags=re.MULTILINE)
+                  if n != 1:
+                      raise RuntimeError(f"Could not update version in {target}")
+                  target.write_text(updated, encoding="utf-8")
+              elif target.suffix == ".json":
+                  payload = json.loads(target.read_text(encoding="utf-8"))
+                  if not isinstance(payload, dict) or "version" not in payload:
+                      raise RuntimeError(f"No top-level 'version' field in {target}")
+                  payload["version"] = version
+                  target.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+              else:
+                  raise RuntimeError(f"Unsupported file type: {target}")
+          PYEOF
+
+      - name: Install build tool
+        if: steps.bump.outputs.should_release == 'true'
+        run: pip install build
+
+      - name: Build wheel and sdist
+        if: steps.bump.outputs.should_release == 'true'
+        run: python -m build
+
+      - name: Extract project metadata
+        if: steps.bump.outputs.should_release == 'true'
+        id: meta
+        run: |
+          python - <<'PYEOF'
+          from __future__ import annotations
+          import os
+          import re
+          from pathlib import Path
+
+          content = Path("pyproject.toml").read_text(encoding="utf-8")
+          repo = os.environ.get("GITHUB_REPOSITORY", "owner/project")
+
+          m = re.search(r'^name\s*=\s*"([^"]+)"', content, re.MULTILINE)
+          project_name = m.group(1) if m else repo.split("/")[-1]
+
+          m = re.search(r'\[project\.scripts\](.*?)(?=\n\[|\Z)', content, re.DOTALL)
+          cli_commands = re.findall(r'^(\S+)\s*=', m.group(1), re.MULTILINE) if m else []
+
+          python_module = project_name.replace("-", "_")
+          if cli_commands:
+              launch_hint = "\n".join(cli_commands) + f"\n# or\npython -m {python_module}"
+          else:
+              launch_hint = f"python -m {python_module}"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"project_name={project_name}\n")
+              f.write(f"launch_hint<<LAUNCH_EOF\n{launch_hint}\nLAUNCH_EOF\n")
+
+          print(f"Project: {project_name}, CLI: {cli_commands}, module: python -m {python_module}")
+          PYEOF
+
+      - name: Detect prerelease
+        if: steps.bump.outputs.should_release == 'true'
+        id: pre
+        run: |
+          if echo "${{ steps.ver.outputs.new_version }}" | grep -qE '(a|b|rc)[0-9]+$'; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit, tag, and push
+        if: steps.bump.outputs.should_release == 'true'
+        run: |
+          VERSION="${{ steps.ver.outputs.new_version }}"
+          BASE_REF="${{ github.event.pull_request.base.ref || 'main' }}"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          python - <<'PYEOF'
+          import os, subprocess
+          files = [f.strip() for f in os.environ["VERSION_FILES"].splitlines() if f.strip()]
+          subprocess.run(["git", "add", "--"] + files, check=True)
+          PYEOF
+          git commit -m "chore: bump version to v$VERSION"
+          git tag "v$VERSION"
+          git push origin "HEAD:$BASE_REF"
+          git push origin "v$VERSION"
+          echo "Pushed commit and tag v$VERSION to $BASE_REF"
+
+      - name: Create GitHub release
+        if: steps.bump.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.new_version }}
+          name: Release v${{ steps.ver.outputs.new_version }}
+          prerelease: ${{ steps.pre.outputs.is_prerelease }}
+          generate_release_notes: true
+          body: |
+            ## ${{ steps.meta.outputs.project_name }} v${{ steps.ver.outputs.new_version }}
+
+            ### Installation
+
+            ```bash
+            pip install git+https://github.com/${{ github.repository }}.git@v${{ steps.ver.outputs.new_version }}
+            ```
+
+            ### Launch
+
+            ```bash
+            ${{ steps.meta.outputs.launch_hint }}
+            ```
+
+            See the [README](https://github.com/${{ github.repository }}#readme) for details.
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: steps.bump.outputs.should_release == 'true'
+        run: |
+          VERSION="${{ steps.ver.outputs.new_version }}"
+          echo "## Release Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | \`v$VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Bump** | ${{ steps.bump.outputs.bump_type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Pre-release** | ${{ steps.pre.outputs.is_prerelease }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Trigger** | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          ls dist/ | while read f; do echo "- \`$f\`" >> $GITHUB_STEP_SUMMARY; done
