@@ -1115,7 +1115,7 @@
             <bool>false</bool>
            </property>
            <property name="currentIndex">
-            <number>3</number>
+            <number>0</number>
            </property>
            <widget class="QWidget" name="time">
             <attribute name="title">
@@ -2652,7 +2652,7 @@
   </connection>
  </connections>
  <buttongroups>
-  <buttongroup name="groupMode"/>
   <buttongroup name="groupQMode"/>
+  <buttongroup name="groupMode"/>
  </buttongroups>
 </ui>

@@ -33,6 +33,7 @@ QSurfaceFormat.setDefaultFormat(sfmt)
 
 try:  # pragma: no cover - optional dependency during headless tests
     import OpenGL  # noqa: F401 — presence check before enabling
+
     pg.setConfigOption("useOpenGL", True)
     pg.setConfigOption("enableExperimental", True)
     Debug.info("PyQtGraph OpenGL acceleration ENABLED")

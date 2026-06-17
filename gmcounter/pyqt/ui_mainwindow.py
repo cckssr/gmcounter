@@ -1352,7 +1352,7 @@ class Ui_MainWindow(object):
         self.radSample.setCurrentIndex(-1)
         self.groupLetter.setCurrentIndex(-1)
         self.detectorCode.setCurrentIndex(-1)
-        self.tabWidget.setCurrentIndex(3)
+        self.tabWidget.setCurrentIndex(0)
 
         QMetaObject.connectSlotsByName(MainWindow)
 

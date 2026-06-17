@@ -24,6 +24,7 @@ def _qt_message_handler(mode, _context, message: str) -> None:
         _qt_log.error("Qt: %s", message)
     # QtDebugMsg / QtInfoMsg are too verbose — suppress
 
+
 # from .ui.resources.stylesheet import apply_stylesheet
 
 # If executed as a script (package context missing), ensure the repo root is on
