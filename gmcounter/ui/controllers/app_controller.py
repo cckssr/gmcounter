@@ -400,6 +400,8 @@ class AppController(QObject):
     def _on_reconnect_succeeded(self) -> None:
         """Reconnect worker reports success (B5)."""
         self._reconnect_state = self._CONNECTED
+        if self._acquire_thread:
+            self._acquire_thread.reset_connection_lost()
         self._start_acquisition()
 
         if self._journal:

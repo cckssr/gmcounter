@@ -9,7 +9,7 @@ from typing import Optional
 
 import gmcounter
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMainWindow, QCompleter
+from PySide6.QtWidgets import QLayout, QMainWindow, QCompleter
 
 from ...infrastructure.config import import_config
 from ...infrastructure.device_manager import DeviceManager
@@ -55,6 +55,9 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.ui.verticalLayout_2.setSizeConstraint(
+            QLayout.SizeConstraint.SetDefaultConstraint
+        )
 
         self._status_bar = StatusBarManager(self.ui.statusBar)
 
@@ -188,9 +191,7 @@ class MainWindow(QMainWindow):
             duration=3000,
         )
 
-        # Maximize
-        self.setGeometry(self.screen().availableGeometry())
-        self.show()
+        self.showMaximized()
 
     # ------------------------------------------------------------------
     # Tab registry

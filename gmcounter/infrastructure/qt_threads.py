@@ -146,6 +146,10 @@ class DataAcquisitionThread(QThread):
 
         _log.info("DataAcquisitionThread stopped")
 
+    def reset_connection_lost(self) -> None:
+        """Allow connection-loss detection to fire again after a successful reconnect."""
+        self._connection_lost_emitted = False
+
     def reset_index(self) -> None:
         old = self._parser.index
         self._first_data_received = False
