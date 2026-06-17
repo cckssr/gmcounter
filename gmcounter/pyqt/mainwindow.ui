@@ -1115,7 +1115,7 @@
             <bool>false</bool>
            </property>
            <property name="currentIndex">
-            <number>0</number>
+            <number>3</number>
            </property>
            <widget class="QWidget" name="time">
             <attribute name="title">
@@ -1413,7 +1413,7 @@
             <attribute name="title">
              <string>Abstandsgesetz</string>
             </attribute>
-            <layout class="QGridLayout" name="gridLayout_distance" rowstretch="0,1,0">
+            <layout class="QGridLayout" name="gridLayout_distance" rowstretch="0,3,2">
              <property name="leftMargin">
               <number>10</number>
              </property>
@@ -1891,7 +1891,7 @@
                 <string>Aktuelle GM-Spannung</string>
                </property>
                <property name="styleSheet">
-                <string notr="true">QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }</string>
+                <string notr="true">QLCDNumber { border: 1px solid #444; border-radius: 4px; }</string>
                </property>
                <property name="digitCount">
                 <number>3</number>
@@ -1951,7 +1951,7 @@
                 <string>Aktuelle eingestellte Zähldauer. 999 für unendlich</string>
                </property>
                <property name="styleSheet">
-                <string notr="true">QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }</string>
+                <string notr="true">QLCDNumber { border: 1px solid #444; border-radius: 4px; }</string>
                </property>
                <property name="digitCount">
                 <number>3</number>
@@ -2109,7 +2109,7 @@
               </font>
              </property>
              <property name="styleSheet">
-              <string notr="true">QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }</string>
+              <string notr="true">QLCDNumber { border: 1px solid #444; border-radius: 4px; }</string>
              </property>
              <property name="frameShape">
               <enum>QFrame::Shape::Box</enum>
@@ -2181,7 +2181,7 @@
               </font>
              </property>
              <property name="styleSheet">
-              <string notr="true">QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }</string>
+              <string notr="true">QLCDNumber { border: 1px solid #444; border-radius: 4px; }</string>
              </property>
              <property name="frameShape">
               <enum>QFrame::Shape::Box</enum>
@@ -2274,7 +2274,7 @@
               </font>
              </property>
              <property name="styleSheet">
-              <string notr="true">QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }</string>
+              <string notr="true">QLCDNumber { border: 1px solid #444; border-radius: 4px; }</string>
              </property>
              <property name="frameShape">
               <enum>QFrame::Shape::Box</enum>

@@ -829,7 +829,8 @@ class Ui_MainWindow(object):
 
         self.gridLayout_distance.addWidget(self.distanceTable, 2, 0, 1, 1)
 
-        self.gridLayout_distance.setRowStretch(1, 1)
+        self.gridLayout_distance.setRowStretch(1, 3)
+        self.gridLayout_distance.setRowStretch(2, 2)
         self.tabWidget.addTab(self.distance, "")
         self.voltage = QWidget()
         self.voltage.setObjectName("voltage")
@@ -1025,7 +1026,7 @@ class Ui_MainWindow(object):
         font2.setPointSize(13)
         self.cVoltage.setFont(font2)
         self.cVoltage.setStyleSheet(
-            "QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }"
+            "QLCDNumber { border: 1px solid #444; border-radius: 4px; }"
         )
         self.cVoltage.setDigitCount(3)
         self.cVoltage.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
@@ -1052,7 +1053,7 @@ class Ui_MainWindow(object):
         self.cDuration.setMaximumSize(QSize(150, 65))
         self.cDuration.setFont(font2)
         self.cDuration.setStyleSheet(
-            "QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }"
+            "QLCDNumber { border: 1px solid #444; border-radius: 4px; }"
         )
         self.cDuration.setDigitCount(3)
         self.cDuration.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
@@ -1121,7 +1122,7 @@ class Ui_MainWindow(object):
         font3.setPointSize(14)
         self.lastCount.setFont(font3)
         self.lastCount.setStyleSheet(
-            "QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }"
+            "QLCDNumber { border: 1px solid #444; border-radius: 4px; }"
         )
         self.lastCount.setFrameShape(QFrame.Shape.Box)
         self.lastCount.setFrameShadow(QFrame.Shadow.Raised)
@@ -1156,7 +1157,7 @@ class Ui_MainWindow(object):
         self.currentCount.setMaximumSize(QSize(1000, 90))
         self.currentCount.setFont(font3)
         self.currentCount.setStyleSheet(
-            "QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }"
+            "QLCDNumber { border: 1px solid #444; border-radius: 4px; }"
         )
         self.currentCount.setFrameShape(QFrame.Shape.Box)
         self.currentCount.setFrameShadow(QFrame.Shadow.Raised)
@@ -1198,7 +1199,7 @@ class Ui_MainWindow(object):
         self.currentRate.setMaximumSize(QSize(1000, 90))
         self.currentRate.setFont(font3)
         self.currentRate.setStyleSheet(
-            "QLCDNumber { background-color: #1a1a2e; color: #00e5ff; border: 1px solid #444; border-radius: 4px; }"
+            "QLCDNumber { border: 1px solid #444; border-radius: 4px; }"
         )
         self.currentRate.setFrameShape(QFrame.Shape.Box)
         self.currentRate.setFrameShadow(QFrame.Shadow.Raised)
@@ -1378,7 +1379,7 @@ class Ui_MainWindow(object):
         self.radSample.setCurrentIndex(-1)
         self.groupLetter.setCurrentIndex(-1)
         self.detectorCode.setCurrentIndex(-1)
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(3)
 
         QMetaObject.connectSlotsByName(MainWindow)
 
