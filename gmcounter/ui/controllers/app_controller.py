@@ -343,12 +343,25 @@ class AppController(QObject):
             _log.debug("Error emitting statistics: %s", exc)
 
     def _tick_progress(self) -> None:
-        # Pure heartbeat: emit device-time progress from the delta accumulator so
-        # the progress bar stays live during quiet periods.  Stop decisions are made
-        # in _on_data_batch (delta-driven) — never here.
         elapsed = int(self._accum_us / 1e6)
         total = int(self._target_us / 1e6)
         self.progress_updated.emit(elapsed, total)
+
+        # Wall-clock fallback for finite-time measurements.
+        # The device stops its internal counter when the counting time expires
+        # but keeps streaming (no end-of-period marker in the binary protocol),
+        # so the delta accumulator may never cross the target at low count rates.
+        # If real time exceeds the target by 3 s, stop explicitly.
+        if self._is_measuring and self._target_us > 0 and self._measurement_start:
+            wall_s = (datetime.now() - self._measurement_start).total_seconds()
+            target_s = self._target_us / 1_000_000.0
+            if wall_s >= target_s + 3.0:
+                _log.info(
+                    "Wall-clock fallback: %.1fs elapsed (target %.0fs) — stopping",
+                    wall_s,
+                    target_s,
+                )
+                self.stop_measurement()
 
     # ------------------------------------------------------------------
     # Reconnect state machine (§5 B1–B7)
@@ -376,9 +389,10 @@ class AppController(QObject):
         # Save desired state for replay after reconnect (B5)
         # B2: start non-blocking reconnect worker
         cfg_conn = CONFIG.get("connection", {})
-        delays = cfg_conn.get("backoff_delays_ms", [500, 750, 1125, 1688, 2531])
-        max_att = len(delays)
-        init_ms = delays[0] if delays else 500
+        max_att = cfg_conn.get("max_retry_attempts", 8)
+        init_ms = cfg_conn.get("initial_retry_delay_ms", 500)
+        max_ms = cfg_conn.get("max_retry_delay_ms", 16000)
+        factor = cfg_conn.get("backoff_factor", 2.0)
 
         self._reconnect_worker = ReconnectWorker(
             reconnect_fn=lambda: self.device_manager.attempt_automatic_reconnect(
@@ -386,6 +400,8 @@ class AppController(QObject):
             ),
             max_attempts=max_att,
             initial_delay_ms=init_ms,
+            max_delay_ms=max_ms,
+            backoff_factor=factor,
             parent=self,
         )
         self._reconnect_worker.succeeded.connect(self._on_reconnect_succeeded)

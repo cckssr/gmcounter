@@ -252,14 +252,18 @@ class ReconnectWorker(QThread):
     def __init__(
         self,
         reconnect_fn: Callable[[], bool],
-        max_attempts: int = 5,
+        max_attempts: int = 8,
         initial_delay_ms: float = 500,
+        max_delay_ms: float = 16000,
+        backoff_factor: float = 2.0,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._reconnect_fn = reconnect_fn
         self._max_attempts = max_attempts
         self._initial_delay_ms = initial_delay_ms
+        self._max_delay_ms = max_delay_ms
+        self._backoff_factor = backoff_factor
         self._abort = False
 
     def abort(self) -> None:
@@ -271,6 +275,8 @@ class ReconnectWorker(QThread):
         svc = ConnectionRetryService(
             max_attempts=self._max_attempts,
             initial_delay_ms=self._initial_delay_ms,
+            max_delay_ms=self._max_delay_ms,
+            backoff_factor=self._backoff_factor,
         )
 
         def _status(msg: str, color: str) -> None:

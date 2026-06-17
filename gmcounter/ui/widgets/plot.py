@@ -32,13 +32,14 @@ sfmt.setSwapInterval(0)
 QSurfaceFormat.setDefaultFormat(sfmt)
 
 try:  # pragma: no cover - optional dependency during headless tests
-    # Enable OpenGL acceleration if available
+    import OpenGL  # noqa: F401 — presence check before enabling
     pg.setConfigOption("useOpenGL", True)
     pg.setConfigOption("enableExperimental", True)
     Debug.info("PyQtGraph OpenGL acceleration ENABLED")
-except ImportError as e:
-    Debug.warning(f"PyQtGraph OpenGL not available: {e}")
-    Debug.info("Using standard rendering (slower but stable)")
+except ImportError:
+    pg.setConfigOption("useOpenGL", False)
+    pg.setConfigOption("enableExperimental", False)
+    Debug.info("PyQtGraph OpenGL not installed — using software rendering")
 
 # Performance-optimized configuration based on pyqtgraph examples
 # Disable antialiasing for speed (can be enabled per-plot if needed)
