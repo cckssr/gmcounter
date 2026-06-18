@@ -18,11 +18,11 @@ direction:
   └──────────────────────────────────────────►  core/
 ```
 
-| Layer             | Purpose                                                     | May import                     | Must NOT import                                 |
-| ----------------- | ----------------------------------------------------------- | ------------------------------ | ----------------------------------------------- |
-| `core/`           | Pure domain: dataclasses, business rules, maths, protocols. | stdlib, peer `core/` modules   | PySide6, `serial`, `infrastructure/`, `ui/`     |
-| `infrastructure/` | Adapters: device I/O, file I/O, config, logging.           | stdlib, `serial`, `core/`      | `ui/`. **PySide6 only inside `qt_threads.py`**  |
-| `ui/`             | PySide6 windows, widgets, tabs, dialogs.                   | everything below               | nothing else; no domain rules of its own        |
+| Layer             | Purpose                                                     | May import                   | Must NOT import                                |
+| ----------------- | ----------------------------------------------------------- | ---------------------------- | ---------------------------------------------- |
+| `core/`           | Pure domain: dataclasses, business rules, maths, protocols. | stdlib, peer `core/` modules | PySide6, `serial`, `infrastructure/`, `ui/`    |
+| `infrastructure/` | Adapters: device I/O, file I/O, config, logging.            | stdlib, `serial`, `core/`    | `ui/`. **PySide6 only inside `qt_threads.py`** |
+| `ui/`             | PySide6 windows, widgets, tabs, dialogs.                    | everything below             | nothing else; no domain rules of its own       |
 
 **Forbidden edges (verify before merging):**
 
@@ -49,6 +49,7 @@ Qt, it belongs in `ui/` (or, if it truly needs a QThread worker, in
 in `core/` or `infrastructure/`.
 
 Enforce with a one-liner pre-commit check:
+
 ```bash
 # Should return zero files:
 grep -rln "PySide6" gmcounter/core/ gmcounter/infrastructure/*.py \
@@ -95,11 +96,11 @@ self._gm_tab.build()   # creates GeneralPlot inside timePlot — nothing else
 
 ### Justified exceptions
 
-| Kind of object                                 | Why Python creates it                                                 |
-| ---------------------------------------------- | --------------------------------------------------------------------- |
-| `GeneralPlot`, `HistogramWidget` (pyqtgraph)   | Designer cannot host third-party widgets                              |
-| `QStandardItemModel` on a `.ui` `QTableView`   | Non-visual data model; the view lives in `.ui`                        |
-| `QStandardItem` rows appended at runtime       | Dynamic data                                                          |
+| Kind of object                               | Why Python creates it                          |
+| -------------------------------------------- | ---------------------------------------------- |
+| `GeneralPlot`, `HistogramWidget` (pyqtgraph) | Designer cannot host third-party widgets       |
+| `QStandardItemModel` on a `.ui` `QTableView` | Non-visual data model; the view lives in `.ui` |
+| `QStandardItem` rows appended at runtime     | Dynamic data                                   |
 
 ---
 
@@ -198,15 +199,15 @@ overwrites the attribute only after the previous one finished. Connect
 Hardware drops. Treat reconnection as a first-class state machine inside
 `AppController`, with these contracts:
 
-| Contract                              | Behaviour in GMCounter                                                                                                                                                                        |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **B1 — silent first failure**         | The first read error does not show a popup. It increments a counter and schedules a retry. Only the second consecutive failure (or a new error type) updates the status bar.                 |
-| **B2 — exponential backoff with cap** | Delays grow `500 ms → 1 s → 2 s → 4 s → … → 16 s`, capped. Parameters in `config.json → connection.*`.                                                                                     |
-| **B3 — non-blocking UI**              | The status bar and `EventLogPanel` show reconnect state. Inputs are **not** disabled during `RECONNECTING` — the user can continue entering parameters for the next measurement.             |
-| **B4 — data survives reconnect**      | Measurement buffers, plots, and the session journal are preserved across a drop. A `gap` can be written to the journal for downstream analysis.                                              |
+| Contract                              | Behaviour in GMCounter                                                                                                                                                                                                           |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **B1 — silent first failure**         | The first read error does not show a popup. It increments a counter and schedules a retry. Only the second consecutive failure (or a new error type) updates the status bar.                                                     |
+| **B2 — exponential backoff with cap** | Delays grow `500 ms → 1 s → 2 s → 4 s → … → 16 s`, capped. Parameters in `config.json → connection.*`.                                                                                                                           |
+| **B3 — non-blocking UI**              | The status bar and `EventLogPanel` show reconnect state. Inputs are **not** disabled during `RECONNECTING` — the user can continue entering parameters for the next measurement.                                                 |
+| **B4 — data survives reconnect**      | Measurement buffers, plots, and the session journal are preserved across a drop. A `gap` can be written to the journal for downstream analysis.                                                                                  |
 | **B5 — desired-state replay**         | Voltage, counting time, repeat mode, and stream mode are snapshotted in a `DesiredState` dataclass (`core/models.py`) and re-applied on every successful reconnect via `DeviceManager.attempt_automatic_reconnect(desired=...)`. |
-| **B6 — filter resets on recovery**    | Internal parser state (`PacketParser.reset()`) is flushed on reconnect so a partial packet from before the drop does not corrupt the first frame after.                                     |
-| **B7 — terminal state is explicit**   | When backoff is exhausted, `AppController` emits `connection_lost` and the EventLogPanel notes the session journal path so the user can recover data.                                       |
+| **B6 — filter resets on recovery**    | Internal parser state (`PacketParser.reset()`) is flushed on reconnect so a partial packet from before the drop does not corrupt the first frame after.                                                                          |
+| **B7 — terminal state is explicit**   | When backoff is exhausted, `AppController` emits `connection_lost` and the EventLogPanel notes the session journal path so the user can recover data.                                                                            |
 
 ### Crash-safe journaling
 
@@ -243,6 +244,7 @@ class PlotTabBase(QWidget):
 ```
 
 **Adding a frame-based tab:**
+
 1. Add a `QWidget` page in `mainwindow.ui`.
 2. Subclass `PlotTabBase`, implement `build()` and `on_frames()`.
 3. Call `TabRegistry.register(MyTab)` at module level (import-time).
@@ -287,6 +289,7 @@ explicitly wired in `MainWindow.__init__` and do not go through the
 auto-discovery path (unlike frame-based tabs which do register).
 
 **Sweep session lifecycle** (managed by `MainWindow`):
+
 - Start on a sweep tab → disables GM view tabs (0–2), suppresses
   `GMTimingTab` high-speed auto-switch, sets `_sweep_session = True`
 - Stop → Start re-enabled immediately for the next parameter point
@@ -377,10 +380,10 @@ registered at runtime.
 
 ### User feedback surfaces
 
-| Surface                   | What it shows                                    | Lifetime                                         |
-| ------------------------- | ------------------------------------------------ | ------------------------------------------------ |
-| `StatusBar`               | One-line transient status                        | 3–8 s, via `StatusBarManager.show_info/warning/error` |
-| `EventLogPanel` (dock)    | Timestamped scrollback of every status message   | Persistent in-session                            |
+| Surface                | What it shows                                  | Lifetime                                              |
+| ---------------------- | ---------------------------------------------- | ----------------------------------------------------- |
+| `StatusBar`            | One-line transient status                      | 3–8 s, via `StatusBarManager.show_info/warning/error` |
+| `EventLogPanel` (dock) | Timestamped scrollback of every status message | Persistent in-session                                 |
 
 Modals (`QMessageBox`) are reserved for **terminal** failures (connection lost,
 save failed) and user questions ("discard unsaved data?"). Never use modals for
@@ -405,17 +408,17 @@ One `config.json` at `gmcounter/config.json`, loaded via `import_config()` from
 
 Key sections:
 
-| Section             | Contents                                                         |
-| ------------------- | ---------------------------------------------------------------- |
-| `acquisition.*`     | `ticks_per_us` (48 for RA4M1 @ 48 MHz), read chunk/timeout      |
-| `connection.*`      | Backoff parameters (retry attempts, delays, factor)              |
-| `timers.*`          | GUI update interval, statistics interval, acquisition poll rate  |
-| `gm_counter.*`      | `demo_mode`, default voltage, `count_time_map`, `label_map`      |
-| `save.*`            | `base_folder`, `tk_designation` for directory naming             |
-| `gm_timing.*`       | `max_history_size`, high-speed batch parameters                  |
-| `ui.*`              | `theme` (`"dark"` or `"light"`)                                  |
-| `messages.*`        | All user-visible German strings (for i18n)                       |
-| `radioactive_samples` | List of valid sample codes                                     |
+| Section               | Contents                                                        |
+| --------------------- | --------------------------------------------------------------- |
+| `acquisition.*`       | `ticks_per_us` (48 for RA4M1 @ 48 MHz), read chunk/timeout      |
+| `connection.*`        | Backoff parameters (retry attempts, delays, factor)             |
+| `timers.*`            | GUI update interval, statistics interval, acquisition poll rate |
+| `gm_counter.*`        | `demo_mode`, default voltage, `count_time_map`, `label_map`     |
+| `save.*`              | `base_folder`, `tk_designation` for directory naming            |
+| `gm_timing.*`         | `max_history_size`, high-speed batch parameters                 |
+| `ui.*`                | `theme` (`"dark"` or `"light"`)                                 |
+| `messages.*`          | All user-visible German strings (for i18n)                      |
+| `radioactive_samples` | List of valid sample codes                                      |
 
 ### Rules
 
@@ -467,15 +470,15 @@ def closeEvent(self, event):
 
 ## 13. Naming conventions
 
-| Item                 | Convention                                                                   |
-| -------------------- | ---------------------------------------------------------------------------- |
-| Device adapters      | `{Name}Adapter` (e.g. `GMCounterAdapter`)                                    |
-| Mocks                | `Mock{Name}` (e.g. `MockGMCounter`)                                          |
-| Tab classes          | `{Experiment}Tab` with `tab_id = "{experiment}"`                             |
-| Signals              | `verb_past_tense` (`measurement_stopped`, `frames_ready`, `connection_lost`) |
-| Slots / handlers     | `_handle_*` or `_on_*` for receivers; `_action_verb` for user-initiated      |
-| Type hints           | Required on new code. No bare `Any`. Use `Optional[X]` for nullable.         |
-| Config keys          | `snake_case` matching the subsystem name (e.g. `gm_timing`, `acquisition`)  |
+| Item             | Convention                                                                   |
+| ---------------- | ---------------------------------------------------------------------------- |
+| Device adapters  | `{Name}Adapter` (e.g. `GMCounterAdapter`)                                    |
+| Mocks            | `Mock{Name}` (e.g. `MockGMCounter`)                                          |
+| Tab classes      | `{Experiment}Tab` with `tab_id = "{experiment}"`                             |
+| Signals          | `verb_past_tense` (`measurement_stopped`, `frames_ready`, `connection_lost`) |
+| Slots / handlers | `_handle_*` or `_on_*` for receivers; `_action_verb` for user-initiated      |
+| Type hints       | Required on new code. No bare `Any`. Use `Optional[X]` for nullable.         |
+| Config keys      | `snake_case` matching the subsystem name (e.g. `gm_timing`, `acquisition`)   |
 
 ---
 
