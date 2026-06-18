@@ -26,7 +26,7 @@ Befehle
 -------
 
 Streaming-Steuerung (``b``)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Bei alleiniger Verwendung gibt der Befehl den Status zurück.
 Wenn er mit einem Parameter 0-8 verwendet wird, ändert sich die Funktion wie folgt:
@@ -59,7 +59,7 @@ Wenn er mit einem Parameter 0-8 verwendet wird, ändert sich die Funktion wie fo
 **Beispiel**: ``b1`` startet das Streaming, wenn die Messung bereit ist.
 
 Unternehmensinformationen (``c``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Rückgabe der Unternehmensinformation als Zeichenkette:
 
@@ -69,12 +69,12 @@ Rückgabe der Unternehmensinformation als Zeichenkette:
 
 
 Registerwerte lesen (``d``)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Rückgabe des aktuellen Wertes aus dem Sekundärregister und Primärregister.
 
 Ergebnisse senden (``e``)
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Wenn der Befehl allein verwendet wird, wird der Status zurückgegeben.
 Wenn der Befehl mit den Parametern 0-1 verwendet wird, ändert sich der Status wie folgt:
@@ -91,7 +91,7 @@ Wenn der Befehl mit den Parametern 0-1 verwendet wird, ändert sich der Status w
 **Beispiel**: ``e1`` aktiviert das automatische Senden der Zählnummern nach jeder Zählperiode.
 
 Zählzeit (``f``)
-~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 Bei alleiniger Verwendung gibt der Befehl die aktuelle Zählzeit in Sekunden zurück.
 Wenn der Befehl mit den Parametern 0-5 verwendet wird, ändert sich die Zählzeit:
@@ -118,7 +118,7 @@ Andere Zählzeiten sind ungültig. Die Anzeigesymbole werden in Abhängigkeit vo
 **Beispiel**: ``f3`` setzt die Zählzeit auf 60 Sekunden.
 
 GM-Spannung (``j``)
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 Bei alleiniger Verwendung gibt der Befehl die aktuelle GM-Spannung in Volt zurück.
 Wenn der Befehl mit den Parametern 400-700 verwendet wird, wird die GM-Spannung entsprechend gesetzt.
@@ -126,7 +126,7 @@ Wenn der Befehl mit den Parametern 400-700 verwendet wird, wird die GM-Spannung 
 **Beispiel**: ``j520`` setzt die GM-Spannung auf 520V.
 
 Einzel-/Wiederholungsmodus (``o``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Wenn der Befehl allein verwendet wird, wird der Status zurückgegeben.
 Bei Verwendung des Befehls mit den Parametern 0-1 ändert sich der Modus:
@@ -142,7 +142,7 @@ Bei Verwendung des Befehls mit den Parametern 0-1 ändert sich der Modus:
 **Beispiel**: ``o1`` setzt den Modus auf Wiederholung.
 
 Start/Stopp der Zählung (``s``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Wenn der Befehl allein verwendet wird, gibt er den Status zurück (0 = keine Zählung aktiv).
 Mit einer Zahl kann eine Zählung gestartet oder gestoppt werden:
@@ -159,7 +159,7 @@ Mit einer Zahl kann eine Zählung gestartet oder gestoppt werden:
 **Beispiel**: ``s1`` startet die Zählung.
 
 Lautsprecher (``U``)
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 Wenn der Befehl allein verwendet wird, gibt er den aktuellen Status des Lautsprechers zurück.
 Mit einer Nummer wird der Lautsprecher entsprechend ein-/ausgeschaltet:
@@ -179,7 +179,7 @@ Mit einer Nummer wird der Lautsprecher entsprechend ein-/ausgeschaltet:
 **Beispiel**: ``U1`` schaltet den GM-Ton ein, ohne den Bereitschaftston zu aktivieren.
 
 Versionsnummer (``v``)
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 Rückgabe der Versionsnummer:
 
@@ -189,7 +189,7 @@ Rückgabe der Versionsnummer:
 
 
 Zählnummern lesen (``w``)
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Liest das Register, in das der Wert aus dem Primärregister nach Ende der Zählzeit kopiert wird.
 Das Register wird gelöscht, wenn es gelesen wird.
@@ -198,6 +198,6 @@ Wenn das Register leer ist, wird "-1" zurückgegeben.
 **Wichtig**: Um sicherzustellen, dass alle Werte übertragen werden, muss dieses Register mit einer Frequenz gelesen werden, die höher ist als die Zählzeitfrequenz.
 
 Implementierung in GMCounter
---------------------------
+----------------------------
 
 Die GMCounter implementiert diese Befehle in der ``DeviceManager``-Klasse (siehe :doc:`../api`), die die serielle Kommunikation mit dem GM-Zähler verwaltet. Jeder Befehl wird durch eine entsprechende Methode gekapselt, um eine benutzerfreundliche API zu bieten.

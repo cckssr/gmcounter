@@ -1,4 +1,10 @@
 # Layer: core — pure Python, zero Qt/serial/vendor SDK imports.
+"""Stateful domain services for GMCounter.
+
+Both classes are pure Python with no I/O: :class:`SaveState` tracks unsaved
+data and the configured save directory; :class:`MeasurementStateService` tracks
+whether an acquisition is currently in progress.
+"""
 
 import logging
 from pathlib import Path
@@ -14,10 +20,9 @@ class SaveState:
     ``infrastructure.save_service.write_export`` /
     ``infrastructure.save_service.SaveService``.
 
-    Responsibilities:
-    - Remember ``base_dir`` for default save-dialog folder suggestions.
-    - Expose ``has_unsaved`` / ``mark_saved`` / ``mark_unsaved`` so the UI
-      can prompt the user before discarding data.
+    Remembers ``base_dir`` for save-dialog folder suggestions and exposes
+    ``has_unsaved`` / ``mark_saved`` / ``mark_unsaved`` so the UI can
+    prompt before discarding data.
     """
 
     def __init__(
@@ -45,12 +50,15 @@ class SaveState:
     # Unsaved-state tracking
 
     def has_unsaved(self) -> bool:
+        """Return True if data has been acquired but not yet saved."""
         return self._unsaved
 
     def mark_saved(self) -> None:
+        """Clear the unsaved flag after a successful save."""
         self._unsaved = False
 
     def mark_unsaved(self) -> None:
+        """Set the unsaved flag when new data arrives."""
         self._unsaved = True
 
 
@@ -65,16 +73,20 @@ class MeasurementStateService:
 
     @property
     def measurement_active(self) -> bool:
+        """True while an acquisition is in progress."""
         return self._measurement_active
 
     def start_measurement(self) -> None:
+        """Mark a measurement as started."""
         self._measurement_active = True
         _log.debug("MeasurementStateService: started")
 
     def stop_measurement(self) -> None:
+        """Mark a measurement as stopped."""
         self._measurement_active = False
         _log.debug("MeasurementStateService: stopped")
 
     def reset(self) -> None:
+        """Reset measurement state (equivalent to stop_measurement)."""
         self._measurement_active = False
         _log.debug("MeasurementStateService: reset")

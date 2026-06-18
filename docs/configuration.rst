@@ -1,5 +1,5 @@
 GMCounter-Konfiguration
-=====================
+=======================
 
 Diese Seite fasst die wichtigsten Einträge der ``config.json`` zusammen.
 
