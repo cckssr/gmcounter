@@ -2,6 +2,13 @@
 #
 # Pure logic so it is unit-testable without PySide6 or hardware. The acquisition
 # thread (qt_threads.py) owns one of these and feeds it raw serial chunks.
+"""Incremental binary packet decoder for the GM counter serial stream.
+
+:class:`PacketParser` is a reusable, dependency-free building block.  Feed
+it raw bytes from the serial port and get back ``(index, value_us)`` pairs.
+It is a good candidate for reuse in other firmware-over-serial projects that
+use the same framing convention (start marker + data packets + end marker).
+"""
 
 from typing import List, Tuple
 
@@ -9,21 +16,20 @@ from typing import List, Tuple
 class PacketParser:
     """Incremental decoder for the GM counter binary protocol.
 
-    Wire format (little-endian):
-        start marker      : 0xFF × 6   (everything before it is discarded)
-        data packet       : 0xAA [b0 b1 b2 b3] 0x55   — b0..b3 = inter-event
-                            delta in firmware timer ticks
-        end-of-period     : 0xEE × 6   (finite-time measurement complete;
-                            firmware sends this just before stopping the stream)
+    Wire format (little-endian)::
 
-    ``feed()`` appends a chunk and returns every newly completed point as
+        start marker  0xFF × 6   — everything before it is discarded
+        data packet   0xAA [b0 b1 b2 b3] 0x55  — b0..b3 = delta in ticks
+        end-of-period 0xEE × 6   — firmware signals end of counting period
+
+    :meth:`feed` appends a chunk and returns every newly completed point as
     ``(index, value_us)`` where ``value_us = ticks / ticks_per_us``.  Partial
     packets and a start marker split across two chunks are carried over.
     The whole thing is a single O(n) pass — no per-packet reslicing.
 
-    After ``feed()`` check ``end_of_period`` to see whether the firmware has
-    signalled that the counting period is over.  Call ``clear_end_of_period()``
-    after acting on it.
+    After :meth:`feed` check :attr:`end_of_period` to see whether the firmware
+    has signalled that the counting period is over.  Call
+    :meth:`clear_end_of_period` after acting on it.
     """
 
     START_BYTE = 0xAA
@@ -41,10 +47,12 @@ class PacketParser:
 
     @property
     def index(self) -> int:
+        """Running count of decoded data packets since the last :meth:`reset`."""
         return self._index
 
     @property
     def synced(self) -> bool:
+        """True once the ``0xFF × 6`` start marker has been seen."""
         return self._synced
 
     @property

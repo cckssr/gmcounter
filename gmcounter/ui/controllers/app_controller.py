@@ -1,4 +1,5 @@
 # Layer: ui — AppController bridges device ↔ experiment tab ↔ main window.
+"""Central controller: owns timers, acquisition thread, and reconnect FSM."""
 # All QTimers live here; no business logic in MainWindow.
 
 from __future__ import annotations
@@ -140,6 +141,7 @@ class AppController(QObject):
     # Active-tab management
 
     def set_active_tab(self, tab: "PlotTabBase") -> None:
+        """Switch the active experiment tab, rewiring frames_ready and lifecycle signals."""
         if self._active_tab is not None:
             try:
                 self.frames_ready.disconnect(self._active_tab.on_frames)
@@ -200,6 +202,7 @@ class AppController(QObject):
         return False
 
     def stop_measurement(self) -> None:
+        """Stop the active measurement, resume state polling, and emit measurement_stopped."""
         self._is_measuring = False
         self._progress_timer.stop()
         self.device_manager.stop_measurement()
@@ -216,6 +219,7 @@ class AppController(QObject):
 
     @property
     def is_measuring(self) -> bool:
+        """True while an acquisition is in progress."""
         return self._is_measuring
 
     # ------------------------------------------------------------------
@@ -314,10 +318,12 @@ class AppController(QObject):
     # Internal wiring
 
     def _wire_device_manager(self) -> None:
+        """Connect DeviceManager callbacks to this controller's handlers."""
         self.device_manager.on_status = self._notify
         self.device_manager.on_connection_lost = self._on_connection_lost_cb
 
     def _start_acquisition(self) -> None:
+        """Create and start the DataAcquisitionThread (no-op if already running)."""
         if self._acquire_thread and self._acquire_thread.isRunning():
             return
         self._acquire_thread = DataAcquisitionThread(self.device_manager)
@@ -333,6 +339,7 @@ class AppController(QObject):
         self._acquire_thread.start()
 
     def _stop_acquisition(self) -> None:
+        """Request the DataAcquisitionThread to stop."""
         if self._acquire_thread and self._acquire_thread.isRunning():
             self._acquire_thread.stop()
 
@@ -388,6 +395,7 @@ class AppController(QObject):
     # Timers
 
     def _emit_statistics(self) -> None:
+        """Poll active tab for statistics and emit statistics_updated (1 s timer)."""
         if self._active_tab is None:
             return
         try:
@@ -398,6 +406,7 @@ class AppController(QObject):
             _log.debug("Error emitting statistics: %s", exc)
 
     def _tick_progress(self) -> None:
+        """Emit progress_updated and trigger the wall-clock fallback stop if needed."""
         elapsed = int(self._accum_us / 1e6)
         total = int(self._target_us / 1e6)
         self.progress_updated.emit(elapsed, total)
@@ -502,6 +511,7 @@ class AppController(QObject):
     # Orphan journal check
 
     def _check_orphan_journals(self) -> None:
+        """Warn in the event log about journals without a finalized marker."""
         orphans = find_orphan_journals()
         if orphans:
             paths = "\n".join(str(p) for p in orphans)

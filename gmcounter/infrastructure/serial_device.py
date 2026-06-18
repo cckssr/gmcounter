@@ -1,5 +1,12 @@
 # Layer: infrastructure/serial_device — Qt-free serial base class.
 # This is a direct port of the Arduino class from arduino.py.
+"""Qt-free serial device base class.
+
+:class:`SerialDevice` wraps ``pyserial`` with a consistent interface for
+opening/closing a port, sending SCPI commands, and reading line or raw
+responses.  Subclass it (e.g. :class:`~gmcounter.infrastructure.devices.gm_counter.GMCounterAdapter`)
+to add device-specific commands on top.
+"""
 
 from typing import Optional, Union, Any
 from time import sleep, time
@@ -31,6 +38,17 @@ class SerialDevice:
         self._config: dict[str, Any] = {}
 
     def reconnect(self) -> bool:
+        """Open (or re-open) the serial port.
+
+        Closes any existing connection first, sleeps briefly, then opens
+        a new ``serial.Serial`` at the configured port/baudrate/timeout.
+
+        Returns:
+            True on success.
+
+        Raises:
+            serial.SerialException: If the port cannot be opened.
+        """
         if self.serial and self.serial.is_open:
             self.serial.close()
             _log.debug("Closed existing connection to %s", self.port)
@@ -72,12 +90,24 @@ class SerialDevice:
             raise serial.SerialException(str(exc)) from exc
 
     def close(self) -> None:
+        """Close the serial port and reset the connected flag."""
         if self.serial and self.serial.is_open:
             self.serial.close()
             _log.debug("Connection to %s closed", self.port)
         self.connected = False
 
     def send_command(self, command: str, add_newline: bool = True) -> bool:
+        r"""Write *command* to the serial port.
+
+        Args:
+            command: Command string to send (e.g. ``"CONF:VOLT 500"``).
+            add_newline: Append ``\n`` if the command does not already end
+                with one.
+
+        Returns:
+            True on success; False if the port is closed or a serial error
+            occurs (also sets :attr:`connected` to False).
+        """
         if not self.serial or not self.serial.is_open:
             _log.error("Cannot send command: serial not open")
             return False
@@ -101,6 +131,7 @@ class SerialDevice:
             return False
 
     def _wait_for_data(self, timeout: float) -> bool:
+        """Block until at least one byte is available or *timeout* seconds pass."""
         if not self.serial:
             return False
         start = time()
@@ -116,6 +147,19 @@ class SerialDevice:
         return_type: str = "auto",
         strip_whitespace: bool = True,
     ) -> Union[str, bytes, None]:
+        r"""Read one ``\n``-terminated line from the port.
+
+        Args:
+            timeout: Maximum wait time in seconds.
+            return_type: ``"auto"`` returns str if decodable else bytes;
+                ``"str"`` forces string (None on decode error);
+                ``"bytes"`` always returns raw bytes.
+            strip_whitespace: Strip leading/trailing whitespace from the
+                decoded string.
+
+        Returns:
+            The decoded line, raw bytes, or None on timeout/error.
+        """
         if not self.serial or not self.serial.is_open:
             _log.error("Serial not open")
             return None
@@ -149,6 +193,18 @@ class SerialDevice:
         timeout_ms: int = FAST_READ_TIMEOUT_MS,
         delimiter: Optional[bytes] = None,
     ) -> Optional[bytes]:
+        """Read up to *max_bytes* raw bytes with a short timeout.
+
+        Used by the acquisition thread for the high-rate binary stream.
+
+        Args:
+            max_bytes: Maximum bytes to read in one call.
+            timeout_ms: Read timeout in milliseconds.
+            delimiter: If given, stop after this byte sequence is found.
+
+        Returns:
+            Raw bytes (may be empty ``b""``), or None on serial error.
+        """
         if not self.serial or not self.serial.is_open:
             return None
         original = self.serial.timeout
@@ -175,6 +231,14 @@ class SerialDevice:
             self.serial.timeout = original
 
     def read_text_response(self, timeout: float = DEFAULT_READ_TIMEOUT) -> str:
+        """Read lines until silence, returning them concatenated.
+
+        Args:
+            timeout: Maximum total wait time in seconds.
+
+        Returns:
+            All received lines joined into a single string, stripped.
+        """
         if not self.serial or not self.serial.is_open:
             return ""
         parts: list[str] = []
@@ -201,6 +265,11 @@ class SerialDevice:
             return ""
 
     def flush_input_buffer(self) -> bool:
+        """Discard all bytes currently waiting in the serial input buffer.
+
+        Returns:
+            True on success; False if the port is not open.
+        """
         if not self.serial or not self.serial.is_open:
             return False
         try:

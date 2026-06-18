@@ -18,6 +18,7 @@ _qt_log = logging.getLogger("gmcounter.qt")
 
 
 def _qt_message_handler(mode, _context, message: str) -> None:
+    """Route Qt internal messages into the Python logging hierarchy."""
     if mode == QtMsgType.QtWarningMsg:
         _qt_log.warning("Qt: %s", message)
     elif mode in (QtMsgType.QtCriticalMsg, QtMsgType.QtFatalMsg):

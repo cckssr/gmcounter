@@ -1,4 +1,5 @@
 # Layer: ui/widgets — EventLogPanel dock widget (§9).
+"""Dockable timestamped event log (§9): scrollback of every status_message line."""
 # A dockable timestamped scrollback of every status_message line.
 
 from datetime import datetime
@@ -37,6 +38,7 @@ class EventLogPanel(QDockWidget):
         self.setWidget(self._list)
 
     def append(self, text: str, color: str = "") -> None:
+        """Prepend a timestamped entry; capped at _MAX_ENTRIES to bound memory."""
         ts = datetime.now().strftime("%H:%M:%S")
         item = QListWidgetItem(f"[{ts}] {text}")
         hex_color = _COLOR_MAP.get(color.lower(), _COLOR_MAP.get("white", "#cccccc"))
@@ -50,4 +52,5 @@ class EventLogPanel(QDockWidget):
             self._list.takeItem(self._list.count() - 1)
 
     def clear_log(self) -> None:
+        """Remove all entries from the log panel."""
         self._list.clear()

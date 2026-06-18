@@ -1,4 +1,9 @@
 # Layer: core — pure Python, zero Qt/serial/vendor SDK imports.
+"""GMCounter exception hierarchy.
+
+All application exceptions inherit from :exc:`GMCounterError` so callers
+can catch the whole family with a single ``except GMCounterError`` clause.
+"""
 
 
 class GMCounterError(Exception):

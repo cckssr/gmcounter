@@ -1,5 +1,14 @@
 # Layer: infrastructure — Qt threading helpers.
 # THIS IS THE ONLY FILE IN infrastructure/ ALLOWED TO IMPORT PySide6.
+"""Qt thread workers for GMCounter (§4).
+
+This is the **only** file in ``infrastructure/`` that may import PySide6.
+Workers emit signals; they never touch widgets or the controller directly.
+
+:class:`DataAcquisitionThread` reads the binary stream from the device.
+:class:`StatePollerThread` polls ``FETC:STAT?`` between measurements.
+:class:`ReconnectWorker` runs the exponential-backoff reconnect loop.
+"""
 
 import threading
 import time
@@ -69,6 +78,7 @@ class DataAcquisitionThread(QThread):
     # Thread lifecycle
 
     def run(self) -> None:
+        """Main acquisition loop — reads binary packets and emits ``data_batch``."""
         _log.info("DataAcquisitionThread started")
         self._running = True
         self._last_data_time = time.time()
@@ -158,6 +168,7 @@ class DataAcquisitionThread(QThread):
         self._connection_lost_emitted = False
 
     def reset_index(self) -> None:
+        """Reset the packet parser and index counter before a new measurement."""
         old = self._parser.index
         self._first_data_received = False
         self._measurement_start_time = None
@@ -165,6 +176,7 @@ class DataAcquisitionThread(QThread):
         _log.info("Acquisition index reset from %d to 0", old)
 
     def stop(self) -> None:
+        """Signal the thread to stop and wait up to 2 s for it to exit."""
         self._running = False
         self.requestInterruption()
         _log.info("Stopping DataAcquisitionThread")
@@ -210,6 +222,7 @@ class StatePollerThread(QThread):
         self._wake_event.set()
 
     def run(self) -> None:
+        """Poll loop — calls ``FETC:STAT?`` every ``_POLL_INTERVAL_S`` seconds."""
         _log.info("StatePollerThread started")
         self._running = True
         while self._running:
@@ -233,6 +246,7 @@ class StatePollerThread(QThread):
         _log.info("StatePollerThread stopped")
 
     def stop(self) -> None:
+        """Signal the poller to stop and wait up to 3 s for it to exit."""
         self._running = False
         self._wake_event.set()  # unblock wait() so the thread exits promptly
         self.requestInterruption()
@@ -277,9 +291,11 @@ class ReconnectWorker(QThread):
         self._abort = False
 
     def abort(self) -> None:
+        """Ask the reconnect loop to stop at its next iteration."""
         self._abort = True
 
     def run(self) -> None:
+        """Run :class:`~gmcounter.core.reconnect_service.ConnectionRetryService` in this thread."""
         from ..core.reconnect_service import ConnectionRetryService
 
         svc = ConnectionRetryService(

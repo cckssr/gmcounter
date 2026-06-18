@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Layer: ui/dialogs — ConnectionDialog.
+"""Startup connection dialog: port enumeration, baud select, and demo-mode mock port."""
 # Port enumeration, baud select, refresh, demo-mode mock port, AlertDialog retry.
 
 import logging
@@ -73,6 +74,7 @@ class ConnectionWindow(QDialog):
     # Helpers
 
     def _check_mock_port(self) -> Optional[str]:
+        """Return the mock PTY path from the temp-dir port file, or None if absent."""
         path = os.path.join(gettempdir(), "virtual_serial_port.txt")
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as fh:
@@ -80,6 +82,7 @@ class ConnectionWindow(QDialog):
         return None
 
     def status_message(self, message: str, color: str = "white") -> None:
+        """Display *message* in the dialog's status label with the given color."""
         try:
             if hasattr(self.ui, "status_msg") and self.ui.status_msg is not None:
                 self.ui.status_msg.setText(message)
@@ -89,6 +92,7 @@ class ConnectionWindow(QDialog):
             _log.error("Failed to set status message: %s", exc)
 
     def _get_port_info(self, port) -> dict:
+        """Build a normalized info dict from a pyserial ListPortInfo object."""
         info = {
             "device": getattr(port, "device", ""),
             "name": getattr(port, "name", ""),
@@ -115,6 +119,7 @@ class ConnectionWindow(QDialog):
         return info
 
     def _update_ports(self) -> None:
+        """Re-enumerate serial ports and repopulate the combobox."""
         self.ui.comboSerial.clear()
         for field in [self.ui.device_name, self.ui.device_address, self.ui.device_desc]:
             field.clear()
@@ -145,6 +150,7 @@ class ConnectionWindow(QDialog):
             self._update_port_description()
 
     def _update_port_description(self) -> None:
+        """Populate the device-info labels when the port selection changes."""
         idx = self.combo.currentIndex()
         if idx >= 0 and idx < len(self.ports):
             port = self.ports[idx]
@@ -160,6 +166,7 @@ class ConnectionWindow(QDialog):
                 field.clear()
 
     def attempt_connection(self):
+        """Try to open the selected port; return (True, DeviceManager) or (False, None)."""
         port = self.combo.currentText()
         baudrate = int(self.ui.comboBox.currentText())
         self.status_message(f"Verbinde mit {port}...", "orange")
@@ -189,6 +196,7 @@ class ConnectionWindow(QDialog):
             return False, None
 
     def accept(self) -> None:
+        """Attempt to connect; on failure offer retry/port-change/cancel."""
         success, _ = self.attempt_connection()
         if success:
             return super().accept()

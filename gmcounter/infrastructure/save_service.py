@@ -1,5 +1,12 @@
 # Layer: infrastructure — generic TabExport byte-level writer.
 # No per-experiment code lives here; experiments speak TabExport.
+"""Generic TabExport filesystem writer.
+
+:func:`write_export` is the low-level function that writes one CSV and its
+``_MD.json`` sidecar to a caller-supplied path.  :class:`SaveService` wraps
+it with auto-index path composition for the common "save to base directory"
+workflow.
+"""
 
 import csv
 import json
@@ -42,6 +49,11 @@ class SaveService:
     """
 
     def __init__(self, base_dir: Path | str) -> None:
+        """Create the service and ensure *base_dir* exists.
+
+        Args:
+            base_dir: Root directory for all exports managed by this service.
+        """
         self.base_dir = Path(base_dir)
         self._index = 0
         try:

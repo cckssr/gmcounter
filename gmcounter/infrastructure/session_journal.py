@@ -6,6 +6,14 @@
 # Each row: epoch_s, kind, index, value_us
 # Special rows: kind="gap" on reconnect, kind="finalized" on clean save.
 # Startup scans for orphan (unfinalized) journals and offers export.
+"""Crash-safe append-only measurement journal.
+
+:class:`SessionJournal` writes every acquired data point to
+``~/.gmcounter/sessions/<timestamp>/journal.csv`` with ``fsync`` every ~1 s.
+If the application crashes, the journal retains all data.  On the next
+startup :func:`find_orphan_journals` reports unfinalized sessions so the
+user can recover data.
+"""
 
 from __future__ import annotations
 
@@ -86,6 +94,7 @@ class SessionJournal:
         _log.info("Journal finalized: %s", self._path)
 
     def close(self) -> None:
+        """Flush, fsync, and close the journal file (without finalizing)."""
         with self._lock:
             self._closed = True
         self._stop_event.set()
@@ -98,12 +107,14 @@ class SessionJournal:
 
     @property
     def path(self) -> Path:
+        """Absolute path to the journal CSV file."""
         return self._path
 
     # ------------------------------------------------------------------
     # Internal
 
     def _flush_loop(self) -> None:
+        """Background thread: flush and fsync the journal every FSYNC_INTERVAL_S."""
         while not self._stop_event.wait(timeout=FSYNC_INTERVAL_S):
             with self._lock:
                 try:

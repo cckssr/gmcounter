@@ -2,6 +2,11 @@
 #
 # TabExport (§7): experiment tabs declare what to save; the generic
 # infrastructure.save_service does the byte-level I/O.
+"""Tab export schema and path composition (§7).
+
+Experiment tabs produce a :class:`TabExport`; the infrastructure layer
+handles all I/O.  Nothing in this module touches the filesystem.
+"""
 
 from __future__ import annotations
 

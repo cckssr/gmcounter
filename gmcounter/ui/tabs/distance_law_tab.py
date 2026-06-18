@@ -1,4 +1,5 @@
 # Layer: ui/tabs — DistanceLawTab: measures count/rate vs. sample distance.
+"""Distance-law (1/r²) parameter-sweep experiment tab."""
 #
 # All behaviour is inherited from ParameterSweepTabBase.
 # All static layout (spinbox, plot container, table, status label) lives in

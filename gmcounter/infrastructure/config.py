@@ -1,4 +1,11 @@
-"""Configuration loading and management."""
+"""Configuration loading for GMCounter.
+
+:func:`import_config` is the single entry point.  It searches several
+candidate paths in priority order and falls back to ``importlib.resources``
+if no file is found on disk.  Always cache the result at module level::
+
+    CONFIG = import_config()
+"""
 
 import json
 import sys
@@ -53,5 +60,14 @@ def import_config(language: str = "de") -> dict:
 
 
 def get_config(language: str = "de") -> dict:
-    """Convenience function to get configuration."""
+    """Return the language-specific config dict.
+
+    Thin alias for :func:`import_config`; prefer that name for clarity.
+
+    Args:
+        language: Language key to look up (default ``"de"``).
+
+    Returns:
+        Configuration dictionary for the requested language.
+    """
     return import_config(language)

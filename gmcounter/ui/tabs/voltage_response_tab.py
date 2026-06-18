@@ -1,4 +1,5 @@
 # Layer: ui/tabs — VoltageResponseTab: measures count/rate vs. GM tube voltage.
+"""Voltage-response (Geiger plateau) parameter-sweep experiment tab."""
 #
 # All behaviour is inherited from ParameterSweepTabBase.
 # All static layout (plot container, table, status label) lives in

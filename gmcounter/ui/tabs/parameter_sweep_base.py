@@ -1,4 +1,5 @@
 # Layer: ui/tabs — generic base for parameter-sweep experiments.
+"""Generic base for parameter-sweep experiment tabs (distance law, voltage curve, …)."""
 #
 # Subclass to build "Abstandsgesetz", "Spannungskurve", etc.:
 #   • declare class attributes (param_label, summary_filename_hint, …)
@@ -107,6 +108,7 @@ class ParameterSweepTabBase(PlotTabBase):
     # Dependency injection (called by MainWindow before build)
 
     def set_gm_tab(self, gm_tab: "GMTimingTab") -> None:
+        """Inject the shared GMTimingTab used to read per-point statistics."""
         self._gm_tab = gm_tab
 
     def inject_ui(
@@ -170,9 +172,11 @@ class ParameterSweepTabBase(PlotTabBase):
     # Measurement lifecycle
 
     def on_measurement_started(self) -> None:
+        """Record the start time of the current measurement point."""
         self._session_start = datetime.now()
 
     def on_measurement_stopped(self) -> None:
+        """Snapshot GMTimingTab export and append the result row to the summary."""
         if not self._gm_tab or not self._session_start:
             return
 
@@ -213,6 +217,7 @@ class ParameterSweepTabBase(PlotTabBase):
     # Data model
 
     def current_param(self) -> float:
+        """Return the current parameter value from the spinbox or provider callable."""
         return self._current_param()
 
     def _current_param(self) -> float:
@@ -221,19 +226,24 @@ class ParameterSweepTabBase(PlotTabBase):
         return self._param_input.value() if self._param_input else 0.0
 
     def has_data(self) -> bool:
+        """Return True if at least one measurement point has been recorded."""
         return bool(self._measurements)
 
     def has_unsaved_data(self) -> bool:
+        """Return True if there are recorded points that have not yet been saved."""
         return self._has_unsaved and self.has_data()
 
     def mark_saved(self) -> None:
+        """Clear the unsaved flag after a successful save."""
         self._has_unsaved = False
 
     @property
     def individual_exports(self) -> List[TabExport]:
+        """Individual TabExport objects (one per measurement point) for auto-save."""
         return list(self._individual_exports)
 
     def reset_summary(self) -> None:
+        """Discard all accumulated summary points and reset the UI."""
         self._measurements.clear()
         self._individual_exports.clear()
         self._has_unsaved = False
@@ -248,6 +258,7 @@ class ParameterSweepTabBase(PlotTabBase):
     # Export (PlotTabBase §7)
 
     def summary_export(self) -> Optional[TabExport]:
+        """Return a TabExport of the summary table, or None if no data."""
         if not self._measurements:
             return None
         cols = [self.param_label, "Anzahl", "Rate (1/s)", "Dauer (s)", "Zeitstempel"]
@@ -274,6 +285,7 @@ class ParameterSweepTabBase(PlotTabBase):
         )
 
     def export(self) -> Optional[TabExport]:
+        """Return the summary TabExport (delegates to summary_export)."""
         return self.summary_export()
 
     # ------------------------------------------------------------------
@@ -286,6 +298,7 @@ class ParameterSweepTabBase(PlotTabBase):
             self._param_input.setFocus()
 
     def _append_table_row(self, entry: dict) -> None:
+        """Append one result *entry* to the summary QTableView."""
         if self._table_model is None:
             return
         self._table_model.appendRow(
@@ -301,6 +314,7 @@ class ParameterSweepTabBase(PlotTabBase):
             self._table_view.scrollToBottom()
 
     def _refresh_plot(self) -> None:
+        """Re-render the scatter/line plot from the accumulated measurement list."""
         if not self._plot or not self._measurements:
             return
         # Sort by parameter value for connecting line
@@ -308,6 +322,7 @@ class ParameterSweepTabBase(PlotTabBase):
         self._plot.set_summary_points(pts)
 
     def _update_status(self) -> None:
+        """Update the status label with the current measurement count."""
         if not self._status_label:
             return
         n = len(self._measurements)

@@ -1,4 +1,11 @@
 # Layer: infrastructure/modules — HostModule Protocol + ModuleRegistry.
+"""Host-module Protocol and runtime registry (§8).
+
+:class:`HostModule` is a structural Protocol for host-side peripherals
+(USB motion stages, power supplies, etc.).  :class:`ModuleRegistry` is a
+class-level registry that tabs query to decide whether their
+``required_modules`` are available.
+"""
 
 from typing import Protocol, runtime_checkable
 
@@ -31,20 +38,28 @@ class ModuleRegistry:
 
     @classmethod
     def register(cls, module: object) -> None:
+        """Register *module* under its ``id``.
+
+        Raises:
+            TypeError: If *module* does not satisfy :class:`HostModule`.
+        """
         if not isinstance(module, HostModule):
             raise TypeError(f"{module!r} does not satisfy HostModule Protocol")
         cls._registry[module.id] = module  # type: ignore[attr-defined]
 
     @classmethod
     def unregister(cls, module_id: str) -> None:
+        """Remove the module with *module_id* from the registry (no-op if absent)."""
         cls._registry.pop(module_id, None)
 
     @classmethod
     def get(cls, module_id: str) -> object:
+        """Return the module registered under *module_id*, or None."""
         return cls._registry.get(module_id)
 
     @classmethod
     def all(cls) -> dict[str, object]:
+        """Return a shallow copy of the full registry dict."""
         return dict(cls._registry)
 
     @classmethod

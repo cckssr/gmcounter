@@ -1,5 +1,12 @@
 # Layer: ui/tabs — PlotTabBase contract (§6).
 # Experiment specifics live in subclasses — MainWindow must NOT branch per experiment.
+"""Experiment tab contract (§6).
+
+:class:`PlotTabBase` is the abstract base class for all experiment tabs.
+Subclass it to add a frame-based experiment; see
+:class:`~gmcounter.ui.tabs.parameter_sweep_base.ParameterSweepTabBase` for
+the sweep-experiment variant.
+"""
 
 from __future__ import annotations
 

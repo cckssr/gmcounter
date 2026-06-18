@@ -1,4 +1,5 @@
 # Layer: ui/windows — thin MainWindow.
+"""Thin main window: wires AppController signals to slot handlers that only touch widgets."""
 # setupUi + subscribe to AppController signals → slot handlers touch widgets only.
 # No reconnect/measurement/save business logic lives here.
 
@@ -206,6 +207,7 @@ class MainWindow(QMainWindow):
     # Button wiring
 
     def _setup_buttons(self) -> None:
+        """Wire all button signals and set initial enable/disabled state."""
         self.ui.buttonStart.clicked.connect(self._handle_start)
         self.ui.buttonStop.clicked.connect(self._handle_stop)
         self.ui.buttonSave.clicked.connect(self._handle_save)
@@ -243,6 +245,7 @@ class MainWindow(QMainWindow):
             self._on_auto_scroll_toggled(True)
 
     def _setup_radioactive_sample_input(self) -> None:
+        """Populate the radSample combobox from config and attach a fuzzy completer."""
         samples = CONFIG.get("radioactive_samples", [])
         self.ui.radSample.clear()
         self.ui.radSample.addItems(samples)
@@ -253,6 +256,7 @@ class MainWindow(QMainWindow):
         self.ui.radSample.setCompleter(completer)
 
     def _setup_detector_code_input(self) -> None:
+        """Populate the detectorCode combobox from config and attach a fuzzy completer."""
         codes = CONFIG.get("detektor_codes", [])
         self.ui.detectorCode.clear()
         self.ui.detectorCode.addItems(codes)
@@ -273,6 +277,7 @@ class MainWindow(QMainWindow):
     # AppController signal handlers
 
     def _on_tab_changed(self, index: int) -> None:
+        """React to QTabWidget page changes: show/hide the global-distance row and reroute frames."""
         current_page = self.ui.tabWidget.widget(index)
         on_distance_tab = current_page is self.ui.distance
         self.ui.lblDistance.setVisible(not on_distance_tab)
@@ -288,6 +293,7 @@ class MainWindow(QMainWindow):
             self._ctrl.set_active_tab(self._gm_tab)
 
     def _on_tab_status(self, level: str, text: str) -> None:
+        """Forward a tab status_message signal to the status bar and event log."""
         color = {"info": "green", "warning": "orange", "error": "red"}.get(
             level, "white"
         )
@@ -295,6 +301,7 @@ class MainWindow(QMainWindow):
         self._event_log.append(text, color)
 
     def _on_measurement_started(self) -> None:
+        """Lock UI controls for the duration of an active acquisition."""
         self.ui.buttonStart.setEnabled(False)
         self.ui.buttonStop.setEnabled(True)
         self.ui.buttonSave.setEnabled(False)
@@ -314,6 +321,7 @@ class MainWindow(QMainWindow):
             self._active_sweep_tab.on_measurement_started()
 
     def _on_measurement_stopped(self) -> None:
+        """Restore UI controls and update button states after a measurement ends."""
         self.ui.buttonStop.setEnabled(False)
         self.ui.buttonSave.setEnabled(True)
         self.ui.buttonReset.setEnabled(True)
@@ -350,6 +358,7 @@ class MainWindow(QMainWindow):
             self._save_state.mark_unsaved()
 
     def _on_device_state_updated(self, data: dict) -> None:
+        """Update all device-state LCDs (count, voltage, duration, mode) from a poll response."""
         # Skip corrupted / incomplete reads so LCDs are never overwritten
         # with zeros due to a bad FETC:STAT? response (e.g., right after a
         # measurement stops when binary bytes might still be in the RX buffer).
@@ -368,6 +377,7 @@ class MainWindow(QMainWindow):
         )
 
     def _on_statistics_updated(self, stats: dict) -> None:
+        """Populate the statistics labels (count, min, max, avg, stdev)."""
         if stats.get("count", 0) > 1:
             self.ui.cStatPoints.setText(f"{stats.get('count', 0):.0f}")
             self.ui.cStatMin.setText(f"{stats.get('min', 0):.0f}")
@@ -376,6 +386,7 @@ class MainWindow(QMainWindow):
             self.ui.cStatSD.setText(f"{stats.get('stdev', 0):.0f}")
 
     def _on_progress_updated(self, elapsed: int, total: int) -> None:
+        """Update the progress bar and elapsed-time label (total=0 → indeterminate)."""
         self.ui.progressTimer.setText(f"{elapsed}s")
         if total > 0:
             self.ui.progressBar.setMaximum(total)
@@ -384,10 +395,12 @@ class MainWindow(QMainWindow):
             self.ui.progressBar.setMaximum(0)  # indeterminate
 
     def _on_reconnect_succeeded(self) -> None:
+        """Re-enable Start and update the status indicator after a successful reconnect."""
         self.ui.buttonStart.setEnabled(True)
         self._set_status_indicator("Verbunden", "green")
 
     def _on_connection_lost_terminal(self) -> None:
+        """Show error dialog and set status to disconnected after all retries are exhausted."""
         self._set_status_indicator("Getrennt", "red")
         MessageHelper.show_error(
             self,
@@ -396,6 +409,7 @@ class MainWindow(QMainWindow):
         )
 
     def _on_device_info(self, info: dict) -> None:
+        """Display firmware version and OpenBIS identifier received from the device."""
         self.ui.cVersion.setText(info.get("version", ""))
         self.ui.cOpenbis.setText(info.get("openbis", ""))
 
@@ -452,6 +466,7 @@ class MainWindow(QMainWindow):
             self.ui.tabWidget.setTabEnabled(idx, (not locked) or page is active_page)
 
     def _handle_start(self) -> None:
+        """Route Start button to the appropriate mode: interval, sweep, or normal."""
         sweep = self._current_sweep_tab()
         interval = self._current_interval_tab()
 
@@ -529,9 +544,11 @@ class MainWindow(QMainWindow):
             self._ctrl.start_measurement(total_seconds=total)
 
     def _handle_stop(self) -> None:
+        """Stop the active measurement."""
         self._ctrl.stop_measurement()
 
     def _handle_save(self) -> None:
+        """Route Save button: interval session, sweep session, or single measurement."""
         from ...infrastructure.save_service import write_export
 
         interval = self._active_interval_tab
@@ -713,6 +730,7 @@ class MainWindow(QMainWindow):
                 MessageHelper.show_error(self, "Fehler beim Speichern.", "Fehler")
 
     def _handle_reset(self) -> None:
+        """Discard current data after user confirmation and return to Bereit state."""
         if self._ctrl.is_measuring:
             MessageHelper.show_warning(self, "Messung läuft.", "Warnung")
             return
@@ -774,6 +792,7 @@ class MainWindow(QMainWindow):
         self._set_status_indicator("Bereit", "green")
 
     def _handle_apply_settings(self) -> None:
+        """Read UI settings and push them to the device via AppController.apply_settings."""
         # Bug fix §6: read repeat from sModeMulti radio (not the broken cMode.text() check)
         repeat = self.ui.sModeMulti.isChecked()
         # Bug fix §6: auto-query enabled end-to-end via sQModeAuto radio
@@ -789,6 +808,7 @@ class MainWindow(QMainWindow):
     # Plot / scroll handlers
 
     def _on_auto_scroll_toggled(self, checked: bool) -> None:
+        """Enable or disable auto-scroll on the time-series plot."""
         if self._gm_tab._plot:
             if checked:
                 self._gm_tab._plot.set_auto_scroll(True, self.ui.sPlotpoints.value())
@@ -796,19 +816,23 @@ class MainWindow(QMainWindow):
                 self._gm_tab._plot.set_auto_scroll(False)
 
     def _on_plot_points_changed(self, value: int) -> None:
+        """Update the auto-scroll window size when the sPlotpoints spinbox changes."""
         if self.ui.autoScroll.isChecked() and self._gm_tab._plot:
             self._gm_tab._plot.set_auto_scroll(True, value)
 
     def _on_auto_range(self) -> None:
+        """Fit the plot to all data and re-enable auto-scroll."""
         if self._gm_tab._plot:
             self._gm_tab._plot.enable_auto_range(True)
         self.ui.autoScroll.setChecked(True)
 
     def _on_plot_user_interaction(self) -> None:
+        """Uncheck autoScroll when the user manually pans or zooms the plot."""
         if self.ui.autoScroll.isChecked():
             self.ui.autoScroll.setChecked(False)
 
     def _on_auto_save_toggled(self, checked: bool) -> None:
+        """Show a brief status message when the auto-backup toggle changes."""
         msg = (
             CONFIG.get("messages", {}).get("auto_save_enabled", "Auto-Backup aktiviert")
             if checked
@@ -819,6 +843,7 @@ class MainWindow(QMainWindow):
         self._status_bar.show_message(msg, duration=1000)
 
     def _on_voltage_changed(self, value: int) -> None:
+        """Highlight the voltage spinbox and warn when the value exceeds the config threshold."""
         threshold = CONFIG.get("gm_counter", {}).get("voltage_warning_threshold", 650)
         if value > threshold:
             self.ui.sVoltage.setStyleSheet("background-color: orange;")
@@ -835,6 +860,7 @@ class MainWindow(QMainWindow):
     # Status indicator
 
     def _set_status_indicator(self, status: str, color: str) -> None:
+        """Update the status LED color and label text."""
         led_color = _LED_COLORS.get(color, _LED_COLORS["gray"])
         self.ui.statusLED.setStyleSheet(
             f"background-color: {led_color}; border: 0px; padding: 4px; border-radius: 10px"
@@ -845,6 +871,7 @@ class MainWindow(QMainWindow):
     # Window lifecycle
 
     def closeEvent(self, event) -> None:
+        """Prompt for unsaved data, then stop all threads and accept the close."""
         if self._save_state.has_unsaved():
             if not MessageHelper.ask_question(
                 self,

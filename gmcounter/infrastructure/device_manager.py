@@ -1,6 +1,13 @@
 # Layer: infrastructure — Qt-free device manager.
 # No QObject, no Signal, no QTimer — plain callbacks only.
 # The ui layer (AppController) owns the DataAcquisitionThread and connects signals.
+"""Qt-free GM counter connection lifecycle manager.
+
+:class:`DeviceManager` manages the serial connection to one GM counter.
+It uses plain Python callbacks so it can be tested without a running
+``QApplication``.  :class:`~gmcounter.ui.controllers.app_controller.AppController`
+subscribes to these callbacks and translates them into Qt signals.
+"""
 
 import logging
 import time
@@ -177,6 +184,7 @@ class DeviceManager:
         return unconfirmed
 
     def disconnect_device(self) -> None:
+        """Close the device connection and reset state."""
         if self.device:
             try:
                 self.device.close()
@@ -206,6 +214,11 @@ class DeviceManager:
     # Measurement control
 
     def start_measurement(self) -> bool:
+        """Send ``INIT`` to the device and mark the measurement as started.
+
+        Returns:
+            True on success; False if not connected or a serial error occurs.
+        """
         if not (self.device and self.connected):
             _log.warning("Cannot start: device not connected")
             return False
@@ -220,6 +233,11 @@ class DeviceManager:
             return False
 
     def stop_measurement(self) -> bool:
+        """Send ``ABOR``, clear the event register, and drain the input buffer.
+
+        Returns:
+            True on success; False if not connected or a serial error occurs.
+        """
         self.measurement_state.stop_measurement()
         if not (self.device and self.connected):
             _log.warning("Stop called but device not connected")

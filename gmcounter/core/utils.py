@@ -1,4 +1,9 @@
 # Layer: core — pure Python, zero Qt/serial/vendor SDK imports.
+"""Filename and statistics utilities for GMCounter.
+
+All functions are pure Python with no side effects — safe to import and
+call from any layer.
+"""
 
 import logging
 import re

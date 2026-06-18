@@ -1,4 +1,11 @@
 # Layer: core — pure Python, zero Qt/serial/vendor SDK imports.
+"""Exponential-backoff reconnect logic.
+
+:class:`ReconnectStrategy` is a pure value object that tracks attempt count
+and computes the next delay.  :class:`ConnectionRetryService` drives a
+reconnect loop synchronously; callers that need non-blocking behaviour
+should run it inside a :class:`~gmcounter.infrastructure.qt_threads.ReconnectWorker`.
+"""
 
 import logging
 import time
@@ -27,19 +34,23 @@ class ReconnectStrategy:
         self.attempt_count = 0
 
     def reset(self) -> None:
+        """Reset the attempt counter to zero."""
         self.attempt_count = 0
         _log.info("Reconnection attempt counter reset")
 
     def should_retry(self) -> bool:
+        """Return True if more attempts are available."""
         return self.attempt_count < self.max_attempts
 
     def get_next_delay_ms(self) -> float:
+        """Return the next backoff delay in milliseconds and advance the counter."""
         delay = self.initial_delay_ms * (self.backoff_factor**self.attempt_count)
         delay = min(delay, self.max_delay_ms)
         self.attempt_count += 1
         return delay
 
     def get_attempt_info(self) -> str:
+        """Return a human-readable "Attempt N/M" progress string."""
         return f"Attempt {self.attempt_count}/{self.max_attempts}"
 
 

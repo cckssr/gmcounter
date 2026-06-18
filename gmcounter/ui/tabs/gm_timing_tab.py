@@ -1,4 +1,5 @@
 # Layer: ui/tabs — GMTimingTab: GM inter-event timing experiment.
+"""GM inter-event timing experiment tab; contributes 3 top-level view tabs."""
 # The first registered experiment; contributes 3 top-level view tabs.
 
 from __future__ import annotations
@@ -134,6 +135,13 @@ class GMTimingTab(PlotTabBase):
     def set_measurement_metadata(
         self, rad_sample: str, group: str, subterm: str
     ) -> None:
+        """Store metadata fields embedded in the TabExport on save.
+
+        Args:
+            rad_sample: Radioactive sample identifier string.
+            group: Measurement group (experiment series).
+            subterm: Sub-term / sub-experiment label.
+        """
         self._rad_sample = rad_sample
         self._group = group
         self._subterm = subterm
@@ -230,6 +238,7 @@ class GMTimingTab(PlotTabBase):
                     break
 
     def on_reset(self) -> None:
+        """Clear all data, reset plots, counters, and high-speed mode."""
         self._deactivate_high_speed()
         self._batch_history.clear()
         self._data_points.clear()
@@ -257,9 +266,11 @@ class GMTimingTab(PlotTabBase):
             self._gui_timer.start(GUI_UPDATE_INTERVAL)
 
     def on_measurement_started(self) -> None:
+        """Record the session start time."""
         self._session_start = datetime.now()
 
     def on_measurement_stopped(self) -> None:
+        """Record the session end time and stop the GUI update timer."""
         self._session_end = datetime.now()
         if self._gui_timer:
             self._gui_timer.stop()
@@ -278,6 +289,7 @@ class GMTimingTab(PlotTabBase):
     # Export (§7)
 
     def export(self) -> Optional[TabExport]:
+        """Return a TabExport of all recorded inter-event deltas, or None if empty."""
         if not self._data_points:
             return None
         session = MeasurementSession(
@@ -296,6 +308,7 @@ class GMTimingTab(PlotTabBase):
         )
 
     def get_statistics(self) -> dict:
+        """Return {count, min, max, avg, stdev} computed from all acquired deltas."""
         if not self._data_points:
             return {}
         values = [pt[1] for pt in self._data_points]
@@ -322,6 +335,7 @@ class GMTimingTab(PlotTabBase):
     # Internal — GUI update loop
 
     def _process_queue(self) -> None:
+        """Drain the inter-thread queue and update plot, table, and LCDs."""
         if self._queue.empty():
             return
 
@@ -358,6 +372,7 @@ class GMTimingTab(PlotTabBase):
         self._check_high_speed(len(new_points), now)
 
     def _update_plot_and_display(self, last_val: float) -> None:
+        """Refresh the line plot, event count LCD, and histogram (throttled)."""
         if self._plot and self._gui_points:
             self._plot.update_plot_data(self._gui_points, deferred=True)
 
@@ -380,6 +395,7 @@ class GMTimingTab(PlotTabBase):
                 self._histogram.update_histogram(values)
 
     def _update_table(self, points: List[Tuple[int, float, str]]) -> None:
+        """Append *points* to the data table, capped at MAX_HISTORY rows."""
         if self._table_model is None:
             return
         for idx, val, ts in points:
@@ -394,6 +410,7 @@ class GMTimingTab(PlotTabBase):
             self._table_model.removeRow(0)
 
     def _check_high_speed(self, batch_size: int, now: float) -> None:
+        """Activate high-speed mode if the rolling batch average exceeds the threshold."""
         if self._high_speed:
             return
         self._batch_history.append((now, batch_size))
@@ -406,6 +423,7 @@ class GMTimingTab(PlotTabBase):
             self._activate_high_speed()
 
     def _activate_high_speed(self) -> None:
+        """Switch to high-speed mode: disable plot/table updates, start 2 s histogram timer."""
         if self._high_speed:
             return
         self._high_speed = True
@@ -426,6 +444,7 @@ class GMTimingTab(PlotTabBase):
             self._hist_timer.start(2000)
 
     def _deactivate_high_speed(self) -> None:
+        """Exit high-speed mode and resume normal GUI update timer."""
         if not self._high_speed:
             return
         self._high_speed = False
@@ -438,6 +457,7 @@ class GMTimingTab(PlotTabBase):
             self._gui_timer.start(GUI_UPDATE_INTERVAL)
 
     def _update_rate_display(self, now: float) -> None:
+        """Recompute and display events-per-second from the device-time accumulator."""
         if not self._rate_lcd:
             return
         if self._cum_us > 0 and self._data_points:
@@ -446,6 +466,7 @@ class GMTimingTab(PlotTabBase):
             self._rate_lcd.display(round(cps, 1))
 
     def _update_histogram_only(self) -> None:
+        """Update only the histogram during high-speed mode (called every 2 s)."""
         if not self._high_speed or not self._histogram:
             return
         now = time()

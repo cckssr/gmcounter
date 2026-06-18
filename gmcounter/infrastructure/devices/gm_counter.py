@@ -1,4 +1,12 @@
 # Layer: infrastructure/devices — Qt-free GM counter adapter.
+"""GM counter device adapter for the SCPI firmware protocol.
+
+:class:`GMCounterAdapter` extends :class:`~gmcounter.infrastructure.serial_device.SerialDevice`
+with the full SCPI command set supported by the firmware (v2+).  All methods
+are synchronous and blocking; the acquisition thread calls
+:meth:`~gmcounter.infrastructure.serial_device.SerialDevice.read_fast` to
+drain the binary data stream.
+"""
 
 import logging
 from time import sleep
@@ -12,17 +20,19 @@ _log = logging.getLogger(__name__)
 class GMCounterAdapter(SerialDevice):
     """GM counter SCPI command set over serial.
 
-    Communicates with the firmware (v2+) using SCPI commands:
-      *IDN? / *RST / *CLS
-      INIT / ABOR
-      MEAS:STRT / MEAS:STP
-      CONF:VOLT / CONF:TIME / CONF:REP / CONF:STR
-      FETC:STAT? / SYST:CLR / CONF:SPKR / SYST:ERR?
+    Communicates with the firmware (v2+) using SCPI commands::
 
-    Binary timing data is streamed as 0xAA [4-byte LE µs] 0x55 packets,
-    preceded by a 0xFF×6 start marker when INIT is sent.
-    MEAS:STRT starts the counter without the streaming interrupt; FETC:STAT?
-    can still be used to poll counts.  MEAS:STP or ABOR stops it.
+        *IDN? / *RST / *CLS
+        INIT / ABOR
+        MEAS:STRT / MEAS:STP
+        CONF:VOLT / CONF:TIME / CONF:REP / CONF:STR
+        FETC:STAT? / SYST:CLR / CONF:SPKR / SYST:ERR?
+
+    Binary timing data is streamed as ``0xAA [4-byte LE µs] 0x55`` packets,
+    preceded by a ``0xFF×6`` start marker when ``INIT`` is sent.
+    ``MEAS:STRT`` starts the counter without the streaming interrupt;
+    ``FETC:STAT?`` can still be used to poll counts.  ``MEAS:STP`` or
+    ``ABOR`` stops it.
     """
 
     is_mock_device: bool = False
@@ -132,6 +142,16 @@ class GMCounterAdapter(SerialDevice):
             return template
 
     def get_information(self, use_cache: bool = True) -> Dict[str, str]:
+        """Query ``*IDN?`` and return parsed device information.
+
+        Args:
+            use_cache: Return the cached result if available (avoids a serial
+                round-trip on repeated calls).
+
+        Returns:
+            Dict with keys ``copyright`` (manufacturer), ``version``
+            (firmware version), and ``openbis`` (device serial number).
+        """
         if use_cache and self._device_info_cache is not None:
             return self._device_info_cache.copy()
 
@@ -153,6 +173,15 @@ class GMCounterAdapter(SerialDevice):
 
     # Control commands
     def set_stream(self, value: int = 0, confirm: bool = False) -> bool:
+        """Set the binary stream mode (``CONF:STR``).
+
+        Args:
+            value: Stream mode index (0 = off, 4 = continuous binary stream).
+            confirm: If True, read back the value and verify it was accepted.
+
+        Returns:
+            True if the command was sent (and confirmed when requested).
+        """
         self.send_command(f"CONF:STR {value}")
         if confirm:
             self.flush_input_buffer()
@@ -166,6 +195,16 @@ class GMCounterAdapter(SerialDevice):
         return True
 
     def set_voltage(self, value: int = 500, confirm: bool = False) -> Optional[bool]:
+        """Set the detector high voltage (``CONF:VOLT``).
+
+        Args:
+            value: Voltage in V; must be in the range 300–700.
+            confirm: If True, read back and verify.
+
+        Returns:
+            True on success, False if confirmation failed, None if *value*
+            is out of the allowed range.
+        """
         if not 300 <= value <= 700:
             _log.error("Voltage must be between 300 and 700, got %d", value)
             return None
@@ -182,6 +221,15 @@ class GMCounterAdapter(SerialDevice):
         return True
 
     def set_repeat(self, value: bool = False, confirm: bool = False) -> bool:
+        """Enable or disable repeat mode (``CONF:REP``).
+
+        Args:
+            value: True to enable repeat mode.
+            confirm: If True, read back and verify.
+
+        Returns:
+            True on success, False if confirmation failed.
+        """
         self.send_command(f"CONF:REP {1 if value else 0}")
         if confirm:
             self.flush_input_buffer()
@@ -195,6 +243,14 @@ class GMCounterAdapter(SerialDevice):
         return True
 
     def set_counting(self, value: bool = False) -> bool:
+        """Start (``INIT``) or stop (``ABOR``) the binary acquisition stream.
+
+        Args:
+            value: True to send ``INIT``, False to send ``ABOR``.
+
+        Returns:
+            Always True (errors are logged but not re-raised).
+        """
         self.send_command("INIT" if value else "ABOR")
         return True
 
@@ -211,6 +267,16 @@ class GMCounterAdapter(SerialDevice):
     def set_speaker(
         self, gm: bool = False, ready: bool = False, confirm: bool = False
     ) -> bool:
+        """Configure the speaker output (``CONF:SPKR``).
+
+        Args:
+            gm: True to enable click on each GM event.
+            ready: True to enable tone when the counting period is ready.
+            confirm: If True, read back and verify.
+
+        Returns:
+            True on success, False if confirmation failed.
+        """
         self.send_command(f"CONF:SPKR {int(gm) + 2 * int(ready)}")
         if confirm:
             self.send_command("CONF:SPKR?")
@@ -227,6 +293,16 @@ class GMCounterAdapter(SerialDevice):
     def set_counting_time(
         self, value: int = 0, confirm: bool = False
     ) -> Optional[bool]:
+        """Set the counting time mode index (``CONF:TIME``).
+
+        Args:
+            value: Mode index 0–5 (0 = infinite, 1–5 map to device time modes).
+            confirm: If True, read back and verify.
+
+        Returns:
+            True on success, False if confirmation failed, None if *value*
+            is out of range.
+        """
         if not 0 <= value <= 5:
             _log.error("Counting time key must be 0–5, got %d", value)
             return None
@@ -245,5 +321,10 @@ class GMCounterAdapter(SerialDevice):
         return True
 
     def clear_register(self) -> bool:
+        """Send ``SYST:CLR`` to reset the GM counter's event register.
+
+        Returns:
+            Always True.
+        """
         self.send_command("SYST:CLR")
         return True

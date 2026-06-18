@@ -2,6 +2,12 @@
 #
 # MCS-style interval binning: one continuous acquisition sliced into
 # R contiguous fixed-width intervals.
+"""MCS-style interval binning for continuous acquisitions.
+
+:class:`IntervalBinner` slices one continuous acquisition into *R*
+equal-width device-time intervals.  It is a reusable, dependency-free
+building block; the UI layer uses it in :class:`~gmcounter.ui.tabs.interval_repeat_tab.IntervalRepeatTab`.
+"""
 
 from __future__ import annotations
 
@@ -24,13 +30,12 @@ class IntervalBins:
 class IntervalBinner:
     """Slice a continuous acquisition into *repeats* equal-width bins.
 
-    Convention ("+1"):
-    - The first detected pulse defines t = 0 and is counted as event #1.
-      bin 0 is seeded with +1 on the first feed() call.
-    - Each subsequent delta advances cum_us; the TERMINATING event is
-      assigned to floor(cum_us / width_us).
-    - total_count() == N_deltas + 1.
-    - Events landing in bin >= repeats are silently discarded (past window).
+    Convention ("+1"): the first detected pulse defines t=0 and is counted
+    as event #1 (bin 0 seeded with +1 on the first :meth:`feed` call).
+    Each subsequent delta advances ``cum_us``; the terminating event is
+    assigned to ``floor(cum_us / width_us)``.  Events landing in bin
+    ``>= repeats`` are silently discarded (past window).
+    ``total_count() == N_deltas + 1``.
     """
 
     def __init__(self, width_us: float, repeats: int) -> None:

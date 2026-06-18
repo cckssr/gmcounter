@@ -1,4 +1,10 @@
 # Layer: ui/tabs — TabRegistry (§6).
+"""Runtime registry of frame-based experiment tab classes (§6).
+
+Sweep tabs (:class:`~gmcounter.ui.tabs.parameter_sweep_base.ParameterSweepTabBase`
+subclasses) are wired explicitly in ``MainWindow`` and are **not** registered
+here.
+"""
 
 from __future__ import annotations
 
@@ -27,9 +33,12 @@ class TabRegistry:
 
     @classmethod
     def register(cls, tab_class: type[PlotTabBase]) -> None:
+        """Register *tab_class* (no-op if already registered)."""
         if tab_class not in cls._tabs:
             cls._tabs.append(tab_class)
-            _log.debug("Registered tab: %s", tab_class.tab_id)
+            _log.debug(
+                "Registered tab: %s", getattr(tab_class, "tab_id", repr(tab_class))
+            )
 
     @classmethod
     def available(cls, modules: dict[str, object]) -> list[type[PlotTabBase]]:
@@ -38,6 +47,7 @@ class TabRegistry:
 
     @classmethod
     def all_registered(cls) -> list[type[PlotTabBase]]:
+        """Return all registered tab classes regardless of module availability."""
         return list(cls._tabs)
 
     @classmethod

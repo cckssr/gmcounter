@@ -1,4 +1,5 @@
 # Layer: ui/tabs — IntervalRepeatTab: MCS-style interval/repeat measurement.
+"""MCS-style interval/repeat measurement tab (bins one acquisition into R intervals)."""
 #
 # One continuous acquisition sliced into R equal-width intervals.
 # Lives on its own .ui page (mainwindow.ui → "interval").
@@ -71,6 +72,15 @@ class IntervalRepeatTab(PlotTabBase):
         repeat_input: QSpinBox,
         status_label: QLabel,
     ) -> None:
+        """Receive the .ui container widgets. Call before build().
+
+        Args:
+            plot_container: Empty QWidget (native=true) to host the GeneralPlot.
+            table_view: QTableView for per-interval results.
+            width_input: QDoubleSpinBox for interval width in seconds.
+            repeat_input: QSpinBox for number of intervals R.
+            status_label: QLabel for status/count display.
+        """
         self._plot_container = plot_container
         self._table_view = table_view
         self._width_input = width_input
@@ -81,6 +91,7 @@ class IntervalRepeatTab(PlotTabBase):
     # PlotTabBase lifecycle
 
     def build(self) -> None:
+        """Create the GeneralPlot and configure the table model."""
         from ..widgets.plot import GeneralPlot, PlotConfig
 
         if self._plot_container and self._plot is None:
@@ -108,6 +119,7 @@ class IntervalRepeatTab(PlotTabBase):
             hdr.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
     def on_reset(self) -> None:
+        """Reset the binner and table to prepare for a new acquisition."""
         w = self._width_input.value() if self._width_input else 1.0
         r = self._repeat_input.value() if self._repeat_input else 10
         self._binner = IntervalBinner(w * 1e6, r)
@@ -119,14 +131,17 @@ class IntervalRepeatTab(PlotTabBase):
         self._update_status()
 
     def on_measurement_started(self) -> None:
+        """Record acquisition start time."""
         self._session_start = datetime.now()
 
     def on_measurement_stopped(self) -> None:
+        """Mark data as unsaved if events were recorded."""
         if self._binner and self._binner.total_count() > 0:
             self._has_unsaved = True
         self._update_status()
 
     def on_frames(self, frames) -> None:
+        """Feed incoming frames to the binner and refresh touched bins."""
         if not frames or self._binner is None:
             return
         points = [(f.index, f.value) for f in frames]
@@ -140,28 +155,35 @@ class IntervalRepeatTab(PlotTabBase):
 
     @property
     def width_s(self) -> float:
+        """Configured interval width in seconds (from the width spinbox)."""
         return self._width_input.value() if self._width_input else 1.0
 
     @property
     def repeat_count(self) -> int:
+        """Configured number of intervals R (from the repeat spinbox)."""
         return self._repeat_input.value() if self._repeat_input else 10
 
     def has_data(self) -> bool:
+        """Return True if at least one event has been recorded."""
         return bool(self._binner and self._binner.total_count() > 0)
 
     def has_unsaved_data(self) -> bool:
+        """Return True if there are recorded events that have not been saved."""
         return self._has_unsaved and self.has_data()
 
     def mark_saved(self) -> None:
+        """Clear the unsaved flag after a successful save."""
         self._has_unsaved = False
 
     def reset(self) -> None:
+        """Reset the binner and UI (alias for on_reset for external callers)."""
         self.on_reset()
 
     # ------------------------------------------------------------------
     # Export
 
     def summary_export(self) -> Optional[TabExport]:
+        """Return a TabExport of per-interval counts, or None if no data."""
         if not self._binner or not self.has_data():
             return None
         bins = self._binner.bins
@@ -191,10 +213,12 @@ class IntervalRepeatTab(PlotTabBase):
         )
 
     def export(self) -> Optional[TabExport]:
+        """Return the summary TabExport (delegates to summary_export)."""
         return self.summary_export()
 
     @property
     def interval_exports(self) -> List[TabExport]:
+        """Return a list of per-interval TabExports (raw deltas), one per interval."""
         if not self._binner or not self.has_data():
             return []
         bins = self._binner.bins
@@ -226,6 +250,7 @@ class IntervalRepeatTab(PlotTabBase):
     # Private helpers
 
     def _refresh_plot(self) -> None:
+        """Redraw the bar chart with current per-interval counts."""
         if not self._plot or not self._binner:
             return
         bins = self._binner.bins
@@ -233,6 +258,7 @@ class IntervalRepeatTab(PlotTabBase):
         self._plot.set_summary_points(pts)
 
     def _refresh_table_incremental(self, touched: List[int]) -> None:
+        """Update only the table rows for bins in *touched* (avoids full redraw)."""
         if self._table_model is None or self._binner is None:
             return
         bins = self._binner.bins
@@ -260,6 +286,7 @@ class IntervalRepeatTab(PlotTabBase):
                     self._table_model.setItem(i, col, item)
 
     def _update_status(self) -> None:
+        """Update the status label with total event count and device-time elapsed."""
         if not self._status_label:
             return
         if not self.has_data():

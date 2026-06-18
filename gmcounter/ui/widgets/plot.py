@@ -52,21 +52,10 @@ pg.setConfigOption("useNumba", True)  # Use numba if available for acceleration
 
 
 class PlotConfig:
-    """Configuration for GeneralPlot.
+    """Configuration dataclass for GeneralPlot.
 
-    Attributes:
-        title (Optional[str]): Plot title
-        xlabel (str): X-axis label
-        ylabel (str): Y-axis label
-        fontsize (int): Font size for labels and title
-        max_plot_points (int): Maximum number of points to display in auto-scroll mode
-        background_color (Optional[str]): Background color (CSS format)
-        grid_alpha (float): Alpha transparency for grid lines (0.0-1.0)
-        use_opengl (bool): Enable OpenGL rendering (best performance)
-        antialias (bool): Enable antialiasing (slower but prettier)
-        skip_finite_check (bool): Skip checking for NaN/inf values (faster if data is pre-validated)
-        pen_width (int): Width of plot line
-        symbol_size (int): Size of plot symbols
+    Pass keyword arguments matching the attribute names to the constructor.
+    Unrecognised keys are silently ignored.
     """
 
     title: Optional[str] = None

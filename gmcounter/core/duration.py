@@ -2,6 +2,13 @@
 #
 # Delta-based duration trimming for device-time-gated measurements.
 # The running sum of inter-event deltas is the authoritative elapsed time.
+"""Delta-based duration trimming for finite counting-time measurements.
+
+:func:`accumulate_and_trim` is a reusable, dependency-free algorithm that
+keeps only the data points that arrive before a device-time budget is
+exhausted.  It is the sole source of truth for counting-time enforcement;
+no hardware timer is needed on the host side.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,10 @@
 # Layer: core — pure Python, zero Qt/serial/vendor SDK imports.
+"""Core data models for GMCounter.
+
+All types here are pure Python dataclasses — no Qt, no serial, no I/O.
+:class:`Frame` is the canonical cross-thread value passed via Qt signals;
+:class:`DesiredState` is the reconnect-replay snapshot (§5 B5).
+"""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -27,12 +33,14 @@ class MeasurementSession:
 
     @property
     def duration_seconds(self) -> float:
+        """Wall-clock duration of the session in seconds; 0.0 if not yet started."""
         if self.start_time and self.end_time:
             return (self.end_time - self.start_time).total_seconds()
         return 0.0
 
     @property
     def count(self) -> int:
+        """Number of acquired data points."""
         return len(self.points)
 
 
@@ -46,6 +54,7 @@ class DeviceSettings:
     voltage: int = 500
 
     def to_dict(self) -> dict:
+        """Serialize settings to a plain dictionary."""
         return {
             "repeat": self.repeat,
             "auto_query": self.auto_query,
@@ -95,6 +104,7 @@ class DesiredState:
     stream: int = 1
 
     def to_device_settings(self) -> DeviceSettings:
+        """Convert snapshot to a :class:`DeviceSettings` for re-application."""
         return DeviceSettings(
             voltage=self.voltage,
             counting_time=self.counting_time,
