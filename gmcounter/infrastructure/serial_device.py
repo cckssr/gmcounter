@@ -93,11 +93,11 @@ class SerialDevice:
             return True
         except (serial.SerialException, OSError) as exc:
             _log.error("Serial error sending command: %s", exc, exc_info=True)
-            if "Device not configured" in str(exc) or "Errno 6" in str(exc):
-                self.connected = False
+            self.connected = False
             return False
         except Exception as exc:
             _log.error("Unexpected error sending command: %s", exc, exc_info=True)
+            self.connected = False
             return False
 
     def _wait_for_data(self, timeout: float) -> bool:
@@ -167,8 +167,9 @@ class SerialDevice:
                 return bytes(buf)
             buf = self.serial.read(max_bytes)
             return buf if buf else b""
-        except serial.SerialException as exc:
+        except (serial.SerialException, OSError) as exc:
             _log.error("Serial error in fast read: %s", exc)
+            self.connected = False
             return None
         finally:
             self.serial.timeout = original

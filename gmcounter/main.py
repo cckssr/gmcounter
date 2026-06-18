@@ -1,8 +1,10 @@
 """GMCounter - Hauptprogramm für die Geiger-Müller Counter GUI-Anwendung."""
 
+import logging
 import sys
 import os
 
+from PySide6.QtCore import qInstallMessageHandler, QtMsgType  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QApplication,
     QMessageBox,
@@ -11,6 +13,17 @@ from .infrastructure.logging import Debug
 from .ui.dialogs.connection import ConnectionWindow
 from .ui.windows.main_window import MainWindow
 from .infrastructure.config import import_config
+
+_qt_log = logging.getLogger("gmcounter.qt")
+
+
+def _qt_message_handler(mode, _context, message: str) -> None:
+    if mode == QtMsgType.QtWarningMsg:
+        _qt_log.warning("Qt: %s", message)
+    elif mode in (QtMsgType.QtCriticalMsg, QtMsgType.QtFatalMsg):
+        _qt_log.error("Qt: %s", message)
+    # QtDebugMsg / QtInfoMsg are too verbose — suppress
+
 
 # from .ui.resources.stylesheet import apply_stylesheet
 
@@ -49,6 +62,9 @@ def main():
 
     Debug.init(debug_level=debug_level, app_name=CONFIG["application"]["name"])
 
+    # Redirect Qt's own warning/error messages into our log file
+    qInstallMessageHandler(_qt_message_handler)
+
     # Globalen Exception-Handler registrieren
     sys.excepthook = Debug.exception_hook
 
@@ -75,7 +91,7 @@ def main():
         if success and device_manager is not None:
             # Hauptfenster erstellen und anzeigen, wenn Verbindung erfolgreich
             main_window = MainWindow(device_manager)
-            main_window.show()
+            # MainWindow.__init__ already calls showMaximized(); no show() needed here.
 
             # Timer starten, wenn vorhanden
             if hasattr(main_window, "timer"):

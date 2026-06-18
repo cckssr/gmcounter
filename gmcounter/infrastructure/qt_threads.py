@@ -34,6 +34,7 @@ class DataAcquisitionThread(QThread):
     # Public signals
     data_batch = Signal(object)  # list[tuple[int index, float value_us]]
     connection_lost = Signal()
+    measurement_complete = Signal()  # firmware end-of-period sentinel (0xEE×6)
 
     def __init__(self, manager) -> None:
         """Initialize the data acquisition thread.
@@ -122,6 +123,12 @@ class DataAcquisitionThread(QThread):
                         _log.info("Start marker found — stream synced")
                     if points:
                         self.data_batch.emit(points)
+                    if self._parser.end_of_period:
+                        _log.info(
+                            "End-of-period sentinel received — emitting measurement_complete"
+                        )
+                        self._parser.clear_end_of_period()
+                        self.measurement_complete.emit()
 
                 else:
                     if not self.manager.measurement_state.measurement_active:
@@ -145,6 +152,10 @@ class DataAcquisitionThread(QThread):
                 time.sleep(0.1)
 
         _log.info("DataAcquisitionThread stopped")
+
+    def reset_connection_lost(self) -> None:
+        """Allow connection-loss detection to fire again after a successful reconnect."""
+        self._connection_lost_emitted = False
 
     def reset_index(self) -> None:
         old = self._parser.index
@@ -215,7 +226,10 @@ class StatePollerThread(QThread):
                             self.data_ready.emit(data)
                     except Exception as exc:
                         _log.debug("State poller error: %s", exc)
-            time.sleep(self._POLL_INTERVAL_S)
+            # Use event-based wait so force_poll_soon() wakes the thread
+            # immediately instead of waiting up to _POLL_INTERVAL_S.
+            self._wake_event.wait(self._POLL_INTERVAL_S)
+            self._wake_event.clear()
         _log.info("StatePollerThread stopped")
 
     def stop(self) -> None:
@@ -248,14 +262,18 @@ class ReconnectWorker(QThread):
     def __init__(
         self,
         reconnect_fn: Callable[[], bool],
-        max_attempts: int = 5,
+        max_attempts: int = 8,
         initial_delay_ms: float = 500,
+        max_delay_ms: float = 16000,
+        backoff_factor: float = 2.0,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._reconnect_fn = reconnect_fn
         self._max_attempts = max_attempts
         self._initial_delay_ms = initial_delay_ms
+        self._max_delay_ms = max_delay_ms
+        self._backoff_factor = backoff_factor
         self._abort = False
 
     def abort(self) -> None:
@@ -267,6 +285,8 @@ class ReconnectWorker(QThread):
         svc = ConnectionRetryService(
             max_attempts=self._max_attempts,
             initial_delay_ms=self._initial_delay_ms,
+            max_delay_ms=self._max_delay_ms,
+            backoff_factor=self._backoff_factor,
         )
 
         def _status(msg: str, color: str) -> None:

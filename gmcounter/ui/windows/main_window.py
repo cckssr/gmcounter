@@ -188,9 +188,7 @@ class MainWindow(QMainWindow):
             duration=3000,
         )
 
-        # Maximize
-        self.setGeometry(self.screen().availableGeometry())
-        self.show()
+        self.showMaximized()
 
     # ------------------------------------------------------------------
     # Tab registry
@@ -352,6 +350,11 @@ class MainWindow(QMainWindow):
             self._save_service.mark_unsaved()
 
     def _on_device_state_updated(self, data: dict) -> None:
+        # Skip corrupted / incomplete reads so LCDs are never overwritten
+        # with zeros due to a bad FETC:STAT? response (e.g., right after a
+        # measurement stops when binary bytes might still be in the RX buffer).
+        if data.get("error"):
+            return
         label_map = CONFIG.get("gm_counter", {}).get("label_map", {})
         self.ui.currentCount.display(data.get("count", 0))
         self.ui.lastCount.display(data.get("last_count", 0))

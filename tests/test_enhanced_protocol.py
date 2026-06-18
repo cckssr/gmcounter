@@ -8,11 +8,6 @@ import sys
 import io
 from unittest.mock import Mock, patch
 
-# Add the project root to Python path
-sys.path.insert(0, "/Users/cedric.kessler/TU_Berlin_offline/TutorGP/GMCounter")
-
-from gmcounter.device_manager import DataAcquisitionThread, DeviceManager
-
 
 def create_test_packet(value: int, valid: bool = True) -> bytes:
     """Create a test packet with optional corruption."""
@@ -30,23 +25,8 @@ def test_enhanced_protocol():
     print("Testing Enhanced Binary Protocol (0xAA + 4 bytes + 0x55)")
     print("=" * 60)
 
-    # Create mock device and manager
-    mock_device = Mock()
-    manager = DeviceManager()
-    manager.device = mock_device
-    manager.connected = True
-    manager.measurement_active = True
-
-    # Create acquisition thread
-    thread = DataAcquisitionThread(manager)
-
     # Collect emitted data points
     received_data = []
-
-    def collect_data(index, value):
-        received_data.append((index, value))
-
-    thread.data_point.connect(collect_data)
 
     print("\n1. Testing valid packets:")
     print("-" * 30)
@@ -55,12 +35,7 @@ def test_enhanced_protocol():
     test_values = [1000, 2000, 3000, 4000, 5000]
     valid_packets = b"".join(create_test_packet(val, valid=True) for val in test_values)
 
-    mock_device.read_bytes_fast.return_value = valid_packets
-
-    # Simulate one processing cycle
-    thread.manager = manager
-
-    # We need to manually process the data since we're not running the full thread
+    # Manually process the data (no thread needed — pure packet-parsing logic)
     byte_buffer = valid_packets
     START_BYTE = 0xAA
     END_BYTE = 0x55
@@ -223,8 +198,6 @@ def test_enhanced_protocol():
     print("✓ Valid packets recovered even after corruption")
     print("=" * 60)
 
-    return True
-
 
 def test_arduino_compatibility():
     """Test that shows what the Arduino code should send."""
@@ -252,8 +225,6 @@ def test_arduino_compatibility():
 
     print("\n✓ All test packets match expected format")
     print("✓ Arduino code should use this 6-byte packet format")
-
-    return True
 
 
 if __name__ == "__main__":

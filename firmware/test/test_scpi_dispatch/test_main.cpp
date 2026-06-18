@@ -152,9 +152,11 @@ void test_init_starts_streaming()
 
 void test_init_sends_start_to_hardware()
 {
-    Serial1.setInput("\n");
+    // DEFAULT_TIME_MODE=2 (finite) + DEFAULT_REPEAT=0 → handleINIT sends s1 then e1.
+    // Serial1.lines[0] is "s1"; lines[1] is "e1".
     scpiDispatch("INIT");
-    TEST_ASSERT_EQUAL_STRING("s1", Serial1.lastLine().c_str());
+    TEST_ASSERT_TRUE((int)Serial1.lines.size() >= 1);
+    TEST_ASSERT_EQUAL_STRING("s1", Serial1.lines[0].c_str());
 }
 
 void test_init_sends_start_marker_to_host()
@@ -179,7 +181,10 @@ void test_abor_stops_streaming()
     gmState.streaming = true;
     scpiDispatch("ABOR");
     TEST_ASSERT_FALSE(gmState.streaming);
-    TEST_ASSERT_EQUAL_STRING("s0", Serial1.lastLine().c_str());
+    // ABOR sends s0 followed by e0 (disable end-of-period notification).
+    TEST_ASSERT_TRUE((int)Serial1.lines.size() >= 2);
+    TEST_ASSERT_EQUAL_STRING("s0", Serial1.lines[Serial1.lines.size() - 2].c_str());
+    TEST_ASSERT_EQUAL_STRING("e0", Serial1.lastLine().c_str());
 }
 
 void test_abor_when_idle_is_noop()
@@ -188,6 +193,79 @@ void test_abor_when_idle_is_noop()
     scpiDispatch("ABOR");
     TEST_ASSERT_EQUAL(0, errorQueue.count);
     TEST_ASSERT_EQUAL_STRING("", Serial1.lastLine().c_str());
+}
+
+// ── End-of-period (e1) arming behaviour ─────────────────────────────────────
+
+// Finite time + repeat off → INIT sends e1 and arms endPeriodArmed.
+void test_init_finite_time_arms_eop()
+{
+    gmState.counting_time_mode = 2; // 10 s
+    gmState.repeat = false;
+    scpiDispatch("INIT");
+    TEST_ASSERT_TRUE(gmState.endPeriodArmed);
+    // Serial1 must contain "e1" as one of the lines sent.
+    bool found_e1 = false;
+    for (const auto &line : Serial1.lines)
+        if (line == "e1")
+            found_e1 = true;
+    TEST_ASSERT_TRUE(found_e1);
+}
+
+// Infinite time (mode 0) → INIT sends e0 and does NOT arm.
+void test_init_infinite_time_does_not_arm_eop()
+{
+    gmState.counting_time_mode = 0;
+    gmState.repeat = false;
+    scpiDispatch("INIT");
+    TEST_ASSERT_FALSE(gmState.endPeriodArmed);
+    bool found_e0 = false;
+    for (const auto &line : Serial1.lines)
+        if (line == "e0")
+            found_e0 = true;
+    TEST_ASSERT_TRUE(found_e0);
+}
+
+// Finite time but repeat on → INIT sends e0 and does NOT arm.
+void test_init_repeat_mode_does_not_arm_eop()
+{
+    gmState.counting_time_mode = 2; // 10 s
+    gmState.repeat = true;
+    scpiDispatch("INIT");
+    TEST_ASSERT_FALSE(gmState.endPeriodArmed);
+    bool found_e0 = false;
+    for (const auto &line : Serial1.lines)
+        if (line == "e0")
+            found_e0 = true;
+    TEST_ASSERT_TRUE(found_e0);
+}
+
+// ABOR sends e0 and clears endPeriodArmed.
+void test_abor_sends_e0_and_disarms()
+{
+    gmState.streaming = true;
+    gmState.endPeriodArmed = true;
+    scpiDispatch("ABOR");
+    TEST_ASSERT_FALSE(gmState.endPeriodArmed);
+    bool found_e0 = false;
+    for (const auto &line : Serial1.lines)
+        if (line == "e0")
+            found_e0 = true;
+    TEST_ASSERT_TRUE(found_e0);
+}
+
+// *RST while streaming sends e0 and clears endPeriodArmed.
+void test_rst_while_streaming_disarms_eop()
+{
+    gmState.streaming = true;
+    gmState.endPeriodArmed = true;
+    scpiDispatch("*RST");
+    TEST_ASSERT_FALSE(gmState.endPeriodArmed);
+    bool found_e0 = false;
+    for (const auto &line : Serial1.lines)
+        if (line == "e0")
+            found_e0 = true;
+    TEST_ASSERT_TRUE(found_e0);
 }
 
 // ── CONF:VOLT ─────────────────────────────────────────────────────────────────
@@ -399,13 +477,15 @@ void test_syst_vers_returns_scpi_version()
 
 void test_diag_stat_returns_acq_stats()
 {
+    // Format: dur_ms,npoints,debounced,overflows,tx_drops
     acqStats.startMs = 0;
     acqStats.endMs = 5000;
     acqStats.nPoints = 200;
     acqStats.debounced = 3;
     acqStats.overflows = 1;
+    acqStats.txDrops = 0;
     scpiDispatch("DIAG:STAT?");
-    TEST_ASSERT_EQUAL_STRING("5000,200,3,1", Serial.lastLine().c_str());
+    TEST_ASSERT_EQUAL_STRING("5000,200,3,1,0", Serial.lastLine().c_str());
 }
 
 // ── Streaming rejection ───────────────────────────────────────────────────────
@@ -460,6 +540,12 @@ int main()
     RUN_TEST(test_init_while_streaming_pushes_error);
     RUN_TEST(test_abor_stops_streaming);
     RUN_TEST(test_abor_when_idle_is_noop);
+    // End-of-period arming (e1)
+    RUN_TEST(test_init_finite_time_arms_eop);
+    RUN_TEST(test_init_infinite_time_does_not_arm_eop);
+    RUN_TEST(test_init_repeat_mode_does_not_arm_eop);
+    RUN_TEST(test_abor_sends_e0_and_disarms);
+    RUN_TEST(test_rst_while_streaming_disarms_eop);
     // CONF:VOLT
     RUN_TEST(test_conf_volt_set_valid);
     RUN_TEST(test_conf_volt_query);

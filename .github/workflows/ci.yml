@@ -38,6 +38,9 @@ jobs:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     env:
+      # tests/conftest.py also sets this via os.environ.setdefault, but an
+      # explicit job-level env var ensures it is present even before conftest
+      # is loaded (e.g. during pytest --collect-only in some IDE integrations).
       QT_QPA_PLATFORM: offscreen
     strategy:
       fail-fast: false
@@ -55,16 +58,49 @@ jobs:
       - name: Install system dependencies for PySide6
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y libegl1 libopengl0 libgl1
+          sudo apt-get install -y \
+            libegl1 \
+            libopengl0 \
+            libgl1 \
+            libglib2.0-0 \
+            libxkbcommon0 \
+            libfontconfig1 \
+            libdbus-1-3
 
-      - name: Install dev dependencies
+      - name: Install project + dev dependencies
         run: python -m pip install -e ".[${INSTALL_EXTRAS}]"
 
-      - name: Run tests with coverage
-        run: pytest --cov=$TEST_COV --cov-report=term-missing
+      - name: Run tests (core + infrastructure, no Qt needed)
+        run: pytest tests/core tests/infrastructure -v --tb=short
+
+      - name: Run tests (integration — MockGMCounter PTY)
+        run: pytest tests/integration -v --tb=short -m integration
+
+      - name: Run tests (hardware — MockGMCounter PTY fallback)
+        run: pytest tests/hardware -v --tb=short -m integration
+
+      - name: Run all tests with coverage
+        run: |
+          pytest \
+            --cov=$TEST_COV \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --tb=short
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: matrix.python-version == '3.12'
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
 
       - name: Summary
         if: always()
         run: |
-          echo "## Test Results (Python ${{ matrix.python-version }})" >> $GITHUB_STEP_SUMMARY
-          echo "QT_QPA_PLATFORM=$QT_QPA_PLATFORM" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results — Python ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| \`QT_QPA_PLATFORM\` | \`$QT_QPA_PLATFORM\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Python | ${{ matrix.python-version }} |" >> $GITHUB_STEP_SUMMARY

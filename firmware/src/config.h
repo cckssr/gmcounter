@@ -87,3 +87,32 @@
 #define DEFAULT_TIME_MODE 2
 #define DEFAULT_REPEAT 0      // 0 = off
 #define DEFAULT_STREAM_MODE 0 // 0 = off
+
+// --- End-of-period detection -------------------------------------------------
+// The GM counter supports "e1" (send result when counting period ends).  When
+// enabled at INIT, the firmware watches Serial1.available() during streaming.
+// The first byte arriving on Serial1 after at least half the period has elapsed
+// is treated as the end-of-period notification; the firmware emits a 6-byte
+// 0xEE sentinel to the host and stops acquisition.
+//
+// GM_END_PERIOD_MARGIN_MS: extra time added on top of the nominal period for
+// the millis()-based fallback timer that fires if the Serial1 line is never
+// received (e.g. the GM counter fails to respond).
+//
+// gmCountingPeriodMs(mode): returns the period in ms for counting_time_mode
+// values 1–5; returns 0 for mode 0 (infinite).
+#define END_MARKER_BYTE 0xEE
+#define GM_END_PERIOD_MARGIN_MS 2000UL
+
+inline unsigned long gmCountingPeriodMs(int mode)
+{
+    switch (mode)
+    {
+    case 1: return 1000UL;
+    case 2: return 10000UL;
+    case 3: return 60000UL;
+    case 4: return 100000UL;
+    case 5: return 300000UL;
+    default: return 0UL; // 0 = infinite
+    }
+}

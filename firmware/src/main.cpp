@@ -44,6 +44,20 @@ void loop()
         // ── Fast path: drain ring buffer and send binary packets ──────────────
         gmProcessAcquisition();
 
+        // End-of-period detection: check after draining so all in-flight packets
+        // are sent before the sentinel.  gmEndOfPeriodReached() returns true only
+        // when gmState.endPeriodArmed is set (finite time, non-repeat measurements).
+        if (gmEndOfPeriodReached())
+        {
+            gmEmitEndMarker();
+            gmStopAcquisition();
+            Serial1.println("s0");
+            Serial1.println("e0");
+            gmDisarmEndOfPeriod();
+            // Fall through to normal idle SCPI processing on the next loop().
+            return;
+        }
+
         // Only ABOR or *RST accepted during streaming.
         // Any other command is rejected so the host knows it was not executed.
         while (Serial.available() > 0)

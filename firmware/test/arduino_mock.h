@@ -183,6 +183,9 @@ struct MockSerial
         return n;
     }
 
+    // Always report plenty of TX space so txFlush() never stalls in tests.
+    int availableForWrite() const { return 4096; }
+
     int available() const { return (int)(inputBuf.size() - inputPos); }
     int read()
     {
@@ -231,6 +234,10 @@ inline void interrupts() {}
 inline void attachInterrupt(int, void (*)(), int) {}
 inline int digitalPinToInterrupt(int p) { return p; }
 inline void pinMode(int, int) {}
+
+// Delay stub — no-op in tests (time is controlled via set_mock_millis/micros).
+inline void delayMicroseconds(unsigned long) {}
+inline void delay(unsigned long) {}
 
 #define INPUT 0
 #define RISING 3

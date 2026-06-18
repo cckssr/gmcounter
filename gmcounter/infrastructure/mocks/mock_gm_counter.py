@@ -32,7 +32,12 @@ class MockGMCounter:
     - Start marker: 0xFF × 6 on measurement start
     - Data packets: 0xAA + 4-byte little-endian tick value + 0x55
       (ticks = µs × TICKS_PER_US, matching the firmware wire format)
+    - End-of-period marker: 0xEE × 6 when counting time elapses
     - is_mock_device = True so the acquisition thread uses longer timeouts.
+
+    Args:
+        pulse_interval_us: When set, all pulses fire at this fixed interval (µs)
+            instead of random intervals. Useful for deterministic testing.
     """
 
     is_mock_device: bool = True
@@ -43,12 +48,14 @@ class MockGMCounter:
         baudrate: int = 9600,
         timeout: float = 1.0,
         max_tick: float = 1.0,
+        pulse_interval_us: Optional[int] = None,
     ) -> None:
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
         self.max_tick = max_tick
         self._min_tick = 0.000_08  # 80 µs minimum
+        self._pulse_interval_us = pulse_interval_us  # None = random
 
         self._voltage = 500
         self._repeat = False
@@ -61,10 +68,13 @@ class MockGMCounter:
         self.next_pulse_time = 0.0
         self._stream_mode = 0
         self._start_marker_pending = False
+        self._end_marker_pending = False  # True when period ends in streaming mode
         self._counting_only = False
         self._first_pulse_done = (
             False  # True after first pulse; suppresses start→first-pulse packet
         )
+        self._speaker_gm = False
+        self._speaker_ready = False
 
         _log.info("MockGMCounter initialized on port %s", port)
 
@@ -113,8 +123,13 @@ class MockGMCounter:
             self._count = 0
             self._measurement_start_time = time.time()
             self._start_marker_pending = True
+            self._end_marker_pending = False
             self._first_pulse_done = False  # reset so first packet is suppressed
-            self._next_pulse_interval = random.uniform(self._min_tick, self.max_tick)
+            self._next_pulse_interval = (
+                self._pulse_interval_us / 1_000_000
+                if self._pulse_interval_us is not None
+                else random.uniform(self._min_tick, self.max_tick)
+            )
             self.next_pulse_time = time.time() + self._next_pulse_interval
             _log.info("MockGMCounter: counting started")
         elif not value and self._counting:
@@ -130,7 +145,11 @@ class MockGMCounter:
             self._last_count = self._count
             self._count = 0
             self._measurement_start_time = time.time()
-            self._next_pulse_interval = random.uniform(self._min_tick, self.max_tick)
+            self._next_pulse_interval = (
+                self._pulse_interval_us / 1_000_000
+                if self._pulse_interval_us is not None
+                else random.uniform(self._min_tick, self.max_tick)
+            )
             self.next_pulse_time = time.time() + self._next_pulse_interval
             _log.info("MockGMCounter: counter-only started")
         elif not value and self._counting:
@@ -139,7 +158,8 @@ class MockGMCounter:
             _log.info("MockGMCounter: counter-only stopped (count=%d)", self._count)
 
     def set_speaker(self, gm: bool = False, ready: bool = False) -> None:
-        pass
+        self._speaker_gm = gm
+        self._speaker_ready = ready
 
     def set_counting_time(self, value: int = 0) -> None:
         if 0 <= value <= 5:
@@ -251,6 +271,8 @@ class MockGMCounter:
         # ── DIAGnostic ──
         if upper.startswith("CONF:SPKR") or upper.startswith("CONFIGURE:SPEAKER"):
             parts = command.split(None, 1)
+            if upper.endswith("?"):
+                return str(int(self._speaker_gm) + 2 * int(self._speaker_ready))
             if len(parts) == 2:
                 try:
                     v = int(parts[1])
@@ -277,13 +299,26 @@ class MockGMCounter:
             if self._counting_only:
                 self.set_counting_only(False)
             else:
+                # Streaming mode: emit the end-of-period sentinel before stopping.
+                # The sentinel is queued here; run_pty_server() writes it to the PTY.
+                if not self._end_marker_pending:
+                    self._end_marker_pending = True
+                    _log.info("MockGMCounter: period ended — end marker pending")
                 self.set_counting(False)
             return None
 
         if time.time() >= self.next_pulse_time:
-            interval_us = int(self._next_pulse_interval * 1_000_000)
+            interval_us = (
+                self._pulse_interval_us
+                if self._pulse_interval_us is not None
+                else int(self._next_pulse_interval * 1_000_000)
+            )
             self._count += 1
-            self._next_pulse_interval = random.uniform(self._min_tick, self.max_tick)
+            self._next_pulse_interval = (
+                self._pulse_interval_us / 1_000_000
+                if self._pulse_interval_us is not None
+                else random.uniform(self._min_tick, self.max_tick)
+            )
             self.next_pulse_time = time.time() + self._next_pulse_interval
             if not self._first_pulse_done:
                 # Suppress the start→first-pulse packet so the host receives pure
@@ -296,19 +331,34 @@ class MockGMCounter:
         return None
 
 
-def run_pty_server(device_class=MockGMCounter, **device_kwargs) -> None:
+def run_pty_server(
+    device_class=MockGMCounter,
+    stop_event=None,
+    port_file: Optional[str] = None,
+    **device_kwargs,
+) -> None:
     """Run a PTY-based mock GM counter server.
 
-    Writes the slave port path to PORT_FILE so the app can read it.
-    Press Ctrl-C to stop.
+    Writes the slave port path to ``port_file`` (defaults to PORT_FILE) so
+    the caller can read it.  Stop by setting ``stop_event`` (threading.Event)
+    or pressing Ctrl-C.
+
+    Pass a unique ``port_file`` path when running multiple instances in the
+    same process (e.g. parallel test fixtures) to avoid collisions.
     """
+    actual_port_file = port_file if port_file is not None else PORT_FILE
+
     master, slave = pty.openpty()
     slave_name = os.ttyname(slave)
     _log.info("Virtual serial port: %s", slave_name)
 
+    tmp_path = actual_port_file + ".tmp"
     try:
-        with open(PORT_FILE, "w", encoding="utf-8") as fh:
+        with open(tmp_path, "w", encoding="utf-8") as fh:
             fh.write(slave_name)
+        os.replace(
+            tmp_path, actual_port_file
+        )  # atomic on Unix — file appears fully written
     except IOError as exc:
         _log.error("Could not write port file: %s", exc)
 
@@ -316,7 +366,7 @@ def run_pty_server(device_class=MockGMCounter, **device_kwargs) -> None:
     device = device_class(port=slave_name, **device_kwargs)
 
     try:
-        while True:
+        while not (stop_event and stop_event.is_set()):
             r, _, _ = select.select([master], [], [], 0.01)
             if r:
                 try:
@@ -337,6 +387,11 @@ def run_pty_server(device_class=MockGMCounter, **device_kwargs) -> None:
                 os.write(master, b"\xff\xff\xff\xff\xff\xff")
                 device._start_marker_pending = False
 
+            if device._end_marker_pending:
+                os.write(master, b"\xee\xee\xee\xee\xee\xee")
+                device._end_marker_pending = False
+                _log.info("MockGMCounter: end-of-period sentinel written to PTY")
+
             value = device.tick()
             if value is not None:
                 # tick() returns µs; the wire protocol carries firmware ticks.
@@ -353,8 +408,8 @@ def run_pty_server(device_class=MockGMCounter, **device_kwargs) -> None:
     finally:
         os.close(master)
         os.close(slave)
-        if os.path.exists(PORT_FILE):
-            os.remove(PORT_FILE)
+        if os.path.exists(actual_port_file):
+            os.remove(actual_port_file)
 
 
 if __name__ == "__main__":

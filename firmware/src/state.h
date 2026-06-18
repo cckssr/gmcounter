@@ -62,6 +62,8 @@ struct GmState
     int stream_mode = DEFAULT_STREAM_MODE;
     bool debug = false;
     bool passthrough = false;
+    // True when e1 end-of-period detection is active (finite time, not repeat).
+    bool endPeriodArmed = false;
 };
 
 // ── Globals (defined in state.cpp) ───────────────────────────────────────────

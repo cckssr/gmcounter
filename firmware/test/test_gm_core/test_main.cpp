@@ -288,6 +288,72 @@ void test_reset_clears_overflow_count()
     TEST_ASSERT_EQUAL(0, (int)acqStats.overflows);
 }
 
+// ── End-of-period detection ───────────────────────────────────────────────────
+
+void test_arm_eop_sets_state()
+{
+    gmStartAcquisition(); // sets acqStats.startMs = millis() = 0
+    gmArmEndOfPeriod(10000); // 10 s period
+    TEST_ASSERT_TRUE(gmState.endPeriodArmed);
+}
+
+void test_disarm_eop_clears_state()
+{
+    gmStartAcquisition();
+    gmArmEndOfPeriod(10000);
+    gmDisarmEndOfPeriod();
+    TEST_ASSERT_FALSE(gmState.endPeriodArmed);
+}
+
+void test_eop_not_reached_early()
+{
+    // Armed, but millis is 0 and no Serial1 data → not reached yet.
+    gmStartAcquisition();
+    gmArmEndOfPeriod(10000);
+    set_mock_millis(100); // 0.1 s — far before period
+    TEST_ASSERT_FALSE(gmEndOfPeriodReached());
+}
+
+void test_eop_reached_timer_fallback()
+{
+    // millis exceeds period + margin → timer fallback fires.
+    gmStartAcquisition(); // startMs = 0
+    gmArmEndOfPeriod(1000); // 1 s period
+    set_mock_millis(1000 + GM_END_PERIOD_MARGIN_MS + 1);
+    TEST_ASSERT_TRUE(gmEndOfPeriodReached());
+}
+
+void test_eop_reached_serial1_after_half_period()
+{
+    // Serial1 has data AND elapsed > period/2 → device-authoritative trigger.
+    gmStartAcquisition(); // startMs = 0
+    gmArmEndOfPeriod(1000);
+    set_mock_millis(600); // > 500 ms (half of 1 s)
+    Serial1.setInput("42\n"); // e1 result line
+    TEST_ASSERT_TRUE(gmEndOfPeriodReached());
+}
+
+void test_eop_not_triggered_serial1_before_half_period()
+{
+    // Serial1 has data but elapsed < period/2 — this is the s1 echo guard.
+    gmStartAcquisition(); // startMs = 0
+    gmArmEndOfPeriod(1000);
+    set_mock_millis(200); // < 500 ms (half of 1 s)
+    Serial1.setInput("42\n");
+    TEST_ASSERT_FALSE(gmEndOfPeriodReached());
+}
+
+void test_emit_end_marker_writes_six_ee()
+{
+    // gmEmitEndMarker must write 0xEE×6 to Serial after flushing any pending data.
+    gmStartAcquisition();
+    Serial.clear(); // discard start marker
+    gmEmitEndMarker();
+    TEST_ASSERT_EQUAL(6, (int)Serial.bytes.size());
+    for (int i = 0; i < 6; i++)
+        TEST_ASSERT_EQUAL_HEX8(0xEE, Serial.bytes[i]);
+}
+
 int main()
 {
     UNITY_BEGIN();
@@ -307,5 +373,13 @@ int main()
     RUN_TEST(test_isr_overflow_counted);
     RUN_TEST(test_isr_overflow_does_not_overwrite_buffer);
     RUN_TEST(test_reset_clears_overflow_count);
+    // End-of-period detection
+    RUN_TEST(test_arm_eop_sets_state);
+    RUN_TEST(test_disarm_eop_clears_state);
+    RUN_TEST(test_eop_not_reached_early);
+    RUN_TEST(test_eop_reached_timer_fallback);
+    RUN_TEST(test_eop_reached_serial1_after_half_period);
+    RUN_TEST(test_eop_not_triggered_serial1_before_half_period);
+    RUN_TEST(test_emit_end_marker_writes_six_ee);
     return UNITY_END();
 }

@@ -53,12 +53,16 @@ class ConnectionRetryService:
 
     def __init__(
         self,
-        max_attempts: int = 5,
+        max_attempts: int = 8,
         initial_delay_ms: float = 500,
+        max_delay_ms: float = 16000,
+        backoff_factor: float = 2.0,
     ) -> None:
         self.strategy = ReconnectStrategy(
             max_attempts=max_attempts,
             initial_delay_ms=initial_delay_ms,
+            max_delay_ms=max_delay_ms,
+            backoff_factor=backoff_factor,
         )
 
     def attempt_reconnect(

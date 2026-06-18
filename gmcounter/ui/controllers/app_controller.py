@@ -235,22 +235,56 @@ class AppController(QObject):
             repeat=repeat,
             stream=4 if auto_query else 1,
         )
+        unconfirmed: dict = {}
         if self.device_manager.device:
             # Pause the poller first so no FETC:STAT? is in-flight while the
             # CONF:* commands are being written — both share the same serial port.
             self._state_poller.pause()
             try:
-                self.device_manager._apply_device_settings(
+                unconfirmed = self.device_manager._apply_device_settings(
                     self._desired_state.to_device_settings()
                 )
             finally:
                 self._state_poller.resume()
-        self._notify(
-            CONFIG.get("messages", {}).get("settings_applied", "Einstellungen gesetzt"),
-            CONFIG.get("colors", {}).get("green", "green"),
-        )
-        # Trigger a fresh state poll ~300 ms after the device processes the commands.
+
+        if unconfirmed:
+            names = ", ".join(unconfirmed.keys())
+            _log.warning("Settings not confirmed by device: %s", names)
+            self._notify(
+                f"Einstellungen gesendet — warte auf Bestätigung ({names})…",
+                CONFIG.get("colors", {}).get("orange", "orange"),
+            )
+            # Schedule a re-check after 3 s; if values match after re-poll
+            # the LCD update itself confirms success.
+            QTimer.singleShot(3000, lambda: self._warn_unconfirmed(unconfirmed))
+        else:
+            self._notify(
+                CONFIG.get("messages", {}).get(
+                    "settings_applied", "Einstellungen gesetzt"
+                ),
+                CONFIG.get("colors", {}).get("green", "green"),
+            )
+        # Trigger a fresh state poll so LCDs update immediately after Apply.
         QTimer.singleShot(300, self._state_poller.force_poll_soon)
+
+    def _warn_unconfirmed(self, unconfirmed: dict) -> None:
+        """Called 3 s after apply_settings if settings were not confirmed.
+
+        Prompts a fresh read-back; the 3 s gap is enough for the device to have
+        applied the values.  If the device is still not responding the poller
+        will show stale zeros, which is already visible to the user.
+        """
+        _log.warning(
+            "3 s elapsed — settings may not have been applied: %s",
+            ", ".join(unconfirmed.keys()),
+        )
+        self._notify(
+            "Achtung: Einstellungen möglicherweise nicht angewendet — "
+            + ", ".join(unconfirmed.keys()),
+            CONFIG.get("colors", {}).get("orange", "orange"),
+        )
+        # Force an immediate re-poll so the LCDs reflect actual device state.
+        self._state_poller.force_poll_soon()
 
     # ------------------------------------------------------------------
     # Cleanup
@@ -293,11 +327,32 @@ class AppController(QObject):
         self._acquire_thread.connection_lost.connect(
             self._on_acquire_connection_lost, Qt.ConnectionType.QueuedConnection
         )
+        self._acquire_thread.measurement_complete.connect(
+            self._on_measurement_complete, Qt.ConnectionType.QueuedConnection
+        )
         self._acquire_thread.start()
 
     def _stop_acquisition(self) -> None:
         if self._acquire_thread and self._acquire_thread.isRunning():
             self._acquire_thread.stop()
+
+    # ------------------------------------------------------------------
+    # Firmware end-of-period notification
+
+    def _on_measurement_complete(self) -> None:
+        """Firmware sent the 0xEE×6 end-of-period sentinel.
+
+        This is the device-authoritative stop signal for finite-time
+        measurements.  Runs on the GUI thread (QueuedConnection).
+        """
+        if not self._is_measuring:
+            return  # already stopped (e.g. ABOR was sent manually)
+        _log.info(
+            "Firmware end-of-period received — stopping measurement "
+            "(accumulated %.2f µs)",
+            self._accum_us,
+        )
+        self.stop_measurement()
 
     # ------------------------------------------------------------------
     # Data batch handler
@@ -343,12 +398,25 @@ class AppController(QObject):
             _log.debug("Error emitting statistics: %s", exc)
 
     def _tick_progress(self) -> None:
-        # Pure heartbeat: emit device-time progress from the delta accumulator so
-        # the progress bar stays live during quiet periods.  Stop decisions are made
-        # in _on_data_batch (delta-driven) — never here.
         elapsed = int(self._accum_us / 1e6)
         total = int(self._target_us / 1e6)
         self.progress_updated.emit(elapsed, total)
+
+        # Wall-clock fallback for finite-time measurements.
+        # The device stops its internal counter when the counting time expires
+        # but keeps streaming (no end-of-period marker in the binary protocol),
+        # so the delta accumulator may never cross the target at low count rates.
+        # If real time exceeds the target by 3 s, stop explicitly.
+        if self._is_measuring and self._target_us > 0 and self._measurement_start:
+            wall_s = (datetime.now() - self._measurement_start).total_seconds()
+            target_s = self._target_us / 1_000_000.0
+            if wall_s >= target_s + 3.0:
+                _log.info(
+                    "Wall-clock fallback: %.1fs elapsed (target %.0fs) — stopping",
+                    wall_s,
+                    target_s,
+                )
+                self.stop_measurement()
 
     # ------------------------------------------------------------------
     # Reconnect state machine (§5 B1–B7)
@@ -376,9 +444,10 @@ class AppController(QObject):
         # Save desired state for replay after reconnect (B5)
         # B2: start non-blocking reconnect worker
         cfg_conn = CONFIG.get("connection", {})
-        delays = cfg_conn.get("backoff_delays_ms", [500, 750, 1125, 1688, 2531])
-        max_att = len(delays)
-        init_ms = delays[0] if delays else 500
+        max_att = cfg_conn.get("max_retry_attempts", 8)
+        init_ms = cfg_conn.get("initial_retry_delay_ms", 500)
+        max_ms = cfg_conn.get("max_retry_delay_ms", 16000)
+        factor = cfg_conn.get("backoff_factor", 2.0)
 
         self._reconnect_worker = ReconnectWorker(
             reconnect_fn=lambda: self.device_manager.attempt_automatic_reconnect(
@@ -386,6 +455,8 @@ class AppController(QObject):
             ),
             max_attempts=max_att,
             initial_delay_ms=init_ms,
+            max_delay_ms=max_ms,
+            backoff_factor=factor,
             parent=self,
         )
         self._reconnect_worker.succeeded.connect(self._on_reconnect_succeeded)
@@ -400,6 +471,8 @@ class AppController(QObject):
     def _on_reconnect_succeeded(self) -> None:
         """Reconnect worker reports success (B5)."""
         self._reconnect_state = self._CONNECTED
+        if self._acquire_thread:
+            self._acquire_thread.reset_connection_lost()
         self._start_acquisition()
 
         if self._journal:

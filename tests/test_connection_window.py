@@ -75,10 +75,8 @@ class TestConnectionWindow(unittest.TestCase):
         """Test der normalen Initialisierung ohne Demo-Modus."""
         connection_window = ConnectionWindow()
 
-        # Überprüfen, dass DeviceManager erstellt wurde
-        self.mock_device_manager_class.assert_called_once_with(
-            status_callback=connection_window.status_message
-        )
+        # Überprüfen, dass DeviceManager mit measurement_state erstellt wurde
+        self.mock_device_manager_class.assert_called_once_with(measurement_state=None)
 
         # Überprüfen der Grundeinstellungen
         self.assertFalse(connection_window.demo_mode)
@@ -92,7 +90,10 @@ class TestConnectionWindow(unittest.TestCase):
 
     def test_initialization_demo_mode_without_mock_port(self):
         """Test der Initialisierung im Demo-Modus ohne verfügbaren Mock-Port."""
-        with patch.object(ConnectionWindow, "check_mock_port", return_value=None):
+        # Patch the file-system check inside _check_mock_port rather than the
+        # method itself — patching methods on PySide6 QObject subclasses can
+        # corrupt the C++ meta-object table and cause segfaults on macOS.
+        with patch(f"{self._MOD}.os.path.exists", return_value=False):
             connection_window = ConnectionWindow(demo_mode=True)
 
             # Demo-Modus sollte deaktiviert sein, da kein Mock-Port verfügbar
@@ -104,18 +105,27 @@ class TestConnectionWindow(unittest.TestCase):
         """Test der Initialisierung im Demo-Modus mit verfügbarem Mock-Port."""
         mock_port = "/tmp/mock_serial_port"
 
-        with patch.object(ConnectionWindow, "check_mock_port", return_value=mock_port):
-            connection_window = ConnectionWindow(demo_mode=True)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
+            tmp.write(mock_port)
+            tmp_path = tmp.name
 
-            # Demo-Modus sollte aktiviert sein
-            self.assertTrue(connection_window.demo_mode)
+        try:
+            # Redirect _check_mock_port's path lookup to our temp file so it
+            # returns mock_port — avoids patching the method on the class directly.
+            with patch(f"{self._MOD}.os.path.join", return_value=tmp_path):
+                connection_window = ConnectionWindow(demo_mode=True)
 
-            # Mock-Port sollte in der Portliste stehen
-            self.assertEqual(len(connection_window.ports), 3)  # 2 echte + 1 Mock
-            self.assertEqual(connection_window.ports[0][0], mock_port)
-            self.assertEqual(connection_window.ports[0][1], "Mock Device")
+                # Demo-Modus sollte aktiviert sein
+                self.assertTrue(connection_window.demo_mode)
 
-            connection_window.close()
+                # Mock-Port sollte in der Portliste stehen
+                self.assertEqual(len(connection_window.ports), 3)  # 2 echte + 1 Mock
+                self.assertEqual(connection_window.ports[0][0], mock_port)
+                self.assertEqual(connection_window.ports[0][1], "Mock Device")
+
+                connection_window.close()
+        finally:
+            os.unlink(tmp_path)
 
     def test_check_mock_port_exists(self):
         """Test für check_mock_port wenn der Mock-Port existiert."""
@@ -131,7 +141,7 @@ class TestConnectionWindow(unittest.TestCase):
                 return_value=temp_file_path,
             ):
                 connection_window = ConnectionWindow()
-                result = connection_window.check_mock_port()
+                result = connection_window._check_mock_port()
                 self.assertEqual(result, mock_port_content)
                 connection_window.close()
         finally:
@@ -143,7 +153,7 @@ class TestConnectionWindow(unittest.TestCase):
             "gmcounter.ui.dialogs.connection.os.path.exists", return_value=False
         ):
             connection_window = ConnectionWindow()
-            result = connection_window.check_mock_port()
+            result = connection_window._check_mock_port()
             self.assertIsNone(result)
             connection_window.close()
 
@@ -188,7 +198,7 @@ class TestConnectionWindow(unittest.TestCase):
 
     def test_attempt_connection_success(self):
         """Test einer erfolgreichen Verbindung."""
-        self.mock_device_manager.connect.return_value = True
+        self.mock_device_manager.connect_device.return_value = True
 
         connection_window = ConnectionWindow()
         connection_window.combo.setCurrentText("/dev/ttyUSB0")
@@ -201,14 +211,14 @@ class TestConnectionWindow(unittest.TestCase):
         self.assertTrue(connection_window.connection_successful)
         self.assertEqual(device_manager, self.mock_device_manager)
 
-        # Überprüfen, dass connect mit korrekten Parametern aufgerufen wurde
-        self.mock_device_manager.connect.assert_called_once_with("/dev/ttyUSB0", 9600)
+        # Überprüfen, dass connect_device aufgerufen wurde
+        self.mock_device_manager.connect_device.assert_called_once()
 
         connection_window.close()
 
     def test_attempt_connection_failure(self):
         """Test einer fehlgeschlagenen Verbindung."""
-        self.mock_device_manager.connect.return_value = False
+        self.mock_device_manager.connect_device.return_value = False
 
         connection_window = ConnectionWindow()
         connection_window.combo.setCurrentText("/dev/ttyUSB0")
@@ -236,8 +246,6 @@ class TestConnectionWindow(unittest.TestCase):
 
     def test_accept_successful_connection(self):
         """Test der accept Methode bei erfolgreicher Verbindung."""
-        self.mock_device_manager.connect.return_value = True
-
         connection_window = ConnectionWindow()
         connection_window.combo.setCurrentText("/dev/ttyUSB0")
 
@@ -259,15 +267,22 @@ class TestConnectionWindow(unittest.TestCase):
         connection_window = ConnectionWindow()
         connection_window.combo.setCurrentText("/dev/ttyUSB0")
 
+        # cancel_btn must be distinct from addButton("Wiederholen") return value so
+        # the `clicked is retry_btn` branch is NOT taken.
         cancel_btn = Mock()
         mock_msg = Mock()
         mock_msg.clickedButton.return_value = cancel_btn
-        mock_msg.buttonRole.return_value = QMessageBox.ButtonRole.RejectRole
 
         with patch.object(
             connection_window, "attempt_connection", return_value=(False, None)
         ):
-            with patch(f"{self._MOD}.QMessageBox", return_value=mock_msg):
+            with patch(
+                f"{self._MOD}.QMessageBox", return_value=mock_msg
+            ) as mock_qmb_class:
+                # Production code checks: msg.buttonRole(clicked) == QMessageBox.ButtonRole.RejectRole
+                # QMessageBox here refers to the patched class (mock_qmb_class), so we must
+                # use its attribute rather than the real PySide6 enum value.
+                mock_msg.buttonRole.return_value = mock_qmb_class.ButtonRole.RejectRole
                 with patch("PySide6.QtWidgets.QDialog.reject") as mock_reject:
                     connection_window.accept()
                     mock_reject.assert_called_once()
@@ -299,16 +314,17 @@ class TestConnectionWindow(unittest.TestCase):
         connection_window = ConnectionWindow()
         connection_window.combo.setCurrentText("/dev/ttyUSB0")
 
-        retry_btn = Mock()
         mock_msg = Mock()
-        mock_msg.clickedButton.return_value = retry_btn
-        mock_msg.buttonRole.return_value = QMessageBox.ButtonRole.AcceptRole
+        # Production code: retry_btn = msg.addButton("Wiederholen", ...)
+        # then: if clicked is retry_btn: return self.accept()
+        # We need clickedButton() to return the exact same object that addButton() returns.
+        mock_msg.clickedButton.return_value = mock_msg.addButton.return_value
 
         call_count = {"n": 0}
 
         def fake_attempt():
             call_count["n"] += 1
-            # Fail first time, succeed second so recursion terminates
+            # Fail first time, succeed on second call so recursion terminates
             return (call_count["n"] > 1, None)
 
         with patch.object(

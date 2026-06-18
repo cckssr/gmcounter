@@ -52,6 +52,10 @@ class GMCounterAdapter(SerialDevice):
 
     # ------------------------------------------------------------------
     # Data / info
+    # Expected number of CSV fields in a FETC:STAT? response.
+    # Field order: count, last_count, counting_time, repeat, progress, voltage
+    _STAT_FIELD_COUNT = 6
+
     def get_data(self, request: bool = True) -> Dict[str, Union[int, bool]]:
         """Fetch current counter status and data.
 
@@ -79,6 +83,9 @@ class GMCounterAdapter(SerialDevice):
         }
         try:
             if request:
+                # Flush first: any leftover binary bytes from a just-ended stream
+                # would corrupt the CSV response if not discarded beforehand.
+                self.flush_input_buffer()
                 if not self.send_command("FETC:STAT?"):
                     template["error"] = 1
                     return template
@@ -90,17 +97,34 @@ class GMCounterAdapter(SerialDevice):
             parts = line.split(",")
             if parts and parts[-1] == "":
                 parts = parts[:-1]
-            keys = list(template.keys())
+            # Require exactly the expected number of fields; fewer means a
+            # truncated / corrupted response — treat it as an error.
+            if len(parts) < self._STAT_FIELD_COUNT:
+                _log.debug(
+                    "FETC:STAT? returned %d fields (expected %d): %r",
+                    len(parts),
+                    self._STAT_FIELD_COUNT,
+                    line,
+                )
+                template["error"] = 1
+                return template
+            keys = [
+                "count",
+                "last_count",
+                "counting_time",
+                "repeat",
+                "progress",
+                "voltage",
+            ]
             result = template.copy()
-            for i, part in enumerate(parts):
-                if i >= len(keys):
-                    break
-                key = keys[i]
+            for i, key in enumerate(keys):
                 try:
-                    result[key] = bool(int(part)) if key == "repeat" else int(part)
+                    result[key] = (
+                        bool(int(parts[i])) if key == "repeat" else int(parts[i])
+                    )
                 except (ValueError, IndexError):
+                    _log.debug("FETC:STAT? field '%s' parse error: %r", key, parts[i])
                     result["error"] = 1
-                    pass
             return result
         except Exception as exc:
             _log.error("Error in get_data: %s", exc)
@@ -131,6 +155,7 @@ class GMCounterAdapter(SerialDevice):
     def set_stream(self, value: int = 0, confirm: bool = False) -> bool:
         self.send_command(f"CONF:STR {value}")
         if confirm:
+            self.flush_input_buffer()
             self.send_command("CONF:STR?")
             r = self.read_text_response()
             if r is None or r.strip() != str(value):
@@ -146,6 +171,7 @@ class GMCounterAdapter(SerialDevice):
             return None
         self.send_command(f"CONF:VOLT {value}")
         if confirm:
+            self.flush_input_buffer()
             self.send_command("CONF:VOLT?")
             r = self.read_value()
             if r is None or int(r) != value:
@@ -158,6 +184,7 @@ class GMCounterAdapter(SerialDevice):
     def set_repeat(self, value: bool = False, confirm: bool = False) -> bool:
         self.send_command(f"CONF:REP {1 if value else 0}")
         if confirm:
+            self.flush_input_buffer()
             self.send_command("CONF:REP?")
             r = self.read_value()
             if r is None or bool(int(r)) != value:
@@ -205,6 +232,7 @@ class GMCounterAdapter(SerialDevice):
             return None
         self.send_command(f"CONF:TIME {value}")
         if confirm:
+            self.flush_input_buffer()
             self.send_command("CONF:TIME?")
             r = self.read_value()
             if r is None or int(r) != value:
