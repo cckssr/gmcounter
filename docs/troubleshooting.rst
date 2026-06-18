@@ -1,154 +1,94 @@
 Troubleshooting
 ===============
 
-Schnelle Lösungen für häufige GMCounter-Probleme.
+Device not found / connection failed
+-------------------------------------
 
-Verbindungsprobleme
-------------------
+1. Check the USB cable and try a different port.
+2. On Linux/macOS, confirm the user is in the ``dialout`` / ``uucp`` group::
 
-**"Kein Gerät gefunden" / Grauer Status:**
+      sudo usermod -aG dialout $USER   # Linux
+      # or: add /dev/tty.usbserial* to udev rules
 
-.. code-block:: bash
+3. Confirm the baud rate in the connection dialog matches the firmware
+   (default: **1,000,000 baud**).
+4. Run the application in demo mode first (no port selection needed) to confirm
+   the software works independently of the hardware.
 
-   # Verfügbare Ports anzeigen
-   python -c "import serial.tools.list_ports; [print(p) for p in serial.tools.list_ports.comports()]"
+No data received after connecting
+----------------------------------
 
-**Lösungen:**
-- USB-Kabel tauschen
-- Anderen USB-Port verwenden  
-- Treiber installieren (Windows: Arduino IDE, Linux: ``sudo usermod -a -G dialout $USER``)
-- Port manuell in config.json setzen: ``"port": "/dev/ttyUSB0"``
+The acquisition thread waits for the firmware's start marker (``0xFF × 6``)
+before accepting data packets. If no marker arrives within ~2 s, the thread
+emits ``connection_lost``.
 
-**Verbindung bricht ab:**
-- Timeout erhöhen: ``"timeout": 5.0``
-- Baudrate reduzieren: ``"baudrate": 9600``
-- Auto-Reconnect aktivieren: ``"auto_reconnect": true``
+* Confirm the firmware is running (the Arduino's RX/TX LEDs should flicker).
+* Confirm ``demo_mode: false`` in ``gmcounter/config.json`` (if using real hardware).
+* Try sending ``*RST`` via a serial terminal to reset the firmware state.
 
-Datenprobleme
--------------
+Reconnect loop / status bar shows "Wiederverbindung..."
+---------------------------------------------------------
 
-**Keine Messwerte trotz Verbindung:**
-- Hardware mit Serial Monitor testen
-- Protokoll-Einstellung prüfen (arduino/frederiksen/custom)
-- Debug-Modus: ``python main.py --debug``
-
-**Unrealistische Werte:**
-- Kalibrierungsfaktor anpassen
-- HV-Spannung prüfen (~400V)
-- Elektrische Störquellen eliminieren
-
-**Datenverlust bei langen Messungen:**
-- Puffergröße erhöhen: ``"buffer_size": 50000``
-- Auto-Save aktivieren: ``"auto_save": true``  
-- Update-Rate reduzieren: ``"update_rate": 0.5``
-
-Software-Probleme
------------------
-
-**GMCounter startet nicht:**
-
-.. code-block:: bash
-
-   # Abhängigkeiten prüfen
-   pip install --upgrade -r requirements.txt
-   
-   # Konfiguration zurücksetzen
-   rm config.json
-
-**GUI reagiert nicht:**
-- Große Datenmengen → Puffergröße reduzieren
-- Threading-Probleme → Neustart
-- Memory-Leak → Task Manager prüfen
-
-**Falsche Statistiken:**
-- Mindest-Sampling-Zeit abwarten (30+ Sekunden)
-- Chi-Quadrat nur bei >100 Datenpunkten aussagekräftig
-- Outlier können Statistiken verzerren
-
-Debug-Informationen
--------------------
-
-**Detaillierte Logs aktivieren:**
-
-.. code-block:: bash
-
-   python main.py --debug --log-level DEBUG
-
-**Logdateien finden:**
-- Windows: ``%APPDATA%/GMCounter/logs/``
-- Linux/Mac: ``~/.GMCounter/logs/``
-
-**Wichtige Log-Nachrichten:**
-- ``Serial connection established`` → Verbindung OK
-- ``Data parsing error`` → Protokoll-Problem
-- ``Buffer overflow`` → Performance-Problem
-
-**Bug-Report erstellen:**
-1. Debug-Logs sammeln
-2. config.json anonymisieren  
-3. Schritte zur Reproduktion dokumentieren
-4. GitHub Issue erstellen
-
-Performance-Tuning
-------------------
-
-**Für schwache Hardware:**
+The reconnect FSM uses exponential backoff (500 ms → 1 s → 2 s → … → 16 s,
+up to 8 attempts). Parameters are in ``config.json → connection``:
 
 .. code-block:: json
 
-   {
-     "analysis": {
-       "update_rate": 0.2,
-       "histogram_bins": 20,
-       "statistical_window": 500
-     }
+   "connection": {
+     "max_attempts": 8,
+     "initial_delay_ms": 500,
+     "max_delay_ms": 16000,
+     "backoff_factor": 2.0
    }
 
-**Für hohe Datenraten:**
+Inputs are **not** disabled during reconnect — you can continue configuring
+the next measurement. If all attempts fail, a status message in the Event Log
+panel notes the session journal path so you can recover partial data.
+
+Data recovery after a crash
+-----------------------------
+
+Every acquired data point is written to a crash-safe journal at::
+
+   ~/.gmcounter/sessions/<timestamp>/journal.csv
+
+If the application crashes before a formal save, the journal still contains all
+received data. On the next startup, ``find_orphan_journals()`` reports sessions
+without a ``finalized`` marker. You can open the CSV directly in any spreadsheet
+application.
+
+Demo mode not starting
+-----------------------
+
+If the mock device fails to start:
+
+* Ensure ``MockGMCounter`` is available (it is excluded from the installed wheel
+  but present in the cloned repository under
+  ``gmcounter/infrastructure/mocks/``).
+* Check for PTY creation errors in the console output (``pty.openpty()`` can fail
+  if the system runs out of PTY slots).
+
+Import / module errors
+-----------------------
+
+.. code-block:: text
+
+   ModuleNotFoundError: No module named 'gmcounter'
+
+Ensure the package is installed (``pip install -e .`` from the project root).
+If installed, confirm the active Python environment is the one pip installed into.
+
+Performance: plot lags at high event rates
+-------------------------------------------
+
+The default GUI update timer is 200 ms (``timers.gui_update_interval`` in config).
+At very high event rates (> 10 kHz), increase it:
 
 .. code-block:: json
 
-   {
-     "acquisition": {
-       "buffer_size": 100000,
-       "batch_processing": true
-     }
+   "timers": {
+     "gui_update_interval": 500
    }
 
-Letzte Hilfe
-------------
-
-1. **Neuinstallation:** Repository neu klonen
-2. **Factory Reset:** Alle Konfigurationsdateien löschen
-3. **System-Reboot:** Treiber-Probleme beheben
-4. **Community-Support:** GitHub Discussions verwenden
-* Prüfen Sie die Kabelverbindung
-
-Anwendungsprobleme
-------------------
-
-Anwendung startet nicht
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-Debug-Modus aktivieren
-======================
-python main.py --debug
-
-
-Keine Daten empfangen
-~~~~~~~~~~~~~~~~~~~~~
-
-1. Prüfen Sie die Geräteeinstellungen
-2. Testen Sie im Demo-Modus
-3. Überprüfen Sie die Protokoll-Konfiguration
-
-Logs und Debugging
-------------------
-
-Log-Dateien finden Sie unter:
-
-* **Windows**: ``%APPDATA%\GMCounter\logs\``
-* **macOS**: ``~/Library/Application Support/GMCounter/logs/``
-* **Linux**: ``~/.config/GMCounter/logs/``
+The acquisition thread always buffers data at full speed; only the plot refresh
+rate is affected.

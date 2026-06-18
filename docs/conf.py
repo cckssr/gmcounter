@@ -35,6 +35,11 @@ MOCK_MODULES = [
     "serial.tools",
     "serial.tools.list_ports",
     "numpy",
+    "pyqtgraph",
+    "scipy",
+    "scipy.stats",
+    "pillow",
+    "PIL",
 ]
 
 for mod_name in MOCK_MODULES:
@@ -43,11 +48,11 @@ for mod_name in MOCK_MODULES:
 # -- Project information -----------------------------------------------------
 
 project = "GMCounter"
-copyright_notice = "2025, Cedric Kessler"
+copyright = "2025, Cedric Kessler"
 author = "Cedric Kessler"
 
 # The full version, including alpha/beta/rc tags
-release = "2.1.0"
+release = "2.1.2"
 
 # -- General configuration ---------------------------------------------------
 
@@ -64,6 +69,7 @@ extensions = [
     "sphinx.ext.githubpages",
     "sphinx.ext.autosummary",
     "sphinx_rtd_theme",
+    "myst_parser",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -80,6 +86,17 @@ language = "de"
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+
+# Suppress known warnings:
+#   myst.xref_missing — ARCHITECTURE.md/PRINCIPLES.md use relative GitHub links
+#                       (e.g. [PRINCIPLES.md](PRINCIPLES.md)) that are resolved
+#                       by GitHub but are not Sphinx source files.
+#   misc.highlighting_failure — 'ascii' is not a Pygments lexer; used in diagrams.
+suppress_warnings = [
+    "myst.xref_missing",  # GitHub-style relative .md links not resolved by Sphinx
+    "misc.highlighting_failure",  # 'ascii' is not a Pygments lexer (used in diagrams)
+    "app.add_node",  # duplicates from autodoc
+]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
@@ -197,6 +214,10 @@ autodoc_mock_imports = [
     "matplotlib",
     "serial",
     "numpy",
+    "pyqtgraph",
+    "scipy",
+    "pillow",
+    "PIL",
 ]
 
 # Ignore import errors for specific modules
@@ -228,13 +249,14 @@ myst_enable_extensions = [
     "substitution",
     "replacements",
     "smartquotes",
-    "linkify",
     "attrs_inline",
     "attrs_block",
 ]
 
-# Allow parsing of .rst files only for now
-source_suffix = ".rst"
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 
 # Master document
 master_doc = "index"

@@ -1,36 +1,45 @@
-GMCounter Dokumentation
-=====================
+GMCounter Documentation
+=======================
 
-GMCounter ist eine grafische Oberfläche für einen auf Geiger-Müller-Zählröhren
-basierenden Zufallszahlengenerator. Sie zeichnet Impulszeiten auf, wertet diese
-statistisch aus und ermöglicht den Export in verschiedene Formate.
+GMCounter is a PySide6 desktop application for a Geiger-Müller counter connected
+over USB serial. It records inter-event timings in microseconds, presents the data
+live, and supports analysis workflows for random-number research and detector
+characterisation.
 
-Inhalt
-------
+No hardware required to try it — demo mode is on by default.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Anleitungen
+   :caption: User Guide
 
    quickstart
-   architecture
+   installation
    configuration
    user-interface
    data-analysis
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Architecture
+
+   architecture
+   principles
    hardware/gm-counter-protocol
+   hardware/firmware
+   hardware/timing
 
 .. toctree::
    :maxdepth: 1
-   :caption: Entwicklerreferenz
+   :caption: Developer Reference
 
    api
-   faq
    troubleshooting
+   faq
 
 Project info
 ------------
 
 * **Author:** Cedric Kessler
 * **License:** MIT
-* **Source:** https://github.com/cckssr/GMCounter
-* **Version:** 2.1.0
+* **Source:** https://github.com/cckssr/gmcounter
+* **Version:** 2.1.2

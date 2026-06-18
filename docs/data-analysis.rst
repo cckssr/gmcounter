@@ -1,99 +1,104 @@
-Datenanalyse & Konfiguration
-============================
+Data Analysis and Export
+========================
 
-GMCounter bietet umfangreiche Tools zur Analyse der Zufallsqualität und konfigurierbare Parameter für verschiedene Anwendungen.
+Every experiment tab can export its results via the **Speichern** button or a
+file dialog. All exports use the same ``TabExport`` schema and produce two files.
 
-Statistische Analyse
---------------------
-
-**Echtzeitstatistiken:**
-- **Zählrate** (counts/min): Aktivität der radioaktiven Quelle
-- **Mittelwert**: Durchschnittliche Zeitintervalle zwischen Events
-- **Standardabweichung**: Variabilität der Messwerte
-- **Varianz**: Quadrat der Standardabweichung
-
-**Qualitätstests:**
-- **Chi-Quadrat-Test**: Prüft Gleichverteilung (p > 0.05 = gut)
-- **Kolmogorov-Smirnov**: Testet gegen Referenzverteilung
-- **Autokorrelation**: Erkennt systematische Abhängigkeiten
-
-**Visualisierung:**
-- **Zeitreihe**: Live-Plot der Zählrate
-- **Histogramm**: Verteilung der Zeitintervalle
-- **Scatter-Plot**: Aufeinanderfolgende Werte (Korrelationstest)
-
-Konfiguration
+Export format
 -------------
 
-Hauptkonfiguration in ``config.json``:
+Pressing **Speichern** writes two files:
+
+CSV file
+~~~~~~~~
+
+Columns vary by experiment:
+
+* **GM Timing:** ``Index``, ``Value (µs)``, ``Time``
+* **Distance Law / Voltage Response:** parameter, count, rate (1/s), duration (s), timestamp
+* **Interval Repeat:** interval index, count, per-interval timing CSV
+
+JSON sidecar (``_MD.json``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Dublin-Core-style metadata dictionary written alongside the CSV:
 
 .. code-block:: json
 
    {
-     "device": {
-       "port": "auto",           // COM-Port (auto = automatisch)
-       "baudrate": 115200,       // Übertragungsrate
-       "timeout": 1.0,           // Verbindungs-Timeout
-       "protocol": "standard"    // Protokoll-Typ
-     },
-     "acquisition": {
-       "sample_time": 60,        // Messzeit in Sekunden
-       "buffer_size": 10000,     // Max. Datenpunkte im Memory
-       "auto_save": true,        // Automatisches Speichern
-       "save_interval": 300      // Speichern alle 5 Min
-     },
-     "analysis": {
-       "update_rate": 1.0,       // Diagramm-Update (Hz)
-       "histogram_bins": 50,     // Anzahl Histogram-Balken
-       "statistical_window": 1000 // Punkte für rolling stats
-     }
+     "dc:date": "2025-04-01",
+     "dc:creator": "SoSe2025_Mo_A",
+     "dc:title": "Ra-226",
+     "start_time": "2025-04-01T10:00:00",
+     "end_time":   "2025-04-01T10:05:00",
+     "radioactive_sample": "Ra-226",
+     "subgroup": "Gruppe1"
    }
 
-**Hardware-spezifische Einstellungen:**
+Save path composition
+---------------------
 
-Arduino GM-Zähler:
-  ``"protocol": "arduino", "baudrate": 9600``
+The path is composed by ``core.export.compose_save_path()`` from:
 
-Frederiksen Scientific:
-  ``"protocol": "frederiksen", "baudrate": 115200``
+* ``base_dir`` (configured in ``config.json → save.base_folder``)
+* Today's date (``YYYY_MM_DD``)
+* A two-digit index that increments automatically
+* The experiment's ``filename_hint`` (e.g. ``gm_timing``, ``abstandsgesetz``)
+* Optional filename tokens (e.g. a Dropbox folder structure)
 
-Benutzerdefiniert:
-  ``"protocol": "custom", "delimiter": "\n"``
+No I/O happens in ``core.export`` — the infrastructure layer
+(``infrastructure.save_service``) handles all filesystem access.
 
-Datenexport
------------
+Crash-safe session journal
+--------------------------
 
-**CSV-Format (Standard):**
-- Zeitstempel, Zählwert, Intervall
-- Metadaten im Header
-- Kompatibel mit Excel, Python, R
+Every acquired data point is appended to a crash-safe journal at:
 
-**JSON-Format:**
-- Strukturierte Daten mit Metadaten
-- Programmatischer Zugriff
-- Konfigurationsinformationen enthalten
+.. code-block::
 
-**Binär-Format:**
-- Kompakte Speicherung für große Datenmengen
-- Schneller I/O
-- NumPy-kompatibel
+   ~/.gmcounter/sessions/<timestamp>/journal.csv
 
-Qualitätsbewertung
+The journal is fsynced every ~1 s. If the application crashes before a formal
+save, the journal records all received data. On the next startup,
+``find_orphan_journals()`` reports any sessions without a ``finalized`` marker.
+
+TabExport schema
+----------------
+
+The ``TabExport`` dataclass is the contract between experiment tabs and the
+infrastructure writer:
+
+.. autoclass:: gmcounter.core.export.TabExport
+   :members:
+   :no-undoc-members:
+   :no-index:
+
+.. autofunction:: gmcounter.core.export.compose_save_path
+   :no-index:
+
+.. autofunction:: gmcounter.core.export.build_gm_tab_export
+   :no-index:
+
+Interval binning (MCS mode)
+---------------------------
+
+The ``IntervalBinner`` algorithm is a pure-Python MCS-style binner that can
+be reused in other data-acquisition projects:
+
+.. autoclass:: gmcounter.core.interval_binning.IntervalBinner
+   :members:
+   :no-index:
+
+.. autoclass:: gmcounter.core.interval_binning.IntervalBins
+   :members:
+   :no-index:
+
+Duration trimming
 -----------------
 
-**Gute Zufallsqualität:**
-- Chi-Quadrat p-Wert > 0.05
-- Gleichmäßiges Histogramm
-- Keine erkennbaren Muster im Scatter-Plot
-- Autokorrelation nahe 0
+``accumulate_and_trim()`` is a pure budget-trimming utility that keeps points
+whose cumulative device-time does not exceed a target. Used to honour a finite
+counting time declared in config without needing a hardware timer:
 
-**Problematische Signale:**
-- Periodische Schwankungen → Elektrische Störungen
-- Clustered Events → Defekte Hardware
-- Systematische Trends → Umgebungseinflüsse
-
-**Optimierungstipps:**
-- Längere Messzeiten für stabilere Statistiken
-- Abschirmung gegen elektromagnetische Störungen
-- Temperaturstabile Umgebung
-- Regelmäßige Kalibration der Hardware
+.. autofunction:: gmcounter.core.duration.accumulate_and_trim
+   :no-index:
