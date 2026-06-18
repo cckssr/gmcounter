@@ -5,6 +5,10 @@ rationale, and how to apply them when extending or maintaining the codebase.
 It is organised by concern, not by file. CLAUDE.md's `§N` references point to
 numbered sections here.
 
+> **Portable principles:** The generic, project-agnostic rules these decisions
+> are based on are captured in [PRINCIPLES.md](PRINCIPLES.md) — copy that file
+> to any new PySide/firmware project as a starting point.
+
 ---
 
 ## 1. The three-layer rule (load-bearing decision)

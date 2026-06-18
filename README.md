@@ -1,117 +1,136 @@
 # GMCounter
 
-GMCounter is a PySide6 desktop application for a Geiger-Müller counter connected over USB serial. It records inter-event timings in microseconds, presents the data live, and supports analysis workflows for random-number research and detector characterization.
+[![CI](https://github.com/cckssr/gmcounter/actions/workflows/ci.yml/badge.svg)](https://github.com/cckssr/gmcounter/actions/workflows/ci.yml)
+[![Docs](https://github.com/cckssr/gmcounter/actions/workflows/sphinx-docs.yml/badge.svg)](https://cckssr.github.io/gmcounter/)
+[![Version](https://img.shields.io/github/v/release/cckssr/gmcounter)](https://github.com/cckssr/gmcounter/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+
+GMCounter is a PySide6 desktop application for a Geiger-Müller counter connected
+over USB serial. It records inter-event timings in microseconds, presents the data
+live, and supports analysis workflows for random-number research and detector
+characterisation.
+
+**No hardware required to try it** — demo mode is on by default and uses a
+software-emulated serial port.
+
+📖 **Full documentation:** [cckssr.github.io/gmcounter](https://cckssr.github.io/gmcounter/)
+
+---
 
 ## What It Does
 
-GMCounter is designed to be the control and analysis layer for a GM counter setup. The application lets you connect to the device, start and stop measurements, inspect the data as it arrives, and export results for later analysis.
+- Live time-series, histogram, and tabular views of incoming events
+- Parameter-sweep experiments: distance law (1/r²) and voltage-response curve
+- MCS-style interval-repeat experiment (`IntervalRepeatTab`)
+- Export to CSV with a sidecar `_MD.json` metadata file
+- Crash-safe session journal (`~/.gmcounter/sessions/`) for data recovery
+- Exponential-backoff auto-reconnect that replays device state on recovery
 
-Typical capabilities include:
-
-- live time-series plotting of incoming events
-- histogram and tabular views of measurements
-- measurement export to CSV with a sidecar metadata JSON file
-- parameter-sweep workflows for experiments such as distance-law and voltage-response measurements
-- a demo/testing path that uses the repository's mock serial device when available
+---
 
 ## Installation
 
-### Install from this repository with pip
-
-You can install the package directly from the Git repository without cloning it first:
+### From the repository (no clone needed)
 
 ```bash
 pip install "git+https://github.com/cckssr/gmcounter.git"
 ```
 
-If you want a specific branch or revision, pin it explicitly:
+Pin a specific release:
 
 ```bash
-pip install "git+https://github.com/cckssr/gmcounter.git@main"
+pip install "git+https://github.com/cckssr/gmcounter.git@v2.1.2"
 ```
 
-### Install from a local clone
-
-If you already have the repository checked out locally, install the current working tree with pip:
+### From a local clone
 
 ```bash
 pip install .
 ```
 
-For development, install the editable package with the development extras:
+Development (editable, with linting and test tools):
 
 ```bash
 pip install -e ".[dev]"
 ```
 
-## Requirements
+---
 
-- Python 3.10 or newer
-- PySide6
-- pyserial
-- numpy, scipy, matplotlib, pyqtgraph, pillow
-- a GM counter connected over USB serial for hardware-backed operation
-
-## Running The Application
-
-After installation, start the GUI with either of the following commands:
+## Running the Application
 
 ```bash
 gmcounter
-```
-
-or
-
-```bash
+# or
 python -m gmcounter
 ```
 
-When the application launches, it opens the connection dialog first. From there you can choose a serial device or use the demo/testing path when the mock serial port helper is available.
+The connection dialog opens first. Select a serial port or accept the default
+demo-mode mock port — no physical hardware is needed in demo mode
+(`demo_mode: true` in `gmcounter/config.json`).
+
+---
+
+## Requirements
+
+- Python 3.10 or newer
+- PySide6 ≥ 6.5
+- pyserial, numpy, scipy, pyqtgraph, pillow
+- A Geiger-Müller counter with the [matching firmware](firmware/) connected over
+  USB serial for hardware-backed operation
+
+---
 
 ## Project Structure
 
-- gmcounter/core/: pure domain logic, data models, exports, and services
-- gmcounter/infrastructure/: serial adapters, persistence, configuration, logging, and Qt-free helpers
-- gmcounter/ui/: PySide6 user interface, controllers, dialogs, tabs, and widgets
-- gmcounter/pyqt/: generated Qt UI code from the designer files
-- tests/: unit, integration, and UI tests
-- docs/: Sphinx documentation and user guides
-
-## Main Features
-
-The application is organized around a small number of focused workflows:
-
-1. Connect to a device through the serial connection dialog.
-2. Configure voltage, counting time, and measurement mode.
-3. Start acquisition and monitor the live signal in the main window.
-4. Switch between time-series, histogram, and list views for the same data set.
-5. Save or export results for later processing.
-6. Use sweep-style tabs for experiments that collect multiple measurements across changing parameters.
-
-## Testing
-
-Run the full test suite with pytest:
-
-```bash
-pytest
+```ascii
+gmcounter/
+  core/           Pure domain logic — no Qt, no serial (unit-testable standalone)
+  infrastructure/ Serial adapters, file I/O, config, logging; Qt only in qt_threads.py
+  ui/             PySide6 windows, tabs, widgets, dialogs
+  pyqt/           Generated Qt Designer outputs — do NOT hand-edit
+firmware/         PlatformIO / Arduino UNO R4 firmware (SCPI command set)
+tests/            Unit, integration, and UI tests
+docs/             Sphinx documentation source
 ```
 
-Run the package tests with coverage:
+Dependency direction: **UI → Infrastructure → Core** (enforced; lower layers
+must never import upward).
+
+---
+
+## Development
 
 ```bash
-pytest --cov=gmcounter
+# Format and lint
+ruff format gmcounter tests
+ruff check gmcounter tests
+
+# Tests
+pytest tests/core tests/infrastructure        # no Qt needed
+QT_QPA_PLATFORM=offscreen pytest tests/ui/   # headless Qt
+
+# After editing .ui files in gmcounter/pyqt/
+bash gmcounter/pyqt/pyuic.sh
+
+# Build docs locally
+pip install -e ".[docs]"
+sphinx-build -b html docs docs/_build/html
 ```
 
-UI tests require Qt to run headlessly:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, PR flow, and
+auto-versioning rules.
 
-```bash
-QT_QPA_PLATFORM=offscreen pytest tests/ui/
-```
+---
 
-## Documentation
+## Architecture and Design
 
-The full documentation lives in the docs folder and is published at [gmcounter.readthedocs.io](https://gmcounter.readthedocs.io).
+- [ARCHITECTURE.md](ARCHITECTURE.md) — project-specific design contracts (§1–§17)
+- [PRINCIPLES.md](PRINCIPLES.md) — portable PySide/firmware design principles with rationale
+- [docs/](https://cckssr.github.io/gmcounter/) — full Sphinx documentation
+
+---
 
 ## License
 
-MIT License. See [LICENSE](LICENSE).
+MIT License — see [LICENSE](LICENSE).

@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Doc maintenance:** use `/docs-sync` (`.claude/skills/docs-sync/SKILL.md`) to keep docs in sync after any code change.
+
 ## Project Overview
 
 GMCounter is a PySide6 desktop GUI for a Geiger-Müller counter device connected via USB serial (Arduino). It measures inter-event timing in microseconds and is used for random number generation research.

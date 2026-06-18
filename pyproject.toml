@@ -49,7 +49,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/cckssr/gmcounter"
-Documentation = "https://gmcounter.readthedocs.io"
+Documentation = "https://cckssr.github.io/gmcounter/"
 Repository = "https://github.com/cckssr/gmcounter"
 Issues = "https://github.com/cckssr/gmcounter/issues"
 
