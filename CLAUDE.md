@@ -184,6 +184,7 @@ The shared **Start / Stop / Speichern / Reset** buttons route automatically: `Ma
 **Config**: All tuneable constants live in `gmcounter/config.json` under the `"de"` key. Access with `import_config()` from `gmcounter.infrastructure.config`. `demo_mode: true` by default (no real hardware needed).
 
 **Binary protocol**: Three marker types, all decoded by `PacketParser`:
+
 - Start marker: `0xFF × 6` — everything before it is discarded; parser must see this before accepting data packets
 - Data packet: `[0xAA, b0, b1, b2, b3, 0x55]` — bytes 1–4 encode inter-event delta in firmware timer ticks (little-endian 32-bit); divide by `ticks_per_us` (config, default 48 for RA4M1 at 48 MHz) to get µs
 - End-of-period marker: `0xEE × 6` — firmware sends this when a finite-time counting period completes; `PacketParser.end_of_period` flag is set; caller must call `clear_end_of_period()` after handling

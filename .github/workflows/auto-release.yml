@@ -41,7 +41,7 @@ env:
   VERSION_FILES: |
     pyproject.toml
     gmcounter/__init__.py
-    gmcounter/config.json
+    gmcounter/config.json:de.application.version
 
 permissions:
   contents: write
@@ -171,9 +171,11 @@ jobs:
           from pathlib import Path
 
           version = os.environ["VERSION"]
-          targets = [Path(line) for line in os.environ["VERSION_FILES"].splitlines() if line.strip()]
+          # Each entry may be "path/to/file" or "path/to/file.json:dot.key.path"
+          entries = [(line.split(":", 1) + [""])[:2] for line in os.environ["VERSION_FILES"].splitlines() if line.strip()]
 
-          for target in targets:
+          for file_part, key_path in entries:
+              target = Path(file_part.strip())
               if not target.exists():
                   raise RuntimeError(f"Missing version target: {target}")
               if target.suffix == ".toml":
@@ -189,11 +191,15 @@ jobs:
                       raise RuntimeError(f"Could not update version in {target}")
                   target.write_text(updated, encoding="utf-8")
               elif target.suffix == ".json":
-                  payload = json.loads(target.read_text(encoding="utf-8"))
-                  if not isinstance(payload, dict) or "version" not in payload:
-                      raise RuntimeError(f"No top-level 'version' field in {target}")
-                  payload["version"] = version
-                  target.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                  # Use regex replacement to preserve file formatting (blank lines etc.)
+                  # key_path is e.g. "de.application.version"; we match the last segment's key
+                  json_key = key_path.split(".")[-1] if key_path else "version"
+                  text = target.read_text(encoding="utf-8")
+                  pattern = rf'("{re.escape(json_key)}"\s*:\s*)"[^"]*"'
+                  updated, n = re.subn(pattern, rf'\g<1>"{version}"', text, count=1)
+                  if n != 1:
+                      raise RuntimeError(f"Could not update '{json_key}' in {target}")
+                  target.write_text(updated, encoding="utf-8")
               else:
                   raise RuntimeError(f"Unsupported file type: {target}")
           PYEOF
@@ -257,7 +263,7 @@ jobs:
           git config user.name "github-actions[bot]"
           python - <<'PYEOF'
           import os, subprocess
-          files = [f.strip() for f in os.environ["VERSION_FILES"].splitlines() if f.strip()]
+          files = [f.strip().split(":")[0] for f in os.environ["VERSION_FILES"].splitlines() if f.strip()]
           subprocess.run(["git", "add", "--"] + files, check=True)
           PYEOF
           git commit -m "chore: bump version to v$VERSION"
