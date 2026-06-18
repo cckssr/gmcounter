@@ -352,9 +352,13 @@ def run_pty_server(
     slave_name = os.ttyname(slave)
     _log.info("Virtual serial port: %s", slave_name)
 
+    tmp_path = actual_port_file + ".tmp"
     try:
-        with open(actual_port_file, "w", encoding="utf-8") as fh:
+        with open(tmp_path, "w", encoding="utf-8") as fh:
             fh.write(slave_name)
+        os.replace(
+            tmp_path, actual_port_file
+        )  # atomic on Unix — file appears fully written
     except IOError as exc:
         _log.error("Could not write port file: %s", exc)
 

@@ -1,4 +1,6 @@
-"""Tests for the old PlotWidget.update_plot_batch() API — skipped because PlotWidget
+"""Tests for the old PlotWidget.update_plot_batch() API.
+
+Skipped because PlotWidget
 was replaced by GeneralPlot which uses update_plot_data() / set_summary_points().
 """
 

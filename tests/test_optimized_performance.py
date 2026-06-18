@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Performance test for DataController — marked skip because it runs for ~16 s
+"""Performance test for DataController.
+
+Skip because it runs for ~16 s
 and tests legacy DataController behaviour (add_data_point_fast with time.sleep).
-Run manually when profiling high-frequency acquisition."""
+Run manually when profiling high-frequency acquisition.
+"""
 
 import pytest
 
