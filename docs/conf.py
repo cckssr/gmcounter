@@ -13,9 +13,8 @@
 import os
 import sys
 
-# Add the parent directory to sys.path to allow importing the src package
+# Add the parent directory to sys.path so autodoc can import gmcounter.*
 sys.path.insert(0, os.path.abspath(".."))
-sys.path.insert(0, os.path.abspath("../src"))
 
 # Mock imports for dependencies that might not be available during build
 import unittest.mock
@@ -48,7 +47,7 @@ copyright_notice = "2025, Cedric Kessler"
 author = "Cedric Kessler"
 
 # The full version, including alpha/beta/rc tags
-release = "1.0.0"
+release = "2.1.0"
 
 # -- General configuration ---------------------------------------------------
 

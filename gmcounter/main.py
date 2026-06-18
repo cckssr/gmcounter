@@ -28,15 +28,12 @@ def _qt_message_handler(mode, _context, message: str) -> None:
 # from .ui.resources.stylesheet import apply_stylesheet
 
 # If executed as a script (package context missing), ensure the repo root is on
-# sys.path and set __package__ so relative imports below work correctly.
+# sys.path so the gmcounter package is importable.
 if __package__ is None:
-    # src/ is the package directory; parent is repository root
     package_dir = os.path.dirname(__file__)
     repo_root = os.path.dirname(package_dir)
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
-    # define package name to allow relative imports
-    __package__ = "src"
 
 
 # Konfigurationsdatei laden
@@ -92,10 +89,6 @@ def main():
             # Hauptfenster erstellen und anzeigen, wenn Verbindung erfolgreich
             main_window = MainWindow(device_manager)
             # MainWindow.__init__ already calls showMaximized(); no show() needed here.
-
-            # Timer starten, wenn vorhanden
-            if hasattr(main_window, "timer"):
-                main_window.timer.start()
 
             # Anwendung ausführen
             sys.exit(app.exec())

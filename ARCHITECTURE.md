@@ -1,21 +1,16 @@
-# ARCHITECTURE.md
+# ARCHITECTURE.md — GMCounter
 
-A reusable architectural blueprint for a desktop PySide6/PyQt application that
-talks to hardware, displays live data, and lets a user run multi-mode
-measurement experiments. Distilled from the `polarisation-ui` project so it can
-be applied as-is to refactor another PyQt project.
-
-The document is organised by concern, not by file. Each section starts with the
-**rule** (what to do), then the **rationale** (why this rule pays off in a
-PyQt+hardware codebase), then a **how-to-apply** sketch with concrete code/file
-shapes from this repo.
+This document describes GMCounter's architecture: the design rules, their
+rationale, and how to apply them when extending or maintaining the codebase.
+It is organised by concern, not by file. CLAUDE.md's `§N` references point to
+numbered sections here.
 
 ---
 
-## 1. The three-layer rule (this is the load-bearing decision)
+## 1. The three-layer rule (load-bearing decision)
 
-Every module belongs to exactly one of three layers, and dependencies flow in
-exactly one direction:
+Every module belongs to exactly one of three layers; dependencies flow in one
+direction:
 
 ```ascii
   ui/  ─────────►  infrastructure/  ─────────►  core/
@@ -23,49 +18,51 @@ exactly one direction:
   └──────────────────────────────────────────►  core/
 ```
 
-| Layer             | Purpose                                         | What it MAY import                     | What it MUST NOT import                                        |
-| ----------------- | ----------------------------------------------- | -------------------------------------- | -------------------------------------------------------------- |
-| `core/`           | Pure domain: dataclasses, business rules, math. | stdlib, `numpy`, peer `core/` modules  | PySide6, Qt, `serial`, hardware SDKs, `ui/`, `infrastructure/` |
-| `infrastructure/` | Adapters: device I/O, files, config, logging.   | stdlib, `serial`, vendor SDKs, `core/` | `ui/`. **PySide6 only inside ONE designated file** (see §6)    |
-| `ui/`             | PySide6 widgets and presentation logic.         | everything below                       | nothing else; no business rules of its own                     |
+| Layer             | Purpose                                                     | May import                     | Must NOT import                                 |
+| ----------------- | ----------------------------------------------------------- | ------------------------------ | ----------------------------------------------- |
+| `core/`           | Pure domain: dataclasses, business rules, maths, protocols. | stdlib, peer `core/` modules   | PySide6, `serial`, `infrastructure/`, `ui/`     |
+| `infrastructure/` | Adapters: device I/O, file I/O, config, logging.           | stdlib, `serial`, `core/`      | `ui/`. **PySide6 only inside `qt_threads.py`**  |
+| `ui/`             | PySide6 windows, widgets, tabs, dialogs.                   | everything below               | nothing else; no domain rules of its own        |
 
 **Forbidden edges (verify before merging):**
 
-- `core/ → ui/` — would couple physics to widgets
-- `core/ → infrastructure/` — would couple physics to serial/files
+- `core/ → ui/` — would couple domain logic to widgets
+- `core/ → infrastructure/` — would couple domain logic to serial/files
 - `infrastructure/ → ui/` — would couple drivers to widgets
 
-### Why this layout
+### Why
 
-1. **You can unit-test core without Qt installed.** Tests for goniometer math,
-   filename composition, calibration curves, and circular-mean angle averaging
-   run in milliseconds and never touch a screen.
-2. **You can mock hardware at the adapter boundary.** The UI does not know
-   whether it's talking to a real Arduino or a PTY-backed simulator.
-3. **You can replace the UI framework.** The CLI launcher (`main.py`) and the
-   `--debug-only` / `--power-cal` standalone modes prove this — they reuse the
-   exact same `core/` and `infrastructure/` and only swap the top-level
-   widget.
+1. `core/` is testable without Qt. Tests for interval binning, duration
+   trimming, export path composition, and reconnect logic run in milliseconds
+   and never open a display.
+2. Hardware can be mocked at the adapter boundary. `MockGMCounter` (PTY-based)
+   speaks the same binary protocol as a real device; `DataAcquisitionThread`
+   uses the same parser either way.
+3. `infrastructure/` stays import-clean: only `qt_threads.py` has Qt, so every
+   other infra module is unit-testable without a running QApplication.
 
 ### How to apply
 
-When starting a refactor, the very first commit should be physical relocation:
-move every dataclass and every pure function into `core/`, every adapter and
-file-I/O into `infrastructure/`, and leave only widgets, signals, and slots in
-`ui/`. Resist the urge to "clean up while moving" — do the move, get green
-tests, then refactor inside each layer.
+When adding a feature, identify which layer it belongs to first. If it needs
+Qt, it belongs in `ui/` (or, if it truly needs a QThread worker, in
+`infrastructure/qt_threads.py`). If it could work in a CLI script, it belongs
+in `core/` or `infrastructure/`.
 
-Mark each layer's `__init__.py` with the import rule as a comment so future
-readers can't accidentally introduce a back-edge.
+Enforce with a one-liner pre-commit check:
+```bash
+# Should return zero files:
+grep -rln "PySide6" gmcounter/core/ gmcounter/infrastructure/*.py \
+  $(find gmcounter/infrastructure -name "*.py" ! -name "qt_threads.py")
+```
 
 ---
 
 ## 2. Qt Designer is the source of truth for visual structure
 
-Every visible widget, layout, label, button, group box, menu, dock, table
-view, and spinbox lives in a `.ui` file edited in Qt Designer. Python files
-contain only **signal connections, slot logic, and state manipulation** —
-never widget construction.
+Every visible widget, layout, label, button, group box, dock, table view, and
+spinbox lives in a `.ui` file edited in Qt Designer. Python files contain only
+**signal connections, slot logic, and state manipulation** — never widget
+construction.
 
 ### The rule, precisely
 
@@ -73,17 +70,17 @@ never widget construction.
   (`QMainWindow`, `QDialog`, `QWidget`), model classes attached to `.ui`
   views (`QStandardItemModel`), modal helpers (`QFileDialog`, `QMessageBox`),
   event types (`QCloseEvent`), and `@Slot` / `QTimer`.
-- `QButtonGroup` may be instantiated in Python because it is a non-visual
-  logical helper. Its member buttons must still live in the `.ui`.
-- `pyuic.sh` regenerates `ui_*.py` from `*.ui`. Generated files are committed
-  but never edited by hand. After every `.ui` change: `bash gmcounter/pyqt/pyuic.sh`.
+- pyqtgraph widgets (`GeneralPlot`, `HistogramWidget`) are created in Python
+  because Qt Designer cannot host third-party custom widgets. They are injected
+  into empty `QWidget` containers declared in `.ui` with `native="true"`.
+- `pyuic.sh` regenerates `pyqt/ui_*.py` from `pyqt/*.ui`. Generated files are
+  committed but never edited by hand. After every `.ui` change:
+  `bash gmcounter/pyqt/pyuic.sh`.
 
-### Injection pattern (how tabs interact with .ui widgets)
+### Injection pattern
 
 Tabs receive `.ui` widget references via an `inject_*()` call before `build()`.
-They never import `Ui_MainWindow` or walk the widget tree. `build()` has exactly
-one purpose: create the pyqtgraph widget and install it inside the `.ui`
-native-QWidget container. It must not build any other widgets.
+They never import `Ui_MainWindow` or walk the widget tree:
 
 ```python
 # In MainWindow.__init__:
@@ -96,254 +93,183 @@ self._gm_tab.inject_ui_containers(
 self._gm_tab.build()   # creates GeneralPlot inside timePlot — nothing else
 ```
 
-### Justified exceptions (allowed, each one documented here)
+### Justified exceptions
 
-| Kind of object                             | Why Python creates it                                |
-| ------------------------------------------ | ---------------------------------------------------- |
-| `GeneralPlot`, `HistogramWidget`           | pyqtgraph — Designer cannot host third-party widgets |
-| `QStandardItemModel` on a `.ui` QTableView | Non-visual data model; the view itself is in `.ui`   |
-| `QStandardItem` rows appended at runtime   | Dynamic data, not static structure                   |
-
-Everything else — inputs, labels, buttons, group boxes, table views,
-splitters, status labels — must be in `.ui`. If you find yourself writing
-`QPushButton(…)` in a tab or window class, stop and add it to the `.ui` first.
-
-### Why this rule
-
-PyQt projects rot fastest when widget construction sprawls across Python. You
-end up with three different ways to add a "save" button (`.ui`, Python, copy-
-pasted from another window), and you can't diff visual changes. Forcing
-Designer also gives you free internationalisation hooks and the WYSIWYG
-preview as a sanity check. It also makes parameter-sweep tabs trivially
-copyable: add a page to `.ui`, set six class attributes, done.
-
-### How to apply
-
-1. For each existing window/dialog, create a `.ui` file in `pyqt/`.
-2. Move every widget into it. The Python file shrinks to: `setupUi(self)`,
-   `_connect_signals()`, and slot methods.
-3. Run `pyuic.sh` to regenerate `ui_*.py` on every `.ui` change.
-4. Add a CI check that imports each window class — broken `setupUi()` is
-   loud and immediate.
+| Kind of object                                 | Why Python creates it                                                 |
+| ---------------------------------------------- | --------------------------------------------------------------------- |
+| `GeneralPlot`, `HistogramWidget` (pyqtgraph)   | Designer cannot host third-party widgets                              |
+| `QStandardItemModel` on a `.ui` `QTableView`   | Non-visual data model; the view lives in `.ui`                        |
+| `QStandardItem` rows appended at runtime       | Dynamic data                                                          |
 
 ---
 
-## 3. The Controller pattern bridges device → UI
+## 3. AppController: the single bridge between hardware and UI
 
-A single `*Controller` (`QObject`) owns the polling timer, the read loop, the
-reconnect state machine, the rolling-average buffers, and emits Qt signals
-that windows subscribe to. The window never polls; the device never knows
-about Qt.
+`AppController` (`ui/controllers/app_controller.py`) is the sole `QObject`
+that owns the device lifecycle, all `QTimer` instances, the
+`DataAcquisitionThread`, the reconnect FSM, and the frame fan-out to the active
+tab. Windows subscribe to its signals; they never poll the device directly.
 
-### Anatomy of a controller
+### Signal contract
 
 ```python
-class DataController(QObject):
-    # ---- outbound signals (the entire contract with the UI) ----
-    angles_updated   = Signal(float, float)
-    intensity_updated = Signal(float)
-    frame_ready      = Signal(Frame)            # consolidated per-sample bundle
-    diagnostics_updated = Signal(bool, str, bool, str)
-    poll_rate_updated = Signal(float)
+class AppController(QObject):
+    # --- connection lifecycle ---
+    connection_status_changed = Signal(str, str)   # (state_str, detail)
+    reconnect_attempt         = Signal(int, float)  # (attempt_n, delay_s)
+    reconnect_succeeded       = Signal()
+    connection_lost           = Signal()
 
-    error_occurred   = Signal(str)
-    retry_connecting = Signal(int, float)       # attempt#, delay_s
-    reconnect_succeeded = Signal()
-    connection_lost  = Signal()
-
+    # --- measurement lifecycle ---
     measurement_started = Signal()
     measurement_stopped = Signal()
 
-    def __init__(self, device_manager, parent=None):
-        super().__init__(parent)
-        self.poll_timer = QTimer(self); self.poll_timer.timeout.connect(self._poll)
-        self._retry_timer = QTimer(self); self._retry_timer.setSingleShot(True)
-        ...
+    # --- live data ---
+    frames_ready = Signal(list)  # list[Frame], delivered to active PlotTabBase
+
+    # --- device readbacks ---
+    voltage_updated      = Signal(float)
+    count_time_updated   = Signal(int)
 ```
 
 ### Rules
 
-- **One controller per stream.** Don't fan poll loops out across windows.
-- **The controller emits, never blocks.** Long work goes to a `QThread`
-  worker (§4).
-- **Signal types carry primitives or `@dataclass(frozen=True)`** — never raw
-  device handles or mutable buffers. Cross-thread queued signals must be safe
-  to copy.
-- **The controller owns the recovery state machine** (errors, backoff,
-  buffer flushes). Windows present state; they don't choose policy.
-- **Cleanup is a single method** (`controller.cleanup()`) called from
-  `closeEvent`. Stops timers, joins workers, closes journals.
-
-### Why
-
-PyQt code goes wrong when widgets directly call `device.read()`. The poll
-becomes coupled to whichever window is open, error handling is duplicated per
-window, and threading becomes whack-a-mole. Concentrating the state machine
-makes every UI surface a passive observer.
-
-### How to apply
-
-Define the signal list **first** — that is the controller's public API. Make
-windows only consume signals; never let a window keep a reference to the
-device manager except for one-shot user actions (zero, set-gain, connect).
+- **One controller.** `MainWindow` holds one `_ctrl` and passes it nothing else.
+- **The controller emits, never blocks.** Long work goes to `DataAcquisitionThread`
+  or `ReconnectWorker` (see §4).
+- **Signal payload types are primitives or `@dataclass(frozen=True)`.** The
+  `Frame` dataclass is the canonical cross-thread bundle.
+- **The controller owns the recovery state machine.** Windows present state;
+  they do not decide policy.
+- **Cleanup is `_ctrl.cleanup()` from `closeEvent`.** Stops timers, stops the
+  acquisition thread, waits for workers.
 
 ---
 
 ## 4. Threading: one place for Qt threads, queued signals everywhere else
 
-PyQt's threading mistakes are all variations of "I touched a widget from a
-worker thread." Avoid them with three rules.
+PyQt threading bugs all trace back to "I touched a widget from a worker thread."
+Two rules prevent them:
 
-1. **All `QThread` subclasses live in one module** (`infrastructure/qt_threads.py`).
-   It is the _only_ infrastructure file allowed to import PySide6. Every other
-   infrastructure file stays Qt-free so it can be unit-tested with plain
-   `pytest`.
-2. **Workers emit signals; they never touch widgets.** Receivers live on the
-   main thread and Qt's auto-connection upgrades the calls to queued
-   delivery.
-3. **Workers expose a clean `abort()` flag**, not `terminate()`. The `run()`
-   method polls the flag at every loop boundary.
+1. **All `QThread` subclasses live in `infrastructure/qt_threads.py`.** It is
+   the _only_ infrastructure file allowed to import PySide6.
+2. **Workers emit signals; they never touch widgets.** Qt's auto-connection
+   upgrades the calls to queued delivery.
 
-### Standard worker shape
+### `DataAcquisitionThread` shape
+
+```python
+class DataAcquisitionThread(QThread):
+    data_batch = Signal(list)   # list[Frame] — fan-out to AppController
+
+    def run(self):
+        while not self._stop_flag.is_set():
+            raw = self._dm.device.read_raw()   # blocks briefly
+            frames = self._parser.feed(raw)
+            if frames:
+                self.data_batch.emit(frames)
+```
+
+The `PacketParser` is extracted into `infrastructure/packet_parser.py` so it
+can be unit-tested without a QThread.
+
+### `ReconnectWorker` shape
 
 ```python
 class ReconnectWorker(QThread):
     succeeded = Signal()
     failed    = Signal()
 
-    def __init__(self, device_manager, parent=None):
-        super().__init__(parent)
-        self._dm = device_manager
-
     def run(self):
-        try:
-            ok = self._dm.reconnect_encoders()      # blocks with sleep()
-        except Exception as exc:
-            Debug.error(f"reconnect: {exc}")
-            self.failed.emit(); return
+        ok = self._dm.attempt_automatic_reconnect(desired=self._desired_state)
         (self.succeeded if ok else self.failed).emit()
 ```
 
 ### Lifetime
 
-The owning controller stores the worker as an attribute (so it is not garbage-
-collected while running) and connects `worker.finished` to `worker.deleteLater`.
-A new worker overwrites the attribute only after the old one finished.
-
-### Why
-
-Crashes from "QObject: Cannot create children for a parent that is in a
-different thread" or zombie threads on shutdown are the #1 source of PyQt
-support tickets. The "one Qt module in infrastructure" rule keeps Qt out of
-your mock layer and forces every infra dependency to be testable without a
-display.
-
-### How to apply
-
-When porting a project: grep for `QThread`, `QtCore` in your infrastructure;
-move every offender into one file. Anything else that needs background work
-becomes a callable that the Qt-thread module wraps.
+The owning controller stores the worker as an attribute. A new worker
+overwrites the attribute only after the previous one finished. Connect
+`worker.finished` to `worker.deleteLater`.
 
 ---
 
 ## 5. Resilience: the connection state machine has one owner
 
-Hardware drops. Treat reconnection as a first-class state machine inside the
-controller, with these contracts:
+Hardware drops. Treat reconnection as a first-class state machine inside
+`AppController`, with these contracts:
 
-| Contract                              | Behaviour                                                                                                                                                                                     |
+| Contract                              | Behaviour in GMCounter                                                                                                                                                                        |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **B1 — silent first failure**         | The first read error does not show a popup or error banner. It increments a counter and schedules a retry. Only the second consecutive failure (or a new error type) raises `error_occurred`. |
-| **B2 — exponential backoff with cap** | Delays `[1 s, 2 s, 4 s, 8 s, 15 s]`, capped. Controlled by the controller's `_retry_timer`.                                                                                                   |
-| **B3 — non-blocking UI**              | A `ConnectionBanner` (a `QFrame` overlay) shows state. Inputs are **not** disabled during `RECONNECTING` — the user can keep entering points.                                                 |
-| **B4 — data survives reconnect**      | Measurement buffers, plots, and the session journal are preserved. A `gap` marker is written so plots can show a discontinuity.                                                               |
-| **B5 — desired-state replay**         | All `CONF:*` settings (gain, mux, stream sources, rate) are snapshotted in a `DesiredState` dataclass and reapplied on every successful reconnect.                                            |
-| **B6 — filter resets on recovery**    | Spike-filter reference values and averaging buffers are flushed on reconnect so a stale "before" sample doesn't reject the first "after" sample.                                              |
-| **B7 — terminal state is explicit**   | When the backoff cap is exhausted, emit `connection_lost`. The UI offers "Export partial data" pointing at the on-disk journal.                                                               |
+| **B1 — silent first failure**         | The first read error does not show a popup. It increments a counter and schedules a retry. Only the second consecutive failure (or a new error type) updates the status bar.                 |
+| **B2 — exponential backoff with cap** | Delays grow `500 ms → 1 s → 2 s → 4 s → … → 16 s`, capped. Parameters in `config.json → connection.*`.                                                                                     |
+| **B3 — non-blocking UI**              | The status bar and `EventLogPanel` show reconnect state. Inputs are **not** disabled during `RECONNECTING` — the user can continue entering parameters for the next measurement.             |
+| **B4 — data survives reconnect**      | Measurement buffers, plots, and the session journal are preserved across a drop. A `gap` can be written to the journal for downstream analysis.                                              |
+| **B5 — desired-state replay**         | Voltage, counting time, repeat mode, and stream mode are snapshotted in a `DesiredState` dataclass (`core/models.py`) and re-applied on every successful reconnect via `DeviceManager.attempt_automatic_reconnect(desired=...)`. |
+| **B6 — filter resets on recovery**    | Internal parser state (`PacketParser.reset()`) is flushed on reconnect so a partial packet from before the drop does not corrupt the first frame after.                                     |
+| **B7 — terminal state is explicit**   | When backoff is exhausted, `AppController` emits `connection_lost` and the EventLogPanel notes the session journal path so the user can recover data.                                       |
 
 ### Crash-safe journaling
 
-Every emitted frame is appended to `~/.<app>/sessions/<ts>/journal.csv` with
-`fsync` every ~1 s. On startup, scan for sessions without a `finalized`
-marker — these are orphans. Offer recovery export, then delete (or keep on
-user request).
-
-### Why
-
-The most painful bug a hardware UI can ship is "user took a long measurement,
-USB dropped at minute 47, all data lost." The journal + desired-state snapshot
-makes this a recoverable inconvenience instead of an incident.
-
-### How to apply
-
-Implement the journal _before_ implementing the disk export feature. Once
-journaling is in, the explicit "Save" button just exports the journal to a
-user-chosen path and renames it `finalized`.
+`SessionJournal` (`infrastructure/session_journal.py`) appends every data
+point to `~/.gmcounter/sessions/<ts>/journal.csv` with `fsync` every ~1 s. On
+startup, `find_orphan_journals()` reports sessions without a `finalized` marker
+so the user can recover partial data.
 
 ---
 
 ## 6. Extensibility: experiment tabs as a plugin point
 
-A measurement application accumulates experiment modes. Bake the extension
-seam in from day one — even if you only have one tab today. There are two
-tab patterns; choose based on whether the experiment needs real-time frames.
+There are two tab patterns; choose based on whether the experiment needs
+real-time frames.
 
-### Pattern A — Frame-based tab (PlotTabBase)
+### Pattern A — Frame-based tab (`PlotTabBase`)
 
 For experiments that process every acquired data point live (time-series,
-histogram). The controller's `set_active_tab()` wires frames to it.
+histogram). `AppController.set_active_tab()` wires `frames_ready` to it.
 
 ```python
 class PlotTabBase(QWidget):
-    tab_id:           str        = ""        # stable key, used in tests & persistence
-    tab_title:        str        = ""        # user-visible label
-    required_sources: set[str]   = set()     # data streams the tab needs
-    required_modules: set[str]   = set()     # host modules required (e.g. {"kdc101"})
+    tab_id:          str        = ""     # stable key, used in tests
+    tab_title:        str        = ""     # user-visible label
+    required_modules: set[str]   = set()  # gates visibility on a HostModule
 
-    # outbound signals (uniform across all tabs)
-    status_message        = Signal(str, str)   # ("info"|"warning"|"error", text)
-    filename_hint_changed = Signal()
-    request_module_action = Signal(str, dict)
-
-    # lifecycle hooks (override only what you need)
+    # lifecycle hooks
     def build(self) -> None: ...
-    def on_frame(self, frame: Frame) -> None: ...
-    def on_frames(self, frames: list[Frame]) -> None: ...   # prefer this; batch-efficient
+    def on_frames(self, frames: list[Frame]) -> None: ...   # prefer over on_frame
     def on_reset(self) -> None: ...
     def on_measurement_started(self) -> None: ...
     def on_measurement_stopped(self) -> None: ...
     def export(self) -> Optional[TabExport]: ...
-    def get_statistics(self) -> dict: ...       # {count, min, max, avg, stdev}
 ```
 
-Adding a frame-based tab: subclass `PlotTabBase`, declare the tab page in
-`.ui`, call `inject_ui_containers()` + `build()` in `MainWindow`, register.
+**Adding a frame-based tab:**
+1. Add a `QWidget` page in `mainwindow.ui`.
+2. Subclass `PlotTabBase`, implement `build()` and `on_frames()`.
+3. Call `TabRegistry.register(MyTab)` at module level (import-time).
+4. In `MainWindow.__init__`, call `inject_*()` + `build()`.
 
-### Pattern B — Parameter-sweep tab (ParameterSweepTabBase)
+`required_modules` gating: tab is hidden until a `HostModule` with the
+declared `id` is registered in `ModuleRegistry` at runtime.
+
+### Pattern B — Parameter-sweep tab (`ParameterSweepTabBase`)
 
 For experiments that sweep one external parameter (distance, voltage) across
 multiple complete measurements and accumulate a summary. These tabs are
-**overlay listeners**: they never receive frames directly; they snapshot
-`GMTimingTab`'s completed measurement on `measurement_stopped`.
+**overlay listeners**: they do not receive frames directly; they snapshot
+`GMTimingTab`'s completed export when `measurement_stopped` fires.
 
 ```python
 class ParameterSweepTabBase(PlotTabBase):
-    # class attributes subclasses set:
-    param_label:           str   # axis / column label, e.g. "Probenabstand (cm)"
-    param_unit:            str   # unit string, e.g. "cm"
-    param_metadata_key:    str   # key stamped on individual exports, e.g. "sample_distance_cm"
+    # subclasses set class attributes only — no method bodies needed:
+    param_label:           str   # axis label, e.g. "Probenabstand (cm)"
+    param_unit:            str   # e.g. "cm"
+    param_metadata_key:    str   # key on individual exports
     summary_filename_hint: str   # CSV stem, e.g. "abstandsgesetz"
     summary_title:         str   # metadata title
 
-    # injection before build():
     def set_gm_tab(self, gm_tab): ...
     def inject_ui(self, plot_container, table_view, param_input, status_label): ...
-
-    # called by MainWindow (connected to AppController.measurement_stopped):
-    def on_measurement_stopped(self) -> None: ...   # snapshots export, appends summary row
-
-    # data model:
-    def has_data(self) -> bool: ...
+    def on_measurement_stopped(self) -> None: ...
     def has_unsaved_data(self) -> bool: ...
     def mark_saved(self) -> None: ...
     def reset_summary(self) -> None: ...
@@ -352,102 +278,74 @@ class ParameterSweepTabBase(PlotTabBase):
     def summary_export(self) -> Optional[TabExport]: ...
 ```
 
-Adding a sweep tab is **set six class attributes + add one `.ui` page**:
+The `.ui` page needs exactly four named widgets:
+`<prefix>Input` (QDoubleSpinBox), `<prefix>Plot` (QWidget native),
+`<prefix>Table` (QTableView), `<prefix>Status` (QLabel).
 
-```python
-class VoltageResponseTab(ParameterSweepTabBase):
-    tab_id = "voltage_response"
-    tab_title = "Spannungskurve"
-    required_modules: set[str] = set()
+**IMPORTANT: Sweep tabs do NOT call `TabRegistry.register()`.** They are
+explicitly wired in `MainWindow.__init__` and do not go through the
+auto-discovery path (unlike frame-based tabs which do register).
 
-    param_label          = "Spannung (V)"
-    param_unit           = "V"
-    param_metadata_key   = "gm_voltage_v"
-    summary_filename_hint = "spannungskurve"
-    summary_title        = "Spannungskurve — Zusammenfassung"
-
-TabRegistry.register(VoltageResponseTab)
-```
-
-The `.ui` page needs: `<prefix>Input` (QDoubleSpinBox), `<prefix>Plot`
-(QWidget native), `<prefix>Table` (QTableView), `<prefix>Status` (QLabel).
-
-The shared Start / Stop / Speichern / Reset buttons route via
-`MainWindow._current_sweep_tab()` — no per-tab button logic.
-
-**Sweep session managed by MainWindow:**
-
-- On Start → disable GM view tabs (indices 0-2), suppress GMTimingTab
-  high-speed auto-switch (`set_high_speed_autoswitch(False)`), set
-  `_sweep_session = True`
-- On Stop → Start re-enabled for next parameter point; save service unsaved
-  guard bypassed (sweep tab tracks its own unsaved state)
-- On Speichern → write summary CSV via file dialog; auto-write individual
-  timing CSVs alongside it; call `reset_summary()`, re-enable view tabs,
-  `set_high_speed_autoswitch(True)`, clear `_sweep_session`
-- On Reset → discard summary, re-enable view tabs
+**Sweep session lifecycle** (managed by `MainWindow`):
+- Start on a sweep tab → disables GM view tabs (0–2), suppresses
+  `GMTimingTab` high-speed auto-switch, sets `_sweep_session = True`
+- Stop → Start re-enabled immediately for the next parameter point
+- Speichern → write summary CSV + auto-named individual timing CSVs; call
+  `reset_summary()`, re-enable view tabs, clear `_sweep_session`
+- Reset → discard summary, re-enable view tabs
 
 ### The registry
 
+`TabRegistry` (`ui/tabs/registry.py`) only holds **frame-based** tabs that are
+auto-discovered by `AppController`:
+
 ```python
 class TabRegistry:
-    _tabs: list[type[PlotTabBase]] = []
     @classmethod
-    def register(cls, tab_class): ...
+    def register(cls, tab_class: type[PlotTabBase]) -> None: ...
     @classmethod
-    def available(cls, modules):
-        return [t for t in cls._tabs if t.required_modules.issubset(modules.keys())]
+    def available(cls, modules: dict) -> list[type[PlotTabBase]]:
+        return [t for t in cls._tabs if t.required_modules.issubset(modules)]
 ```
-
-Tabs declaring `required_modules = {"kdc101"}` only become visible when the
-matching module is registered in the `ModuleRegistry` at runtime.
-
-### Why
-
-Without this seam, every new experiment becomes a fork of the main window.
-With it, the main window is _closed for modification, open for extension_.
-The two-pattern split (frame vs. sweep) keeps `GMTimingTab` as the sole data
-sink — sweep tabs are analytical overlays that reuse its completed exports.
-
-### How to apply
-
-When refactoring, identify the chunks of `MainWindow` that change per
-experiment (controls, plots, save logic) and pull them behind `PlotTabBase`
-or `ParameterSweepTabBase`. Anything that stays in the main window is shared
-chrome: connection panel, status bar, menus, file naming, Start/Stop/Save
-button routing.
 
 ---
 
 ## 7. Save / Export: tabs declare a schema, the writer is generic
 
-Tabs return a `TabExport` dataclass; the save service writes any CSV+metadata
-without knowing what kind of experiment it was.
+Tabs return a `TabExport` dataclass; the infrastructure writer handles CSV +
+sidecar `_MD.json` without knowing what experiment produced it.
 
 ```python
 @dataclass
 class TabExport:
-    filename_hint:   str            # e.g. "brewster", "malus"
+    filename_hint:   str               # e.g. "gm_timing", "abstandsgesetz"
     columns:         list[str]
-    rows:            list[list[str]]  # already-stringified
-    metadata:        dict
+    rows:            list[list[str]]   # already-stringified values
+    metadata:        dict              # Dublin-Core-style sidecar
     filename_tokens: list[str] = field(default_factory=list)
 ```
 
-`save_tab_export(path, exp, group_letter, suffix, ...)` handles directory
-creation, header writing, sidecar `metadata.json`, and timestamping.
+**Two write paths:**
 
-### Why
+- `infrastructure.save_service.write_export(export, csv_path)` — standalone
+  function, used by `MainWindow` for manual saves via file dialog.
+- `infrastructure.save_service.SaveService.save(export)` — auto-index helper,
+  used by the app when saving to a predetermined directory tree.
 
-Centralising the writer means every experiment gets the same Dublin-Core-style
-metadata, the same CSV dialect, and the same atomic write semantics. A new
-experiment adds zero lines of file-I/O code.
+`core.export.compose_save_path()` composes the target path from a `TabExport`
+and a base directory — pure logic, no I/O.
+
+`core.export.build_gm_tab_export()` builds a `TabExport` from a
+`MeasurementSession` — also pure, no I/O.
+
+Unsaved-state tracking (dirty flag + `base_dir` for dialog suggestions) lives
+in `core.services.SaveState`, which holds no file I/O.
 
 ---
 
 ## 8. Modules: host-side peripherals are a Protocol
 
-Some hardware lives on the host (USB-attached stages, power meters), not
+Some hardware lives on the host (USB-attached stages, power supplies), not
 behind the firmware. Model them with a Protocol and a tiny registry:
 
 ```python
@@ -461,241 +359,233 @@ class HostModule(Protocol):
     def describe(self) -> str: ...
 
 class ModuleRegistry:
-    _registry: dict[str, HostModule] = {}
     @classmethod
-    def register(cls, m: HostModule): cls._registry[m.id] = m
+    def register(cls, m: HostModule) -> None: ...
     @classmethod
-    def get(cls, mid: str): return cls._registry.get(mid)
+    def get(cls, mid: str) -> Optional[HostModule]: ...
     @classmethod
-    def all(cls): return dict(cls._registry)
+    def all(cls) -> dict[str, HostModule]: ...
 ```
 
-Tabs gate themselves with `required_modules`. The main window calls
-`tab.inject_modules(ModuleRegistry.all())` whenever the registry changes.
-
-### Why
-
-Without this, every tab grows direct imports of every optional driver. With
-it, the tab declares "I need `kdc101`" and is invisible when it isn't there.
-Mocks satisfy the same Protocol, so tests never touch real hardware.
+Tabs gate themselves with `required_modules`. If a tab declares
+`required_modules = {"kdc101"}`, it is hidden until the `kdc101` module is
+registered at runtime.
 
 ---
 
 ## 9. Status, errors, and logging
 
-### Three concentric layers of user feedback
+### User feedback surfaces
 
-| Layer                         | What it says                                       | Lifetime                                         |
-| ----------------------------- | -------------------------------------------------- | ------------------------------------------------ |
-| `StatusBar`                   | One-line transient status (`✓ Connected`, `⚠ ...`) | 3–8 s, set via `show_info/success/warning/error` |
-| `EventLogPanel` (dock)        | Timestamped scrollback of every status line        | persistent in-session                            |
-| `ConnectionBanner` (`QFrame`) | Reconnect countdown / "data lost" callout          | only while not OK                                |
+| Surface                   | What it shows                                    | Lifetime                                         |
+| ------------------------- | ------------------------------------------------ | ------------------------------------------------ |
+| `StatusBar`               | One-line transient status                        | 3–8 s, via `StatusBarManager.show_info/warning/error` |
+| `EventLogPanel` (dock)    | Timestamped scrollback of every status message   | Persistent in-session                            |
 
-Forbidden: modal `QMessageBox.warning` for routine errors. Modals belong to
-**terminal** failures (connection lost, save failed) and to _questions_
-("export orphan journal?"), never to recoverable transients.
+Modals (`QMessageBox`) are reserved for **terminal** failures (connection lost,
+save failed) and user questions ("discard unsaved data?"). Never use modals for
+recoverable transients.
 
-### Status LEDs
+### Logging
 
-A tiny helper (`set_connection_status(led, label, text, style)`) keeps every
-status indicator consistent. The styles come from `config.json`, so changing
-"red" project-wide is a one-line edit.
+Use `logging.getLogger(__name__)` in every module. `infrastructure.logging.Debug`
+configures the `gmcounter` root logger (levels `DEBUG_OFF / INFO / VERBOSE / ERROR`)
+with console + rotating file handler and a global `sys.excepthook`. All
+`getLogger` output propagates through it automatically.
 
-### The Debug singleton
-
-A single `Debug` class wraps `logging` with four levels (`OFF`, `ERROR`,
-`INFO`, `VERBOSE`), a console + rotating file handler, and a global
-`sys.excepthook` hook so unhandled exceptions land in the log instead of the
-console.
-
-### Why
-
-A consistent status surface is the single biggest UX win in a lab tool: the
-operator always knows _where_ to look for the answer to "is something wrong?"
-The dock log gives a paper trail when things did go wrong.
+The `core.ports.Logger` Protocol allows `core/` modules to log without
+importing `infrastructure.logging`.
 
 ---
 
 ## 10. Configuration
 
-One `config.json` at the package root, loaded once via `import_config()`.
-Sections:
+One `config.json` at `gmcounter/config.json`, loaded via `import_config()` from
+`gmcounter.infrastructure.config`. All values live under the `"de"` language key.
 
-- `messages.*` — every user-visible string (so i18n is a config swap)
-- `ui.status_led.*` — LED colours
-- `timers.*` — poll interval, diagnostic interval
-- `connection.*` — `max_retry_attempts`, `backoff_delays_ms`
-- `acquisition.*` — defaults for averaging, spike filter
-- `save.*` — base folder name
+Key sections:
+
+| Section             | Contents                                                         |
+| ------------------- | ---------------------------------------------------------------- |
+| `acquisition.*`     | `ticks_per_us` (48 for RA4M1 @ 48 MHz), read chunk/timeout      |
+| `connection.*`      | Backoff parameters (retry attempts, delays, factor)              |
+| `timers.*`          | GUI update interval, statistics interval, acquisition poll rate  |
+| `gm_counter.*`      | `demo_mode`, default voltage, `count_time_map`, `label_map`      |
+| `save.*`            | `base_folder`, `tk_designation` for directory naming             |
+| `gm_timing.*`       | `max_history_size`, high-speed batch parameters                  |
+| `ui.*`              | `theme` (`"dark"` or `"light"`)                                  |
+| `messages.*`        | All user-visible German strings (for i18n)                       |
+| `radioactive_samples` | List of valid sample codes                                     |
 
 ### Rules
 
-- **No magic numbers in code.** Timer intervals, retry caps, spike thresholds
-  all come from config and have a `.get(key, default)` fallback.
-- **Settings dialog changes live in memory only**, never written back to
-  `config.json`. The config is the _default_, not the _state_.
+- **No magic numbers in code.** Timer intervals, retry caps, and thresholds all
+  come from config with a `.get(key, default)` fallback.
+- `import_config()` re-reads the JSON on every call. Cache the result at
+  module level: `CONFIG = import_config()`.
 
 ---
 
 ## 11. Mocks live next to drivers, not in tests
 
 A mock is an _implementation_ of the same adapter contract, not a test
-fixture. Put them in `infrastructure/mocks/`. Exclude them from the wheel via
-`pyproject.toml`:
+fixture. `infrastructure/mocks/mock_gm_counter.py` (`MockGMCounter`) is a
+PTY-backed simulator that speaks the same binary protocol as a real GM counter
+device. The device adapter under test (`GMCounterAdapter`, `DataAcquisitionThread`,
+`PacketParser`) is literally unchanged when switching to the mock.
+
+Mocks are excluded from the wheel:
 
 ```toml
 [tool.setuptools.packages.find]
-exclude = ["polarisation_ui.infrastructure.mocks", "polarisation_ui.infrastructure.mocks.*"]
+exclude = ["gmcounter.infrastructure.mocks", "gmcounter.infrastructure.mocks.*"]
 ```
-
-Where possible, mocks should speak the same wire protocol as the real device
-(here: a PTY-backed SCPI simulator), so the device adapter under test is
-literally unchanged.
-
-### Why
-
-This rule kills "the mock passes but production fails" bugs because tests
-exercise the same parser and the same serial code path. A test that
-side-steps the adapter doesn't validate it.
 
 ---
 
 ## 12. Window lifecycle and teardown
 
-`closeEvent` is the only place that does shutdown. The order is:
+`closeEvent` is the only place that does shutdown:
 
 ```python
 def closeEvent(self, event):
-    if self._is_measuring:
-        self.data_controller.stop_measurement()
-    self.data_controller.cleanup()       # stops timers, joins workers, closes journal
-    self.device_manager.disconnect_all()
+    if self._save_state.has_unsaved():
+        # ask user to confirm discard
+        ...
+    self._ctrl.cleanup()          # stops timers, joins threads, closes journal
+    self._device_manager.disconnect()
     event.accept()
 ```
 
 ### Rules
 
-- Controllers expose `cleanup()`; windows never stop their timers directly.
-- Workers are joined with a bounded `wait(3000)` after `quit()`; never
-  `terminate()`.
-- `WA_DeleteOnClose` is set on every modal dialog and standalone window so
-  Python and Qt both free their refs.
+- `AppController` exposes `cleanup()`; `MainWindow` never stops its timers directly.
+- Workers are joined with a bounded `wait(3000)` after `quit()`; never `terminate()`.
+- Every modal dialog sets `WA_DeleteOnClose`.
 
 ---
 
-## 13. Naming and small conventions
+## 13. Naming conventions
 
-| Item                 | Convention                                                             |
-| -------------------- | ---------------------------------------------------------------------- |
-| Abstract interfaces  | `{Name}Adapter` or `{Name}Base`                                        |
-| Mocks                | `Mock{Name}` (`MockArduino`, `MockPM400`)                              |
-| Real implementations | `{Name}{Transport}` (e.g. `DualEncoderArduino`)                        |
-| Tab classes          | `{Experiment}Tab` with `tab_id = "{experiment}"`                       |
-| Signals              | `verb_past_tense` (`angles_updated`, `frame_ready`, `connection_lost`) |
-| Slots                | `_handle_*` / `_on_*` for receivers; `_action_verb` for user-initiated |
-| Type hints           | Required on new code. No bare `Any`. Use `Optional[X]` for nullable.   |
+| Item                 | Convention                                                                   |
+| -------------------- | ---------------------------------------------------------------------------- |
+| Device adapters      | `{Name}Adapter` (e.g. `GMCounterAdapter`)                                    |
+| Mocks                | `Mock{Name}` (e.g. `MockGMCounter`)                                          |
+| Tab classes          | `{Experiment}Tab` with `tab_id = "{experiment}"`                             |
+| Signals              | `verb_past_tense` (`measurement_stopped`, `frames_ready`, `connection_lost`) |
+| Slots / handlers     | `_handle_*` or `_on_*` for receivers; `_action_verb` for user-initiated      |
+| Type hints           | Required on new code. No bare `Any`. Use `Optional[X]` for nullable.         |
+| Config keys          | `snake_case` matching the subsystem name (e.g. `gm_timing`, `acquisition`)  |
 
 ---
 
-## 14. Anti-patterns to refactor out aggressively
+## 14. Anti-patterns to remove aggressively
 
-When you find these in an existing PyQt project, prioritise removing them:
-
-1. **Widgets created in Python in classes that have a `.ui` counterpart.**
-   They drift out of sync with Designer; every change requires editing two
-   files; reviewers can't see visual diffs.
-2. **`QTimer` started inside a window's `__init__` to poll a device.**
-   The window now owns hardware state and can't be reopened cleanly. Move it
-   into a controller.
-3. **`device.read()` called from a slot.** Slot runs on the main thread; a
-   slow read freezes the UI. Push it into a worker or behind a controller's
-   poll loop.
+1. **Widgets constructed in Python where a `.ui` could host them.** Every such
+   instance creates a divergence between the visual design and the Python.
+2. **`QTimer` started inside a window `__init__` to poll a device.** Move it
+   into `AppController`.
+3. **`device.read()` called from a slot on the main thread.** Push it into
+   `DataAcquisitionThread`.
 4. **`time.sleep()` in any UI code path.** Use `QTimer.singleShot(ms, slot)`.
-5. **`QMessageBox` for transient errors.** Use the status bar / event log.
-6. **`try/except` around `from PySide6 import ...`** to "support running
-   without Qt." Either you depend on Qt or you don't; this hides import
-   failures.
-7. **Per-window logging setup.** One `Debug.init(...)` at app start, period.
-8. **Mutable globals for device state.** Stuff them on the controller; tests
-   then re-instantiate to reset.
-9. **Direct `print()` debugging.** It survives commits. Use `Debug.debug()`.
-10. **A single huge `mainwindow.py`.** Split per concern (connection panel,
-    measurement panel, plot tabs, dialog launchers). If `mainwindow.py` is
-    over ~1000 lines, you are missing an abstraction — usually the tab/plugin
-    seam (§6).
+5. **`QMessageBox` for transient errors.** Use the status bar / `EventLogPanel`.
+6. **`try/except ImportError` around `from PySide6 import ...`** — either Qt
+   is a hard dependency or it isn't.
+7. **`print()` for debugging.** Use `logging.getLogger(__name__).debug(...)`.
+8. **Direct `import` of the deprecated `controllers/__init__` package for
+   `DataController` or `ControlWidget`** — both are removed.
 
 ---
 
-## 15. Reference layout (what the on-disk tree should look like)
+## 15. Reference layout (actual on-disk tree)
 
-```asciss
-<project>/
-├── main.py                          # tiny launcher; chooses entry point
-├── pyproject.toml                   # excludes mocks from wheel
-├── <pkg>/
-│   ├── main.py                      # builds QApplication, opens MainWindow
-│   ├── config.json                  # all user-visible strings + tunables
-│   ├── core/                        # pure Python — NO Qt, NO hardware
-│   │   ├── models.py                # dataclasses (state, readings, settings, Frame, exports)
-│   │   ├── services.py              # business logic / state transitions
-│   │   ├── exceptions.py            # custom error hierarchy
-│   │   ├── utils.py                 # math (circular mean, statistics)
-│   │   └── formatting.py            # display helpers
-│   ├── infrastructure/              # adapters — Qt only in qt_threads.py
-│   │   ├── config.py                # JSON loader
-│   │   ├── logging.py               # Debug singleton
-│   │   ├── device_manager.py        # connect/disconnect, reconnect, desired-state
-│   │   ├── qt_threads.py            # all QThread workers (ONLY Qt file in this layer)
-│   │   ├── serial_device.py         # low-level serial helpers
-│   │   ├── session_journal.py       # crash-safe append-only CSV
-│   │   ├── save_service.py          # CSV + metadata writer
-│   │   ├── devices/                 # real device adapters
-│   │   ├── mocks/                   # protocol-level mocks (excluded from wheel)
-│   │   └── modules/                 # HostModule adapters + ModuleRegistry
-│   ├── pyqt/                        # Qt Designer .ui sources + generated ui_*.py
-│   └── ui/
-│       ├── controllers/             # DataController etc. — signals to widgets
-│       ├── windows/                 # MainWindow, dialogs, debug window
-│       ├── widgets/                 # ConnectionBanner, EventLogPanel, pyqtgraph plots
-│       │   ├── plot_tab_base.py     # PlotTabBase + ConnState enum
-│       │   ├── tab_registry.py      # TabRegistry singleton
-│       │   └── tabs/                # one file per experiment tab
-│       ├── dialogs/                 # settings dialogs (UI-only logic)
-│       └── common/                  # statusbar, status_led, dialogs helpers
-└── tests/
-    ├── core/                        # pure unit tests
-    ├── infrastructure/              # against mocks
-    └── ui/                          # with pytest-qt + QTest
+```
+gmcounter/
+├── __init__.py                   # version
+├── __main__.py                   # python -m gmcounter entry point
+├── main.py                       # QApplication + MainWindow bootstrap
+├── config.json                   # all tunables and user-visible strings
+├── core/                         # pure Python — NO Qt, NO serial
+│   ├── models.py                 # MeasurementPoint, Frame, DesiredState, …
+│   ├── export.py                 # TabExport, build_gm_tab_export, compose_save_path
+│   ├── services.py               # SaveState, MeasurementStateService
+│   ├── reconnect_service.py      # ReconnectStrategy, ConnectionRetryService
+│   ├── duration.py               # accumulate_and_trim()
+│   ├── interval_binning.py       # IntervalBinner, IntervalBins
+│   ├── utils.py                  # filename sanitization, calculate_statistics
+│   ├── exceptions.py             # GMCounterError hierarchy
+│   └── ports.py                  # Logger Protocol
+├── infrastructure/               # adapters — Qt ONLY in qt_threads.py
+│   ├── config.py                 # import_config()
+│   ├── logging.py                # Debug singleton
+│   ├── device_manager.py         # connect/disconnect, desired-state replay
+│   ├── packet_parser.py          # incremental binary decoder
+│   ├── qt_threads.py             # DataAcquisitionThread, ReconnectWorker
+│   ├── serial_device.py          # low-level serial helpers
+│   ├── session_journal.py        # crash-safe append-only journal
+│   ├── save_service.py           # write_export(), SaveService (auto-index)
+│   ├── devices/gm_counter.py     # GMCounterAdapter
+│   ├── mocks/mock_gm_counter.py  # MockGMCounter (PTY, excluded from wheel)
+│   └── modules/registry.py       # HostModule Protocol + ModuleRegistry
+├── pyqt/                         # Qt Designer sources + generated ui_*.py
+│   ├── mainwindow.ui             # ← edit in Qt Designer
+│   ├── connection.ui
+│   ├── alert.ui
+│   ├── ui_mainwindow.py          # ← generated by pyuic.sh — DO NOT EDIT
+│   ├── ui_connection.py
+│   ├── ui_alert.py
+│   └── pyuic.sh                  # regeneration script
+└── ui/
+    ├── controllers/
+    │   └── app_controller.py     # AppController(QObject) — sole controller
+    ├── windows/
+    │   └── main_window.py        # MainWindow — chrome only
+    ├── dialogs/
+    │   └── connection.py         # ConnectionWindow
+    ├── tabs/
+    │   ├── base.py               # PlotTabBase
+    │   ├── registry.py           # TabRegistry (frame-based tabs only)
+    │   ├── gm_timing_tab.py      # GMTimingTab (frame-based, 3 views)
+    │   ├── parameter_sweep_base.py   # ParameterSweepTabBase
+    │   ├── distance_law_tab.py   # DistanceLawTab (sweep)
+    │   ├── voltage_response_tab.py  # VoltageResponseTab (sweep)
+    │   └── interval_repeat_tab.py   # IntervalRepeatTab (frame-based, MCS)
+    ├── widgets/
+    │   ├── plot.py               # GeneralPlot, HistogramWidget (pyqtgraph)
+    │   └── event_log_panel.py    # EventLogPanel (dock)
+    ├── resources/
+    │   └── stylesheet.py         # get_stylesheet(), apply_stylesheet()
+    └── common/
+        ├── dialogs.py            # show_info/warning/error helpers
+        ├── statusbar.py          # StatusBarManager
+        └── file_dialogs.py       # FileDialogManager (save dialog UI)
 ```
 
 ---
 
-## 16. Quick checklist when reviewing a PR in this style
+## 16. Quick checklist when reviewing a PR
 
-- [ ] No `core/` import of Qt, PySide6, `serial`, or vendor SDKs.
+- [ ] No `core/` import of Qt, PySide6, `serial`, or `infrastructure/`.
 - [ ] No `infrastructure/` Qt import outside `qt_threads.py`.
 - [ ] No `ui/` widget constructed in Python where a `.ui` could host it.
-- [ ] Every new signal carries primitives or a frozen dataclass.
-- [ ] Every new worker has an `abort()` flag and a `failed` signal.
-- [ ] Every new poll loop pauses during synchronous device commands.
-- [ ] Every new error path either silently retries (first failure), updates
-      the status bar (recoverable), or shows a modal (terminal/question).
-- [ ] Every new frame-based tab subclasses `PlotTabBase`; every new sweep
-      tab subclasses `ParameterSweepTabBase`. Both declare `tab_id` and
-      `tab_title` and call `TabRegistry.register()` at import time.
+- [ ] Every new signal carries primitives or a frozen dataclass (`Frame`, `TabExport`).
+- [ ] Every new worker has a stop flag and a `failed` signal.
+- [ ] Every new frame-based tab subclasses `PlotTabBase` and calls
+      `TabRegistry.register()` at import time.
+- [ ] Every new sweep tab subclasses `ParameterSweepTabBase`, sets six class
+      attributes, and does **NOT** call `TabRegistry.register()`.
 - [ ] Every new sweep tab's `.ui` page declares the four named widgets
       (`<prefix>Input`, `<prefix>Plot`, `<prefix>Table`, `<prefix>Status`).
-- [ ] No widgets are constructed in Python for a sweep tab — only six class
-      attribute strings differ from the template.
-- [ ] Every new tunable lives in `config.json`, not hardcoded.
-- [ ] Tests exist next to the change: `core/` → unit, `infrastructure/` →
-      against mock, `ui/` → `QTest`.
+- [ ] Every new tunable lives in `config.json` under a sensible section, not
+      hardcoded.
+- [ ] Tests exist at the right layer: `tests/core/` → unit, `tests/infrastructure/`
+      → with mock device, `tests/ui/` → with `QTest`/offscreen.
 
 ---
 
 ## 17. One-line summary
 
-> A PyQt hardware UI is maintainable when the **physics is pure**, the
-> **drivers are mockable**, the **widgets come from Designer**, the
-> **threading is concentrated**, the **state machine has one owner**, and
-> **every experiment is a tab the main window doesn't know about**.
+> GMCounter is maintainable because the **physics is pure** (`core/`),
+> the **drivers are mockable** (`infrastructure/`),
+> the **widgets come from Designer** (`pyqt/*.ui`),
+> and the **controller is the only thing that talks to hardware** (`AppController`).

@@ -14,7 +14,7 @@ from PySide6.QtWidgets import QMainWindow, QCompleter
 from ...infrastructure.config import import_config
 from ...infrastructure.device_manager import DeviceManager
 from ...infrastructure.modules.registry import ModuleRegistry
-from ...core.services import SaveService
+from ...core.services import SaveState
 from ..controllers.app_controller import AppController
 from ..tabs.registry import TabRegistry
 from ..tabs.gm_timing_tab import GMTimingTab  # registers at import time
@@ -58,11 +58,11 @@ class MainWindow(QMainWindow):
 
         self._status_bar = StatusBarManager(self.ui.statusBar)
 
-        self._save_service = SaveService(
+        self._save_state = SaveState(
             base_dir=CONFIG.get("save", {}).get("base_folder", "GMCounter"),
             tk_designation=CONFIG.get("save", {}).get("tk_designation", "TK47"),
         )
-        self._file_dialog_manager = FileDialogManager(self._save_service)
+        self._file_dialog_manager = FileDialogManager(self._save_state)
 
         # Build AppController (needs status_bar for direct notifications)
         self._ctrl = AppController(
@@ -177,7 +177,7 @@ class MainWindow(QMainWindow):
         # Initial device info — set callback before fetch so it fires on initial connect
         device_manager.on_device_info = self._on_device_info
         if device_manager.device and device_manager.connected:
-            device_manager._fetch_device_info()
+            device_manager.fetch_device_info()
 
         # Initial status
         self._set_status_indicator("Bereit", "green")
@@ -338,7 +338,7 @@ class MainWindow(QMainWindow):
         if self._sweep_session:
             # In a sweep session Start stays enabled so the user can fire the
             # next measurement point immediately; unsaved state is tracked by
-            # the sweep tab, not _save_service.
+            # the sweep tab, not _save_state.
             self.ui.buttonStart.setEnabled(True)
         elif self._interval_session:
             # Interval session: Start disabled until data is saved or reset.
@@ -347,7 +347,7 @@ class MainWindow(QMainWindow):
         else:
             # Normal mode: Start disabled until data is saved/reset.
             self.ui.buttonStart.setEnabled(False)
-            self._save_service.mark_unsaved()
+            self._save_state.mark_unsaved()
 
     def _on_device_state_updated(self, data: dict) -> None:
         # Skip corrupted / incomplete reads so LCDs are never overwritten
@@ -485,7 +485,7 @@ class MainWindow(QMainWindow):
 
             # Previous data already captured in on_measurement_stopped; bypass
             # the unsaved-data guard for repeat measurements in the same session.
-            self._save_service.mark_saved()
+            self._save_state.mark_saved()
 
             if not self._sweep_session:
                 # First measurement of this sweep session: record which sweep
@@ -512,7 +512,7 @@ class MainWindow(QMainWindow):
 
         else:
             # ── Normal GM timing mode ────────────────────────────────────
-            if self._save_service.has_unsaved():
+            if self._save_state.has_unsaved():
                 MessageHelper.show_warning(
                     self,
                     "Bitte speichern oder löschen Sie die vorhandenen Messdaten.",
@@ -581,7 +581,7 @@ class MainWindow(QMainWindow):
             self._active_interval_tab = None
             self._set_sweep_lock(False)
             self._gm_tab.set_high_speed_autoswitch(True)
-            self._save_service.mark_saved()
+            self._save_state.mark_saved()
             self._ctrl.finalize_journal()
 
             self.ui.buttonSave.setEnabled(False)
@@ -652,7 +652,7 @@ class MainWindow(QMainWindow):
             self._set_sweep_lock(False)
             self._gm_tab.set_high_speed_autoswitch(True)
             self._gm_tab.on_reset()
-            self._save_service.mark_saved()
+            self._save_state.mark_saved()
             self._ctrl.finalize_journal()
 
             self.ui.buttonSave.setEnabled(False)
@@ -666,7 +666,7 @@ class MainWindow(QMainWindow):
 
         else:
             # ── Normal single-measurement save ───────────────────────────
-            if not self._save_service.has_unsaved():
+            if not self._save_state.has_unsaved():
                 MessageHelper.show_info(
                     self, "Keine ungespeicherten Daten.", "Information"
                 )
@@ -704,7 +704,7 @@ class MainWindow(QMainWindow):
                 self.ui.suffix.text().strip(),
             )
             if saved and saved.exists():
-                self._save_service.mark_saved()
+                self._save_state.mark_saved()
                 self._ctrl.finalize_journal()
                 self.ui.buttonSave.setEnabled(False)
                 self.ui.buttonStart.setEnabled(True)
@@ -734,7 +734,7 @@ class MainWindow(QMainWindow):
             self._active_interval_tab = None
             self._set_sweep_lock(False)
             self._gm_tab.set_high_speed_autoswitch(True)
-            self._save_service.mark_saved()
+            self._save_state.mark_saved()
             self.ui.buttonSave.setEnabled(False)
             self.ui.buttonStart.setEnabled(True)
             self._set_status_indicator("Bereit", "green")
@@ -759,7 +759,7 @@ class MainWindow(QMainWindow):
             self._set_sweep_lock(False)
             self._gm_tab.set_high_speed_autoswitch(True)
         else:
-            if self._save_service.has_unsaved():
+            if self._save_state.has_unsaved():
                 if not MessageHelper.ask_question(
                     self,
                     CONFIG.get("messages", {}).get("unsaved_data", "Daten verwerfen?"),
@@ -768,7 +768,7 @@ class MainWindow(QMainWindow):
                     return
 
         self._gm_tab.on_reset()
-        self._save_service.mark_saved()
+        self._save_state.mark_saved()
         self.ui.buttonSave.setEnabled(False)
         self.ui.buttonStart.setEnabled(True)
         self._set_status_indicator("Bereit", "green")
@@ -845,7 +845,7 @@ class MainWindow(QMainWindow):
     # Window lifecycle
 
     def closeEvent(self, event) -> None:
-        if self._save_service.has_unsaved():
+        if self._save_state.has_unsaved():
             if not MessageHelper.ask_question(
                 self,
                 CONFIG.get("messages", {}).get(

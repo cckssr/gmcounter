@@ -5,9 +5,7 @@ This folder is arranged so the workflows can be copied to another Python pip pro
 ## What each workflow does
 
 - `ci.yml`: format, lint, and test the package across a Python matrix
-- `pr-label-release.yml`: on merged PRs, read release labels (`major`/`minor`/`patch`), bump version, create tag, and publish release
-- `version-bump.yml`: manually bump the package version, commit it, create a tag, and publish the release directly
-- `release.yml`: manual fallback to build distribution artifacts and publish a release for a specified tag
+- `auto-release.yml`: on merged PRs with a release label (`major`/`minor`/`patch`), bump version, create tag, build distribution, and publish release
 - `sphinx-docs.yml`: build and deploy Sphinx documentation to GitHub Pages
 
 ## Values to adapt in a new project
@@ -29,4 +27,4 @@ This folder is arranged so the workflows can be copied to another Python pip pro
 - `pyproject.toml` is treated as the source of truth for the package version.
 - The version workflows update `gmcounter/__init__.py` because the package exposes `__version__` there.
 - The automatic PR flow requires one release label on merged PRs: `major`, `minor`, `patch` (or `semver:*`).
-- The removed `version-sync-release.yml`, `mdbook.yml`, and duplicate `version-sync-release copy.yml` were not aligned with this Python package setup.
+- The removed `version-sync-release.yml`, `mdbook.yml`, `pr-label-release.yml`, `version-bump.yml`, `release.yml`, and duplicate `version-sync-release copy.yml` were not aligned with this Python package setup.
