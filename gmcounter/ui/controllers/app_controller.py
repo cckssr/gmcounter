@@ -241,7 +241,7 @@ class AppController(QObject):
             # CONF:* commands are being written — both share the same serial port.
             self._state_poller.pause()
             try:
-                unconfirmed = self.device_manager._apply_device_settings(
+                unconfirmed = self.device_manager.apply_device_settings(
                     self._desired_state.to_device_settings()
                 )
             finally:

@@ -113,6 +113,10 @@ class DeviceManager:
 
         return success
 
+    def apply_device_settings(self, settings: DeviceSettings) -> dict:
+        """Public API: push *settings* to hardware. See ``_apply_device_settings``."""
+        return self._apply_device_settings(settings)
+
     def _apply_device_settings(self, settings: DeviceSettings) -> dict:
         """Push settings to the hardware with read-back confirmation.
 
@@ -182,6 +186,10 @@ class DeviceManager:
         self.connected = False
         self.measurement_state.stop_measurement()
         self._connection_lost_handled = False
+
+    def fetch_device_info(self) -> None:
+        """Public API: fetch device info and fire on_device_info callback."""
+        self._fetch_device_info()
 
     def _fetch_device_info(self) -> None:
         if not self.device:

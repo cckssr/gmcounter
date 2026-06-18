@@ -44,7 +44,7 @@
       "first_delta_is_from_start": false
     },
 
-    "data_controller": {
+    "gm_timing": {
       "max_history_size": 1000,
       "high_speed_mode": {
         "batch_threshold": 100,

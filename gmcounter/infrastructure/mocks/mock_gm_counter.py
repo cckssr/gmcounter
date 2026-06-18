@@ -356,10 +356,8 @@ def run_pty_server(
     try:
         with open(tmp_path, "w", encoding="utf-8") as fh:
             fh.write(slave_name)
-        os.replace(
-            tmp_path, actual_port_file
-        )  # atomic on Unix — file appears fully written
-    except IOError as exc:
+        os.replace(tmp_path, actual_port_file)  # atomic on Unix
+    except OSError as exc:
         _log.error("Could not write port file: %s", exc)
 
     tty.setraw(master)

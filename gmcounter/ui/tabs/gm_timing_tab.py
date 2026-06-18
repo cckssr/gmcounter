@@ -33,7 +33,7 @@ from ...infrastructure.config import import_config
 _log = logging.getLogger(__name__)
 CONFIG = import_config()
 
-_DATA_CFG = CONFIG.get("data_controller", {})
+_DATA_CFG = CONFIG.get("gm_timing", {})
 _HS_CFG = _DATA_CFG.get("high_speed_mode", {})
 HIGH_SPEED_BATCH_THRESHOLD: int = _HS_CFG.get("batch_threshold", 50)
 HIGH_SPEED_BATCH_HISTORY: int = _HS_CFG.get("batch_history", 5)

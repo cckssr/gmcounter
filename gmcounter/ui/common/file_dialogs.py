@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 from PySide6.QtWidgets import QWidget, QFileDialog
 
-from ...core.services import SaveService
+from ...core.services import SaveState
 from ...core.export import TabExport
 from ...infrastructure.save_service import write_export
 from ...infrastructure.logging import Debug
@@ -14,11 +14,12 @@ from . import dialogs as MessageHelper
 class FileDialogManager:
     """Handles save-file dialogs (UI layer only).
 
-    Business logic and I/O are delegated to SaveService / write_export.
+    State (base_dir, unsaved flag) is held in SaveState.
+    Actual I/O is delegated to write_export.
     """
 
-    def __init__(self, save_service: SaveService) -> None:
-        self.save_service = save_service
+    def __init__(self, save_state: SaveState) -> None:
+        self.save_state = save_state
 
     def manual_save_export(
         self,
@@ -46,11 +47,9 @@ class FileDialogManager:
             return None
 
         if export.filename_tokens:
-            suggested_folder = self.save_service.base_dir / Path(
-                *export.filename_tokens
-            )
+            suggested_folder = self.save_state.base_dir / Path(*export.filename_tokens)
         else:
-            suggested_folder = self.save_service.base_dir
+            suggested_folder = self.save_state.base_dir
         suggested_folder.mkdir(parents=True, exist_ok=True)
 
         file_path, _ = QFileDialog.getSaveFileName(
