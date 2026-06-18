@@ -81,3 +81,7 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+markers = [
+    "hardware: requires physical GM counter hardware (pass --port /dev/tty... to enable)",
+    "integration: end-to-end test using MockGMCounter PTY server or real hardware",
+]

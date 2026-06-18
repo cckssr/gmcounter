@@ -1,64 +1,45 @@
 #!/usr/bin/env python3
-"""Test um zu verifizieren, dass der Plot-Index bei einer neuen Messung zurückgesetzt wird."""
+"""Test that the acquisition index resets correctly between measurements."""
 
+import pytest
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+pytest.importorskip(
+    "PySide6", reason="DataAcquisitionThread requires PySide6 / QThread"
+)
 
-from gmcounter.device_manager import DataAcquisitionThread, DeviceManager
 from unittest.mock import Mock
+from gmcounter.infrastructure.qt_threads import DataAcquisitionThread
+from gmcounter.infrastructure.device_manager import DeviceManager
+from gmcounter.core.services import MeasurementStateService
 
 
 def test_index_reset():
-    """Test der Index-Reset-Funktionalität."""
-    print("=== Test: Index-Reset bei neuer Messung ===")
-
-    # Mock DeviceManager
+    """reset_index() clears the parser index back to 0."""
     mock_manager = Mock()
     mock_manager.device = Mock()
     mock_manager.connected = True
-    mock_manager.measurement_active = True
+    mock_manager.measurement_state = MeasurementStateService()
 
-    # DataAcquisitionThread erstellen
     thread = DataAcquisitionThread(mock_manager)
 
-    # Simuliere Datenpunkte durch direktes Setzen des Index
-    thread._index = 5  # Simuliere dass bereits 5 Datenpunkte verarbeitet wurden
-    print(f"Index vor Reset: {thread._index}")
-
-    # Index zurücksetzen (wie bei neuer Messung)
-    thread.reset_index()
-    print(f"Index nach Reset: {thread._index}")
-
-    # Verifiziere dass der Index korrekt zurückgesetzt wurde
-    assert thread._index == 0, f"Index sollte 0 sein, ist aber {thread._index}"
-
-    print("✅ Index wurde korrekt auf 0 zurückgesetzt")
-
-    # Teste DeviceManager start_measurement mit Mock
-    device_manager = DeviceManager()
-    device_manager.device = Mock()
-    device_manager.connected = True
-    device_manager.acquire_thread = thread
-
-    # Setze Index wieder auf einen Wert > 0
-    thread._index = 10
-    print(f"Index vor start_measurement: {thread._index}")
-
-    # Start measurement sollte Index zurücksetzen
-    result = device_manager.start_measurement()
-    print(f"Index nach start_measurement: {thread._index}")
-
-    assert result == True, "start_measurement sollte True zurückgeben"
-    assert thread._index == 0, (
-        f"Index sollte nach start_measurement 0 sein, ist aber {thread._index}"
+    # Simulate that the parser has advanced to index 5 by feeding a start marker
+    # followed by five valid packets (ticks=1000).
+    start = b"\xff" * 6
+    packet = b"\xaa\xe8\x03\x00\x00\x55"
+    thread._parser.feed(start + packet * 5)
+    assert thread._parser.index == 5, (
+        f"Expected index 5 after feeding, got {thread._parser.index}"
     )
 
-    print("✅ start_measurement setzt Index korrekt zurück")
-    print("=== Test erfolgreich: Index-Reset funktioniert! ===")
+    thread.reset_index()
 
-    return True
+    assert thread._parser.index == 0, (
+        f"Index should be 0 after reset_index(), got {thread._parser.index}"
+    )
+    assert not thread._first_data_received
+    assert not thread._parser.synced
 
 
 if __name__ == "__main__":

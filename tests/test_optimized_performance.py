@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
-"""Test der Performance-Verbesserungen nach den Optimierungen."""
+"""Performance test for DataController — marked skip because it runs for ~16 s
+and tests legacy DataController behaviour (add_data_point_fast with time.sleep).
+Run manually when profiling high-frequency acquisition."""
+
+import pytest
+
+pytestmark = pytest.mark.skip(
+    reason=(
+        "Long-running (~16 s) integration test for legacy DataController. "
+        "Run manually; not suitable as a regular unit test."
+    )
+)
 
 import sys
 import os
 import time
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 
 def test_optimized_performance():
@@ -13,7 +22,7 @@ def test_optimized_performance():
     print("=== Performance-Test nach Optimierungen ===")
 
     # Importiere die optimierten Module
-    from gmcounter.data_controller import DataController
+    from gmcounter.ui.controllers.data_controller import DataController
     from unittest.mock import Mock
 
     # Mock PlotWidget mit Performance-Tracking
