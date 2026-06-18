@@ -26,13 +26,13 @@ def _make_controller():
     status_bar.show_info = MagicMock()
     status_bar.show_warning = MagicMock()
     status_bar.show_error = MagicMock()
-    with patch(
-        "gmcounter.ui.controllers.app_controller.DataAcquisitionThread"
-    ), patch(
-        "gmcounter.ui.controllers.app_controller.StatePollerThread"
-    ), patch(
-        "gmcounter.ui.controllers.app_controller.find_orphan_journals",
-        return_value=[],
+    with (
+        patch("gmcounter.ui.controllers.app_controller.DataAcquisitionThread"),
+        patch("gmcounter.ui.controllers.app_controller.StatePollerThread"),
+        patch(
+            "gmcounter.ui.controllers.app_controller.find_orphan_journals",
+            return_value=[],
+        ),
     ):
         ctrl = AppController(dm, status_bar=status_bar)
     return ctrl

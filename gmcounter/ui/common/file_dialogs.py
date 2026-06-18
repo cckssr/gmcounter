@@ -47,9 +47,7 @@ class FileDialogManager:
             return None
 
         if export.filename_tokens:
-            suggested_folder = self.save_state.base_dir / Path(
-                *export.filename_tokens
-            )
+            suggested_folder = self.save_state.base_dir / Path(*export.filename_tokens)
         else:
             suggested_folder = self.save_state.base_dir
         suggested_folder.mkdir(parents=True, exist_ok=True)
