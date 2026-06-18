@@ -42,6 +42,7 @@ env:
     pyproject.toml
     gmcounter/__init__.py
     gmcounter/config.json:de.application.version
+    docs/conf.py:release
 
 permissions:
   contents: write
@@ -185,10 +186,11 @@ jobs:
                       raise RuntimeError(f"Could not update version in {target}")
                   target.write_text(updated, encoding="utf-8")
               elif target.suffix == ".py":
+                  py_var = key_path.strip() if key_path.strip() else "__version__"
                   text = target.read_text(encoding="utf-8")
-                  updated, n = re.subn(r'^__version__\s*=\s*"[^"]*"$', f'__version__ = "{version}"', text, count=1, flags=re.MULTILINE)
+                  updated, n = re.subn(rf'^{re.escape(py_var)}\s*=\s*"[^"]*"$', f'{py_var} = "{version}"', text, count=1, flags=re.MULTILINE)
                   if n != 1:
-                      raise RuntimeError(f"Could not update version in {target}")
+                      raise RuntimeError(f"Could not update '{py_var}' in {target}")
                   target.write_text(updated, encoding="utf-8")
               elif target.suffix == ".json":
                   # Use regex replacement to preserve file formatting (blank lines etc.)

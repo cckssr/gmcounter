@@ -1,4 +1,4 @@
-# ARCHITECTURE.md — GMCounter
+# ARCHITECTURE
 
 This document describes GMCounter's architecture: the design rules, their
 rationale, and how to apply them when extending or maintaining the codebase.
