@@ -92,7 +92,7 @@ class DesiredState:
     voltage: int = 500
     counting_time: int = 0
     repeat: bool = False
-    stream: int = 1
+    stream: int = 0
 
     def to_device_settings(self) -> DeviceSettings:
         return DeviceSettings(

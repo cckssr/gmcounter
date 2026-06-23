@@ -150,7 +150,7 @@ class DeviceManager:
             lambda: self.device.set_repeat(settings.repeat, confirm=True),
             settings.repeat,
         )
-        stream_val = 4 if settings.auto_query else 1
+        stream_val = 4 if settings.auto_query else 0
         _try(
             "stream",
             lambda: self.device.set_stream(stream_val, confirm=True),

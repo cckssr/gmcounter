@@ -255,6 +255,13 @@ static String readSerial1Line(unsigned long timeoutMs)
 // Returns the GM counter status CSV: count,last_count,counting_time,repeat,progress,voltage,
 static void handleFETCStat()
 {
+    // In continuous mode (stream_mode 4) the GM counter keeps sending status
+    // bytes on Serial1 even when idle.  Stop it first, then drain any bytes
+    // already in flight so readSerial1Line() sees only the fresh b2 response.
+    if (gmState.stream_mode == 4)
+        Serial1.println("b0");
+    while (Serial1.available() > 0)
+        Serial1.read();
     Serial1.println("b2");
     String resp = readSerial1Line(300);
     // b2 sets the hardware stream mode to 2; restore the configured value.

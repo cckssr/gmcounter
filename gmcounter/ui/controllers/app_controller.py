@@ -233,7 +233,7 @@ class AppController(QObject):
             voltage=voltage,
             counting_time=counting_time,
             repeat=repeat,
-            stream=4 if auto_query else 1,
+            stream=4 if auto_query else 0,
         )
         unconfirmed: dict = {}
         if self.device_manager.device:
