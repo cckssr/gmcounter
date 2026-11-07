@@ -24,7 +24,9 @@ import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import Signal, Slot, QTimer  # pylint: disable=no-name-in-module
 from PySide6.QtGui import QSurfaceFormat  # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import QWidget  # pylint: disable=no-name-in-module
 from ...infrastructure.logging import Debug
+from .plot_style import style_plot
 
 # CRITICAL: Disable vsync for maximum plot update speed
 sfmt = QSurfaceFormat()
@@ -193,13 +195,18 @@ class GeneralPlot(pg.PlotWidget):
     def __init__(
         self,
         config: Optional[PlotConfig] = None,
+        parent: Optional[QWidget] = None,
     ):
         """Initialize the plot widget with performance optimizations.
 
+        Constructible as ``GeneralPlot(parent)``-style from a Designer promotion
+        (``GeneralPlot(parent=...)``) and configured afterwards via ``reconfigure``.
+
         Args:
             config: PlotConfig object with initial settings
+            parent: Parent widget (None when injected into a layout later)
         """
-        super().__init__()
+        super().__init__(parent)
 
         if config is None:
             config = PlotConfig()
@@ -235,11 +242,10 @@ class GeneralPlot(pg.PlotWidget):
 
     def _configure_appearance(self) -> None:
         """Configure plot appearance based on config."""
-        # Determine background color
+        # Chrome (background, axes, legend) follows the application palette ...
+        style_plot(self)
+        # ... unless a caller explicitly asks for a background colour
         background = self.config.background_color
-
-        # Only set background if explicitly configured
-        # For None, we'll set it dynamically in showEvent()
         if background:
             self.setBackground(background)
 
@@ -723,6 +729,7 @@ class HistogramWidget(pg.PlotWidget):
         ylabel: str = "Count",
         background: Optional[str] = None,
         grid_alpha: float = 0.3,
+        parent: Optional[QWidget] = None,
     ):
         """Initialize the histogram widget.
 
@@ -735,8 +742,9 @@ class HistogramWidget(pg.PlotWidget):
             ylabel: Y-axis label (frequency count, legacy parameter)
             background: Background color (None = system theme, legacy parameter)
             grid_alpha: Grid line transparency (0.0-1.0, legacy parameter)
+            parent: Parent widget (None when injected into a layout later)
         """
-        super().__init__()
+        super().__init__(parent)
 
         # Handle both new PlotConfig style and legacy parameters
         if config is None:
@@ -772,7 +780,9 @@ class HistogramWidget(pg.PlotWidget):
         self._update_timer.timeout.connect(self._process_deferred_histogram_update)
         self._deferred_histogram_data: Optional[Tuple[np.ndarray, int, str]] = None
         # µs-based deferred path (bin_size_us, cutoff_us variant)
-        self._deferred_histogram_us_data: Optional[Tuple[np.ndarray, int, int, str]] = None
+        self._deferred_histogram_us_data: Optional[Tuple[np.ndarray, int, int, str]] = (
+            None
+        )
 
         # Performance: Track last bin count for optimization
         self._last_bin_count = 0
@@ -784,7 +794,8 @@ class HistogramWidget(pg.PlotWidget):
 
     def _configure_appearance(self) -> None:
         """Configure histogram appearance based on config (matches GeneralPlot pattern)."""
-        # Configure background (None = respect system theme/dark mode)
+        # Chrome follows the application palette unless a background is given explicitly
+        style_plot(self)
         if self.config.background_color:
             self.setBackground(self.config.background_color)
 
@@ -894,14 +905,20 @@ class HistogramWidget(pg.PlotWidget):
             )
             if self._hist_item is None:
                 self._hist_item = pg.BarGraphItem(
-                    x0=bin_edges[:-1], x1=bin_edges[1:], height=hist,
-                    brush=color, pen="w",
+                    x0=bin_edges[:-1],
+                    x1=bin_edges[1:],
+                    height=hist,
+                    brush=color,
+                    pen="w",
                 )
                 self.addItem(self._hist_item)
             else:
                 self._hist_item.setOpts(
-                    x0=bin_edges[:-1], x1=bin_edges[1:], height=hist,
-                    brush=color, pen="w",
+                    x0=bin_edges[:-1],
+                    x1=bin_edges[1:],
+                    height=hist,
+                    brush=color,
+                    pen="w",
                 )
             # Fix x-range to [0, cutoff] so the view doesn't jump on redraw.
             self.setXRange(0, cutoff_us, padding=0.02)
@@ -942,7 +959,12 @@ class HistogramWidget(pg.PlotWidget):
             data_arr = data_arr[np.isfinite(data_arr)]
             data_arr = data_arr[(data_arr >= 0) & (data_arr <= cutoff_us)]
             if deferred:
-                self._deferred_histogram_us_data = (data_arr, bin_size_us, cutoff_us, color)
+                self._deferred_histogram_us_data = (
+                    data_arr,
+                    bin_size_us,
+                    cutoff_us,
+                    color,
+                )
                 if not self._update_timer.isActive():
                     self._update_timer.start(16)
                 return

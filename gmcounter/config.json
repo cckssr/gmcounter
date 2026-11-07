@@ -1,13 +1,12 @@
 {
   "de": {
     "description": "Zentrale Konfigurationsdatei für die GMCounter-Anwendung. Stellt Konstanten und Standardwerte für die gesamte Anwendung bereit.",
-
     "application": {
       "name": "GM-Counter_GUI",
       "version": "2.1.0",
-      "author": "C. Kessler, H. Celik"
+      "author": "C. Kessler, H. Celik",
+      "window_mode": "maximized"
     },
-
     "debug": {
       "level_default": "verbose"
     },
@@ -27,14 +26,12 @@
       "x_label": "Zeit / µs",
       "y_label": "Anzahl Ereignisse"
     },
-
     "timers": {
       "control_update_interval": 1000,
       "statistics_update_interval": 2000,
       "acquisition_timer_interval": 100,
       "gui_update_interval": 200
     },
-
     "acquisition": {
       "_comment": "ticks_per_us MUST equal the firmware's TICKS_PER_US (config.h). The firmware sends inter-event deltas as raw timer ticks; the host divides by this to get microseconds. RA4M1 core clock = 48 MHz -> 48 ticks/µs (~20.8 ns resolution).",
       "ticks_per_us": 48,
@@ -43,7 +40,6 @@
       "_comment2": "first_delta_is_from_start: if true, the firmware emits start->first-pulse as the first packet (no '+1' seeding needed). Default false: host assumes pure inter-event gaps and seeds event #1 at t=0.",
       "first_delta_is_from_start": false
     },
-
     "data_controller": {
       "max_history_size": 1000,
       "high_speed_mode": {
@@ -51,12 +47,10 @@
         "batch_history": 5
       }
     },
-
     "save": {
       "tk_designation": "Radioaktivität",
       "base_folder": "GMCounter"
     },
-
     "gm_counter": {
       "demo_mode": true,
       "default_arduino": "UNO",
@@ -78,7 +72,10 @@
       }
     },
     "ui": {
-      "theme": "dark"
+      "theme": "dark",
+      "main_window": {},
+      "connection": {},
+      "tabs": {}
     },
     "colors": {
       "green": "green",
@@ -86,7 +83,6 @@
       "orange": "orange",
       "blue": "blue"
     },
-
     "radioactive_samples": [
       "BACKGROUND",
       "E87198",
@@ -130,7 +126,6 @@
       "E76673",
       "E66390"
     ],
-
     "messages": {
       "app_init": "Anwendung wird initialisiert...",
       "connected": "Verbunden mit {}. Bereit für Messungen.",
@@ -146,6 +141,25 @@
       "auto_save_enabled": "Automatisches Speichern ist aktiviert. Messdaten werden automatisch gespeichert, wenn die Messung endet.",
       "auto_save_disabled": "Automatisches Speichern ist deaktiviert. Sie müssen die Messdaten manuell speichern.",
       "voltage_warning": "Warnung: Die Betriebsspannung des GM-Zählers ist hoch ({} V). Nicht dauerhaft verwenden."
+    },
+    "plot_colors": {
+      "series": [
+        "tab:blue",
+        "tab:orange",
+        "tab:green",
+        "tab:red",
+        "tab:purple",
+        "tab:brown",
+        "tab:pink",
+        "tab:gray",
+        "tab:olive",
+        "tab:cyan"
+      ],
+      "fit": "tab:red",
+      "reference": "tab:gray",
+      "marker": "tab:orange",
+      "band_alpha": 60,
+      "point_alpha": 200
     }
   }
 }
