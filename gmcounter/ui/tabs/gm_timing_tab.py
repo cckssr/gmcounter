@@ -21,7 +21,11 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QWidget,
     QVBoxLayout,
     QLCDNumber,
+    QSlider,
+    QSpinBox,
 )
+
+import numpy as np
 
 from .base import PlotTabBase
 from .registry import TabRegistry
@@ -102,6 +106,16 @@ class GMTimingTab(PlotTabBase):
         self._histogram = None
         self._table_model: Optional[QStandardItemModel] = None
 
+        # Histogram controls (injected by MainWindow)
+        self._slider_bin_size: Optional[QSlider] = None
+        self._slider_cutoff: Optional[QSlider] = None
+        self._spinbox_bin_size: Optional[QSpinBox] = None
+        self._spinbox_cutoff: Optional[QSpinBox] = None
+        self._hist_bin_size_us: int = 1_000
+        self._hist_cutoff_us: int = 50_000
+        self._user_adjusted_hist: bool = False
+        self._updating_sliders: bool = False
+
         # Measurement session tracking for export
         self._session_start: Optional[datetime] = None
         self._session_end: Optional[datetime] = None
@@ -130,6 +144,107 @@ class GMTimingTab(PlotTabBase):
         self._last_count_lcd = last_count_lcd
         self._rate_lcd = rate_lcd
         self._tab_widget_ref = tab_widget
+
+    def inject_hist_controls(
+        self,
+        bin_size_slider: QSlider,
+        cutoff_slider: QSlider,
+        bin_size_spinbox: QSpinBox,
+        cutoff_spinbox: QSpinBox,
+    ) -> None:
+        """Wire the histogram bin-size and cut-off sliders from the .ui.
+
+        Sets µs-appropriate ranges for dead-time analysis (overriding .ui defaults),
+        then connects valueChanged so user adjustments are detected.
+        """
+        self._slider_bin_size = bin_size_slider
+        self._slider_cutoff = cutoff_slider
+        self._spinbox_bin_size = bin_size_spinbox
+        self._spinbox_cutoff = cutoff_spinbox
+
+        # Bin size: 10 µs … 50 000 µs (50 ms), step 10 µs
+        bin_size_slider.setMinimum(10)
+        bin_size_slider.setMaximum(50_000)
+        bin_size_slider.setSingleStep(10)
+        bin_size_slider.setPageStep(100)
+        bin_size_spinbox.setMinimum(10)
+        bin_size_spinbox.setMaximum(50_000)
+
+        # Cut-off: 1 000 µs (1 ms) … 10 000 000 µs (10 s), step 1 000 µs
+        cutoff_slider.setMinimum(1_000)
+        cutoff_slider.setMaximum(10_000_000)
+        cutoff_slider.setSingleStep(1_000)
+        cutoff_slider.setPageStep(10_000)
+        cutoff_spinbox.setMinimum(1_000)
+        cutoff_spinbox.setMaximum(10_000_000)
+
+        bin_size_slider.valueChanged.connect(self._on_bin_size_changed)
+        cutoff_slider.valueChanged.connect(self._on_cutoff_changed)
+
+        # Reflect initial auto defaults
+        self._set_sliders(self._hist_bin_size_us, self._hist_cutoff_us)
+
+    def _on_bin_size_changed(self, value: int) -> None:
+        if self._updating_sliders:
+            return
+        self._user_adjusted_hist = True
+        self._hist_bin_size_us = value
+        self._refresh_histogram()
+
+    def _on_cutoff_changed(self, value: int) -> None:
+        if self._updating_sliders:
+            return
+        self._user_adjusted_hist = True
+        self._hist_cutoff_us = value
+        self._refresh_histogram()
+
+    def _refresh_histogram(self) -> None:
+        if not self._histogram:
+            return
+        # Use all stored points for richer statistics (capped for performance)
+        values = [pt[1] for pt in self._data_points[-10_000:]]
+        if len(values) < 2:
+            return
+        self._histogram.update_histogram_us(
+            values, self._hist_bin_size_us, self._hist_cutoff_us
+        )
+
+    def _auto_hist_params(self, values: list) -> tuple:
+        """Derive bin_size_us and cutoff_us from the data distribution.
+
+        Uses the 5th-percentile as a proxy for the dead-time floor (so the
+        bins are narrow enough to resolve the region just beyond dead-time) and
+        the 95th-percentile as the right cut-off (shows the bulk of the
+        distribution while hiding extreme outliers).
+        """
+        arr = np.array(values, dtype=np.float64)
+        if len(arr) < 2:
+            return 1_000, 50_000
+
+        floor_us = max(10.0, float(np.percentile(arr, 5)))
+        p95_us = float(np.percentile(arr, 95))
+
+        # ~5 bins across the dead-time region → good peak resolution
+        bin_size = max(10, int(round(floor_us / 5.0 / 10) * 10))
+        # Round cutoff to nearest millisecond
+        cutoff = max(1_000, int(round(p95_us / 1_000) * 1_000))
+
+        # Clamp to slider limits
+        bin_size = min(bin_size, 50_000)
+        cutoff = min(cutoff, 10_000_000)
+        return bin_size, cutoff
+
+    def _set_sliders(self, bin_size_us: int, cutoff_us: int) -> None:
+        """Update sliders programmatically without triggering the user-adjusted flag."""
+        self._hist_bin_size_us = bin_size_us
+        self._hist_cutoff_us = cutoff_us
+        if self._slider_bin_size and self._slider_cutoff:
+            self._updating_sliders = True
+            try:
+                self._slider_bin_size.setValue(bin_size_us)
+                self._slider_cutoff.setValue(cutoff_us)
+            finally:
+                self._updating_sliders = False
 
     def set_measurement_metadata(
         self, rad_sample: str, group: str, subterm: str
@@ -240,6 +355,10 @@ class GMTimingTab(PlotTabBase):
         self._overflow_warned = False
         self._session_start = datetime.now()
         self._session_end = None
+
+        # Return histogram controls to auto mode for the new measurement
+        self._user_adjusted_hist = False
+        self._set_sliders(1_000, 50_000)
 
         if self._plot and hasattr(self._plot, "clear_measurement_data"):
             self._plot.clear_measurement_data()
@@ -370,14 +489,19 @@ class GMTimingTab(PlotTabBase):
                 true_count = len(self._data_points) + 1 if self._data_points else 0
                 self._count_lcd.display(true_count)
 
-        if self._histogram and len(self._gui_points) > 1:
+        if self._histogram and len(self._data_points) > 1:
             if not hasattr(self, "_hist_counter"):
                 self._hist_counter = 0
             self._hist_counter += 1
             if self._hist_counter >= 10:
                 self._hist_counter = 0
-                values = [pt[1] for pt in self._gui_points]
-                self._histogram.update_histogram(values)
+                values = [pt[1] for pt in self._data_points[-10_000:]]
+                if not self._user_adjusted_hist:
+                    bin_size, cutoff = self._auto_hist_params(values)
+                    self._set_sliders(bin_size, cutoff)
+                self._histogram.update_histogram_us(
+                    values, self._hist_bin_size_us, self._hist_cutoff_us
+                )
 
     def _update_table(self, points: List[Tuple[int, float, str]]) -> None:
         if self._table_model is None:
@@ -450,8 +574,13 @@ class GMTimingTab(PlotTabBase):
             return
         now = time()
         if len(self._data_points) > 1:
-            values = [pt[1] for pt in self._data_points[-10000:]]
-            self._histogram.update_histogram(values)
+            values = [pt[1] for pt in self._data_points[-10_000:]]
+            if not self._user_adjusted_hist:
+                bin_size, cutoff = self._auto_hist_params(values)
+                self._set_sliders(bin_size, cutoff)
+            self._histogram.update_histogram_us(
+                values, self._hist_bin_size_us, self._hist_cutoff_us
+            )
         self._update_rate_display(now)
 
 

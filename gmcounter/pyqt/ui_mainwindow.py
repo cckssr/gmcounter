@@ -65,6 +65,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QRadioButton,
     QSizePolicy,
+    QSlider,
     QSpacerItem,
     QSpinBox,
     QStatusBar,
@@ -190,7 +191,7 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(self.sQModeMan.sizePolicy().hasHeightForWidth())
         self.sQModeMan.setSizePolicy(sizePolicy)
         self.sQModeMan.setFont(font1)
-        self.sQModeMan.setChecked(False)
+        self.sQModeMan.setChecked(True)
 
         self.sQueryMode.addWidget(self.sQModeMan)
 
@@ -206,7 +207,7 @@ class Ui_MainWindow(object):
         sizePolicy3.setHeightForWidth(self.sQModeAuto.sizePolicy().hasHeightForWidth())
         self.sQModeAuto.setSizePolicy(sizePolicy3)
         self.sQModeAuto.setFont(font1)
-        self.sQModeAuto.setChecked(True)
+        self.sQModeAuto.setChecked(False)
 
         self.sQueryMode.addWidget(self.sQModeAuto)
 
@@ -671,11 +672,6 @@ class Ui_MainWindow(object):
         self.gridLayout_4 = QGridLayout(self.histogramm)
         self.gridLayout_4.setObjectName("gridLayout_4")
         self.gridLayout_4.setContentsMargins(10, 10, 10, 5)
-        self.histWidget = QWidget(self.histogramm)
-        self.histWidget.setObjectName("histWidget")
-
-        self.gridLayout_4.addWidget(self.histWidget, 1, 0, 1, 1)
-
         self.horizontalLayout_6 = QHBoxLayout()
         self.horizontalLayout_6.setObjectName("horizontalLayout_6")
         self.label_13 = QLabel(self.histogramm)
@@ -745,7 +741,81 @@ class Ui_MainWindow(object):
 
         self.gridLayout_4.addLayout(self.horizontalLayout_6, 0, 0, 1, 1)
 
-        self.gridLayout_4.setRowStretch(1, 1)
+        self.histWidget = QWidget(self.histogramm)
+        self.histWidget.setObjectName("histWidget")
+
+        self.gridLayout_4.addWidget(self.histWidget, 2, 0, 1, 1)
+
+        self.horizontalLayout_7 = QHBoxLayout()
+        self.horizontalLayout_7.setObjectName("horizontalLayout_7")
+        self.horizontalLayout_7.setContentsMargins(-1, -1, -1, 0)
+        self.label_22 = QLabel(self.histogramm)
+        self.label_22.setObjectName("label_22")
+
+        self.horizontalLayout_7.addWidget(self.label_22)
+
+        self.sldBinSize = QSlider(self.histogramm)
+        self.sldBinSize.setObjectName("sldBinSize")
+        self.sldBinSize.setMinimum(100)
+        self.sldBinSize.setMaximum(100000)
+        self.sldBinSize.setSingleStep(50)
+        self.sldBinSize.setOrientation(Qt.Orientation.Horizontal)
+        self.sldBinSize.setTickPosition(QSlider.TickPosition.NoTicks)
+
+        self.horizontalLayout_7.addWidget(self.sldBinSize)
+
+        self.spinBox = QSpinBox(self.histogramm)
+        self.spinBox.setObjectName("spinBox")
+        sizePolicy17 = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy17.setHorizontalStretch(0)
+        sizePolicy17.setVerticalStretch(0)
+        sizePolicy17.setHeightForWidth(self.spinBox.sizePolicy().hasHeightForWidth())
+        self.spinBox.setSizePolicy(sizePolicy17)
+        self.spinBox.setMinimumSize(QSize(70, 0))
+        self.spinBox.setFrame(False)
+        self.spinBox.setReadOnly(True)
+        self.spinBox.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.spinBox.setMinimum(100)
+        self.spinBox.setMaximum(100000)
+        self.spinBox.setSingleStep(50)
+        self.spinBox.setValue(100000)
+
+        self.horizontalLayout_7.addWidget(self.spinBox)
+
+        self.label_23 = QLabel(self.histogramm)
+        self.label_23.setObjectName("label_23")
+
+        self.horizontalLayout_7.addWidget(self.label_23)
+
+        self.sldBinCutOff = QSlider(self.histogramm)
+        self.sldBinCutOff.setObjectName("sldBinCutOff")
+        self.sldBinCutOff.setMinimum(1000)
+        self.sldBinCutOff.setMaximum(100000)
+        self.sldBinCutOff.setSingleStep(100)
+        self.sldBinCutOff.setValue(5000)
+        self.sldBinCutOff.setOrientation(Qt.Orientation.Horizontal)
+        self.sldBinCutOff.setTickPosition(QSlider.TickPosition.NoTicks)
+
+        self.horizontalLayout_7.addWidget(self.sldBinCutOff)
+
+        self.spinBox_2 = QSpinBox(self.histogramm)
+        self.spinBox_2.setObjectName("spinBox_2")
+        sizePolicy17.setHeightForWidth(self.spinBox_2.sizePolicy().hasHeightForWidth())
+        self.spinBox_2.setSizePolicy(sizePolicy17)
+        self.spinBox_2.setMinimumSize(QSize(70, 0))
+        self.spinBox_2.setFrame(False)
+        self.spinBox_2.setReadOnly(True)
+        self.spinBox_2.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.spinBox_2.setMinimum(100)
+        self.spinBox_2.setMaximum(100000)
+        self.spinBox_2.setSingleStep(50)
+        self.spinBox_2.setValue(100000)
+
+        self.horizontalLayout_7.addWidget(self.spinBox_2)
+
+        self.gridLayout_4.addLayout(self.horizontalLayout_7, 1, 0, 1, 1)
+
+        self.gridLayout_4.setRowStretch(2, 1)
         self.tabWidget.addTab(self.histogramm, "")
         self.list = QWidget()
         self.list.setObjectName("list")
@@ -986,13 +1056,13 @@ class Ui_MainWindow(object):
         self.gridLayout_3.setObjectName("gridLayout_3")
         self.label_4 = QLabel(self.gridGroupBox)
         self.label_4.setObjectName("label_4")
-        sizePolicy17 = QSizePolicy(
+        sizePolicy18 = QSizePolicy(
             QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum
         )
-        sizePolicy17.setHorizontalStretch(0)
-        sizePolicy17.setVerticalStretch(0)
-        sizePolicy17.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
-        self.label_4.setSizePolicy(sizePolicy17)
+        sizePolicy18.setHorizontalStretch(0)
+        sizePolicy18.setVerticalStretch(0)
+        sizePolicy18.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
+        self.label_4.setSizePolicy(sizePolicy18)
         self.label_4.setMaximumSize(QSize(16777215, 100))
         self.label_4.setFont(font1)
         self.label_4.setAlignment(
@@ -1020,7 +1090,7 @@ class Ui_MainWindow(object):
         self.cVoltage.setObjectName("cVoltage")
         sizePolicy8.setHeightForWidth(self.cVoltage.sizePolicy().hasHeightForWidth())
         self.cVoltage.setSizePolicy(sizePolicy8)
-        self.cVoltage.setMinimumSize(QSize(0, 40))
+        self.cVoltage.setMinimumSize(QSize(100, 40))
         self.cVoltage.setMaximumSize(QSize(150, 65))
         font2 = QFont()
         font2.setPointSize(13)
@@ -1062,10 +1132,10 @@ class Ui_MainWindow(object):
 
         self.query_label = QLabel(self.gridGroupBox)
         self.query_label.setObjectName("query_label")
-        sizePolicy17.setHeightForWidth(
+        sizePolicy18.setHeightForWidth(
             self.query_label.sizePolicy().hasHeightForWidth()
         )
-        self.query_label.setSizePolicy(sizePolicy17)
+        self.query_label.setSizePolicy(sizePolicy18)
         self.query_label.setMinimumSize(QSize(130, 0))
         self.query_label.setFont(font1)
         self.query_label.setAlignment(
@@ -1088,8 +1158,8 @@ class Ui_MainWindow(object):
 
         self.label_12 = QLabel(self.gridGroupBox)
         self.label_12.setObjectName("label_12")
-        sizePolicy17.setHeightForWidth(self.label_12.sizePolicy().hasHeightForWidth())
-        self.label_12.setSizePolicy(sizePolicy17)
+        sizePolicy18.setHeightForWidth(self.label_12.sizePolicy().hasHeightForWidth())
+        self.label_12.setSizePolicy(sizePolicy18)
         self.label_12.setMinimumSize(QSize(130, 20))
         self.label_12.setFont(font1)
         self.label_12.setAlignment(
@@ -1167,8 +1237,8 @@ class Ui_MainWindow(object):
 
         self.label_3 = QLabel(self.gridGroupBox)
         self.label_3.setObjectName("label_3")
-        sizePolicy17.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
-        self.label_3.setSizePolicy(sizePolicy17)
+        sizePolicy18.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
+        self.label_3.setSizePolicy(sizePolicy18)
         self.label_3.setMaximumSize(QSize(16777215, 100))
         self.label_3.setFont(font1)
         self.label_3.setAlignment(
@@ -1179,8 +1249,8 @@ class Ui_MainWindow(object):
 
         self.label_21 = QLabel(self.gridGroupBox)
         self.label_21.setObjectName("label_21")
-        sizePolicy17.setHeightForWidth(self.label_21.sizePolicy().hasHeightForWidth())
-        self.label_21.setSizePolicy(sizePolicy17)
+        sizePolicy18.setHeightForWidth(self.label_21.sizePolicy().hasHeightForWidth())
+        self.label_21.setSizePolicy(sizePolicy18)
         self.label_21.setMaximumSize(QSize(16777215, 100))
         self.label_21.setFont(font1)
         self.label_21.setAlignment(
@@ -1213,15 +1283,15 @@ class Ui_MainWindow(object):
         self.horizontalLayout_4.setContentsMargins(-1, -1, -1, 0)
         self.progressBar = QProgressBar(self.gridGroupBox)
         self.progressBar.setObjectName("progressBar")
-        sizePolicy18 = QSizePolicy(
+        sizePolicy19 = QSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
         )
-        sizePolicy18.setHorizontalStretch(0)
-        sizePolicy18.setVerticalStretch(0)
-        sizePolicy18.setHeightForWidth(
+        sizePolicy19.setHorizontalStretch(0)
+        sizePolicy19.setVerticalStretch(0)
+        sizePolicy19.setHeightForWidth(
             self.progressBar.sizePolicy().hasHeightForWidth()
         )
-        self.progressBar.setSizePolicy(sizePolicy18)
+        self.progressBar.setSizePolicy(sizePolicy19)
         self.progressBar.setFont(font1)
         self.progressBar.setValue(0)
 
@@ -1229,10 +1299,10 @@ class Ui_MainWindow(object):
 
         self.progressTimer = QLabel(self.gridGroupBox)
         self.progressTimer.setObjectName("progressTimer")
-        sizePolicy17.setHeightForWidth(
+        sizePolicy18.setHeightForWidth(
             self.progressTimer.sizePolicy().hasHeightForWidth()
         )
-        self.progressTimer.setSizePolicy(sizePolicy17)
+        self.progressTimer.setSizePolicy(sizePolicy18)
         self.progressTimer.setMinimumSize(QSize(50, 0))
         self.progressTimer.setFont(font1)
 
@@ -1301,8 +1371,8 @@ class Ui_MainWindow(object):
 
         self.label_2 = QLabel(self.gridGroupBox)
         self.label_2.setObjectName("label_2")
-        sizePolicy17.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
-        self.label_2.setSizePolicy(sizePolicy17)
+        sizePolicy18.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
+        self.label_2.setSizePolicy(sizePolicy18)
         self.label_2.setFont(font1)
         self.label_2.setAlignment(
             Qt.AlignmentFlag.AlignRight
@@ -1314,13 +1384,13 @@ class Ui_MainWindow(object):
 
         self.statusLED = QLabel(self.gridGroupBox)
         self.statusLED.setObjectName("statusLED")
-        sizePolicy19 = QSizePolicy(
+        sizePolicy20 = QSizePolicy(
             QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum
         )
-        sizePolicy19.setHorizontalStretch(0)
-        sizePolicy19.setVerticalStretch(0)
-        sizePolicy19.setHeightForWidth(self.statusLED.sizePolicy().hasHeightForWidth())
-        self.statusLED.setSizePolicy(sizePolicy19)
+        sizePolicy20.setHorizontalStretch(0)
+        sizePolicy20.setVerticalStretch(0)
+        sizePolicy20.setHeightForWidth(self.statusLED.sizePolicy().hasHeightForWidth())
+        self.statusLED.setSizePolicy(sizePolicy20)
         self.statusLED.setMinimumSize(QSize(20, 20))
         self.statusLED.setMaximumSize(QSize(20, 20))
         self.statusLED.setFont(font1)
@@ -1334,8 +1404,8 @@ class Ui_MainWindow(object):
 
         self.statusText = QLabel(self.gridGroupBox)
         self.statusText.setObjectName("statusText")
-        sizePolicy17.setHeightForWidth(self.statusText.sizePolicy().hasHeightForWidth())
-        self.statusText.setSizePolicy(sizePolicy17)
+        sizePolicy18.setHeightForWidth(self.statusText.sizePolicy().hasHeightForWidth())
+        self.statusText.setSizePolicy(sizePolicy18)
         self.statusText.setMinimumSize(QSize(100, 0))
         self.statusText.setFont(font1)
 
@@ -1374,6 +1444,8 @@ class Ui_MainWindow(object):
         self.autoScroll.toggled.connect(self.label_19.setVisible)
         self.autoSave.toggled.connect(self.label_5.setVisible)
         self.autoSave.toggled.connect(self.suffix.setVisible)
+        self.sldBinSize.valueChanged.connect(self.spinBox.setValue)
+        self.sldBinCutOff.valueChanged.connect(self.spinBox_2.setValue)
 
         self.buttonSetting.setDefault(False)
         self.radSample.setCurrentIndex(-1)
@@ -1677,6 +1749,29 @@ class Ui_MainWindow(object):
         )
         self.label_17.setText(
             QCoreApplication.translate("MainWindow", "Standardabw. / \u00b5s:", None)
+        )
+        self.label_22.setText(
+            QCoreApplication.translate(
+                "MainWindow", "Bin Gr\u00f6\u00dfe / \u00b5s", None
+            )
+        )
+        self.spinBox.setSuffix(
+            QCoreApplication.translate("MainWindow", " \u00b5s", None)
+        )
+        self.label_23.setText(
+            QCoreApplication.translate("MainWindow", "Cut-Off / \u00b5s", None)
+        )
+        # if QT_CONFIG(tooltip)
+        self.sldBinCutOff.setToolTip(
+            QCoreApplication.translate(
+                "MainWindow",
+                "Obere Grenze ab welcher Daten nicht mehr im Diagramm angezeigt werden sollen",
+                None,
+            )
+        )
+        # endif // QT_CONFIG(tooltip)
+        self.spinBox_2.setSuffix(
+            QCoreApplication.translate("MainWindow", " \u00b5s", None)
         )
         self.tabWidget.setTabText(
             self.tabWidget.indexOf(self.histogramm),

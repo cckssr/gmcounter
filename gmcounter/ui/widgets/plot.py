@@ -771,6 +771,8 @@ class HistogramWidget(pg.PlotWidget):
         self._update_timer.setSingleShot(True)
         self._update_timer.timeout.connect(self._process_deferred_histogram_update)
         self._deferred_histogram_data: Optional[Tuple[np.ndarray, int, str]] = None
+        # µs-based deferred path (bin_size_us, cutoff_us variant)
+        self._deferred_histogram_us_data: Optional[Tuple[np.ndarray, int, int, str]] = None
 
         # Performance: Track last bin count for optimization
         self._last_bin_count = 0
@@ -823,12 +825,14 @@ class HistogramWidget(pg.PlotWidget):
 
     def _process_deferred_histogram_update(self) -> None:
         """Process deferred histogram update from batch queue."""
-        if self._deferred_histogram_data is None:
-            return
-
-        data_arr, bins, color = self._deferred_histogram_data
-        self._deferred_histogram_data = None
-        self._perform_histogram_update(data_arr, bins, color)
+        if self._deferred_histogram_us_data is not None:
+            data_arr, bin_size_us, cutoff_us, color = self._deferred_histogram_us_data
+            self._deferred_histogram_us_data = None
+            self._perform_histogram_update_us(data_arr, bin_size_us, cutoff_us, color)
+        elif self._deferred_histogram_data is not None:
+            data_arr, bins, color = self._deferred_histogram_data
+            self._deferred_histogram_data = None
+            self._perform_histogram_update(data_arr, bins, color)
 
     def _perform_histogram_update(
         self, data_arr: np.ndarray, bins: int, color: str
@@ -876,6 +880,75 @@ class HistogramWidget(pg.PlotWidget):
             Debug.error(f"Error updating histogram: {e}")
         finally:
             self._pending_update = False
+
+    def _perform_histogram_update_us(
+        self, data_arr: np.ndarray, bin_size_us: int, cutoff_us: int, color: str
+    ) -> None:
+        """Histogram update with explicit µs bin width and right cutoff."""
+        if data_arr.size == 0:
+            return
+        try:
+            n_bins = max(1, int(cutoff_us / bin_size_us))
+            hist, bin_edges = np.histogram(
+                data_arr, bins=n_bins, range=(0.0, float(cutoff_us))
+            )
+            if self._hist_item is None:
+                self._hist_item = pg.BarGraphItem(
+                    x0=bin_edges[:-1], x1=bin_edges[1:], height=hist,
+                    brush=color, pen="w",
+                )
+                self.addItem(self._hist_item)
+            else:
+                self._hist_item.setOpts(
+                    x0=bin_edges[:-1], x1=bin_edges[1:], height=hist,
+                    brush=color, pen="w",
+                )
+            # Fix x-range to [0, cutoff] so the view doesn't jump on redraw.
+            self.setXRange(0, cutoff_us, padding=0.02)
+            viewbox = self.getViewBox()
+            if viewbox:
+                viewbox.enableAutoRange(axis="y")
+            self.histogram_updated.emit(n_bins)
+        except Exception as e:  # pylint: disable=broad-except
+            Debug.error(f"Error updating histogram (us): {e}")
+        finally:
+            self._pending_update = False
+
+    @Slot(list, int, int, str)
+    def update_histogram_us(
+        self,
+        data: Iterable[float],
+        bin_size_us: int,
+        cutoff_us: int,
+        color: str = "w",
+        deferred: bool = True,
+    ) -> None:
+        """Update histogram with explicit µs bin size and right cutoff.
+
+        Filters data to the range [0, cutoff_us] and draws n_bins = cutoff_us /
+        bin_size_us equal-width bars so the x-axis is always in µs.
+
+        Args:
+            data: Raw inter-event times in µs.
+            bin_size_us: Width of each bin in µs.
+            cutoff_us: Right edge of the displayed range; values above are excluded.
+            color: Bar fill colour (default white).
+            deferred: Batch into the 16 ms timer (default True).
+        """
+        if not data:
+            return
+        try:
+            data_arr = np.asarray(data, dtype=np.float32)
+            data_arr = data_arr[np.isfinite(data_arr)]
+            data_arr = data_arr[(data_arr >= 0) & (data_arr <= cutoff_us)]
+            if deferred:
+                self._deferred_histogram_us_data = (data_arr, bin_size_us, cutoff_us, color)
+                if not self._update_timer.isActive():
+                    self._update_timer.start(16)
+                return
+            self._perform_histogram_update_us(data_arr, bin_size_us, cutoff_us, color)
+        except Exception as e:  # pylint: disable=broad-except
+            Debug.error(f"Error in update_histogram_us: {e}")
 
     @Slot(list, int, str)
     def update_histogram(

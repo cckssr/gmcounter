@@ -81,6 +81,12 @@ class MainWindow(QMainWindow):
             tab_widget=self.ui.tabWidget,
         )
         self._gm_tab.build()
+        self._gm_tab.inject_hist_controls(
+            bin_size_slider=self.ui.sldBinSize,
+            cutoff_slider=self.ui.sldBinCutOff,
+            bin_size_spinbox=self.ui.spinBox,
+            cutoff_spinbox=self.ui.spinBox_2,
+        )
 
         # Register with AppController
         self._ctrl.set_active_tab(self._gm_tab)
@@ -220,8 +226,12 @@ class MainWindow(QMainWindow):
         # Allow typing a custom duration in seconds directly into the combobox
         self.ui.sDuration.setEditable(True)
 
-        # autoSave — gates incremental backup; reflect true initial state
+        # autoSave — off by default; suffix row must start hidden because the
+        # Designer toggled→setVisible connections only fire on state *change*,
+        # not at construction time when the checkbox is already unchecked.
         self.ui.autoSave.setChecked(False)
+        self.ui.suffix.setVisible(False)
+        self.ui.label_5.setVisible(False)
         self.ui.autoSave.toggled.connect(self._on_auto_save_toggled)
 
         self.ui.autoScroll.toggled.connect(self._on_auto_scroll_toggled)
@@ -233,9 +243,10 @@ class MainWindow(QMainWindow):
                 self._on_plot_user_interaction
             )
 
-        # Bug fix §6: enable auto-query radios (were disabled in .ui)
+        # Query-mode radios: enable and default to Manual (stream b0 = no idle output).
         if hasattr(self.ui, "sQModeMan"):
             self.ui.sQModeMan.setEnabled(True)
+            self.ui.sQModeMan.setChecked(True)
         if hasattr(self.ui, "sQModeAuto"):
             self.ui.sQModeAuto.setEnabled(True)
 

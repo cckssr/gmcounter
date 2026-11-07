@@ -19,11 +19,6 @@ from ...infrastructure.config import import_config
 from ...infrastructure.device_manager import DeviceManager
 from ...pyqt.ui_connection import Ui_Dialog as Ui_Connection
 
-try:
-    from ...infrastructure.mocks.mock_gm_counter import MockGMCounter
-except ModuleNotFoundError:
-    MockGMCounter = None
-
 _log = logging.getLogger(__name__)
 CONFIG = import_config()
 
@@ -165,19 +160,10 @@ class ConnectionWindow(QDialog):
         self.status_message(f"Verbinde mit {port}...", "orange")
         QApplication.processEvents()
 
-        # Use MockGMCounter for the mock port
-        is_mock = self.demo_mode and self.ports and port == self.ports[0][0]
-        device_class = MockGMCounter if is_mock and MockGMCounter is not None else None
-
-        if is_mock and device_class is None:
-            self.status_message(
-                "Demo-Modus ist in dieser Installation nicht verfügbar.", "red"
-            )
-            return False, None
-
-        success = self.device_manager.connect_device(
-            port, baudrate, device_class=device_class
-        )
+        # The mock PTY port is served by run_pty_server() (infrastructure/mocks).
+        # GMCounterAdapter (device_class=None default) speaks to it over the PTY
+        # slave using the standard SCPI command set — no special device class needed.
+        success = self.device_manager.connect_device(port, baudrate)
         if success:
             self.status_message(f"Verbunden mit {port}", "darkgreen")
             self.connection_successful = True

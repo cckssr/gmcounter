@@ -209,7 +209,7 @@
               <string>Manuell</string>
              </property>
              <property name="checked">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <attribute name="buttonGroup">
               <string notr="true">groupQMode</string>
@@ -236,7 +236,7 @@
               <string>Automatik</string>
              </property>
              <property name="checked">
-              <bool>true</bool>
+              <bool>false</bool>
              </property>
              <attribute name="buttonGroup">
               <string notr="true">groupQMode</string>
@@ -1115,7 +1115,7 @@
             <bool>false</bool>
            </property>
            <property name="currentIndex">
-            <number>0</number>
+            <number>3</number>
            </property>
            <widget class="QWidget" name="time">
             <attribute name="title">
@@ -1249,7 +1249,7 @@
             <attribute name="title">
              <string>Histogramm</string>
             </attribute>
-            <layout class="QGridLayout" name="gridLayout_4" rowstretch="0,1">
+            <layout class="QGridLayout" name="gridLayout_4" rowstretch="0,0,1">
              <property name="leftMargin">
               <number>10</number>
              </property>
@@ -1262,9 +1262,6 @@
              <property name="bottomMargin">
               <number>5</number>
              </property>
-             <item row="1" column="0">
-              <widget class="QWidget" name="histWidget" native="true"/>
-             </item>
              <item row="0" column="0">
               <layout class="QHBoxLayout" name="horizontalLayout_6">
                <item>
@@ -1364,6 +1361,154 @@
                  </property>
                  <property name="readOnly">
                   <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="2" column="0">
+              <widget class="QWidget" name="histWidget" native="true"/>
+             </item>
+             <item row="1" column="0">
+              <layout class="QHBoxLayout" name="horizontalLayout_7">
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QLabel" name="label_22">
+                 <property name="text">
+                  <string>Bin Größe / µs</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSlider" name="sldBinSize">
+                 <property name="minimum">
+                  <number>100</number>
+                 </property>
+                 <property name="maximum">
+                  <number>100000</number>
+                 </property>
+                 <property name="singleStep">
+                  <number>50</number>
+                 </property>
+                 <property name="orientation">
+                  <enum>Qt::Orientation::Horizontal</enum>
+                 </property>
+                 <property name="tickPosition">
+                  <enum>QSlider::TickPosition::NoTicks</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="spinBox">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="minimumSize">
+                  <size>
+                   <width>70</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                 <property name="frame">
+                  <bool>false</bool>
+                 </property>
+                 <property name="readOnly">
+                  <bool>true</bool>
+                 </property>
+                 <property name="buttonSymbols">
+                  <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                 </property>
+                 <property name="suffix">
+                  <string> µs</string>
+                 </property>
+                 <property name="minimum">
+                  <number>100</number>
+                 </property>
+                 <property name="maximum">
+                  <number>100000</number>
+                 </property>
+                 <property name="singleStep">
+                  <number>50</number>
+                 </property>
+                 <property name="value">
+                  <number>100000</number>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="label_23">
+                 <property name="text">
+                  <string>Cut-Off / µs</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSlider" name="sldBinCutOff">
+                 <property name="toolTip">
+                  <string>Obere Grenze ab welcher Daten nicht mehr im Diagramm angezeigt werden sollen</string>
+                 </property>
+                 <property name="minimum">
+                  <number>1000</number>
+                 </property>
+                 <property name="maximum">
+                  <number>100000</number>
+                 </property>
+                 <property name="singleStep">
+                  <number>100</number>
+                 </property>
+                 <property name="value">
+                  <number>5000</number>
+                 </property>
+                 <property name="orientation">
+                  <enum>Qt::Orientation::Horizontal</enum>
+                 </property>
+                 <property name="tickPosition">
+                  <enum>QSlider::TickPosition::NoTicks</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="spinBox_2">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="minimumSize">
+                  <size>
+                   <width>70</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                 <property name="frame">
+                  <bool>false</bool>
+                 </property>
+                 <property name="readOnly">
+                  <bool>true</bool>
+                 </property>
+                 <property name="buttonSymbols">
+                  <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                 </property>
+                 <property name="suffix">
+                  <string> µs</string>
+                 </property>
+                 <property name="minimum">
+                  <number>100</number>
+                 </property>
+                 <property name="maximum">
+                  <number>100000</number>
+                 </property>
+                 <property name="singleStep">
+                  <number>50</number>
+                 </property>
+                 <property name="value">
+                  <number>100000</number>
                  </property>
                 </widget>
                </item>
@@ -1872,7 +2017,7 @@
                </property>
                <property name="minimumSize">
                 <size>
-                 <width>0</width>
+                 <width>100</width>
                  <height>40</height>
                 </size>
                </property>
@@ -2623,12 +2768,12 @@
    <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1058</x>
-     <y>302</y>
+     <x>1097</x>
+     <y>345</y>
     </hint>
     <hint type="destinationlabel">
-     <x>965</x>
-     <y>303</y>
+     <x>1004</x>
+     <y>346</y>
     </hint>
    </hints>
   </connection>
@@ -2639,12 +2784,12 @@
    <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1058</x>
-     <y>302</y>
+     <x>1097</x>
+     <y>345</y>
     </hint>
     <hint type="destinationlabel">
-     <x>897</x>
-     <y>303</y>
+     <x>936</x>
+     <y>346</y>
     </hint>
    </hints>
   </connection>
@@ -2677,6 +2822,38 @@
     <hint type="destinationlabel">
      <x>275</x>
      <y>774</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sldBinSize</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>spinBox</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>711</x>
+     <y>367</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>748</x>
+     <y>372</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sldBinCutOff</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>spinBox_2</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1076</x>
+     <y>363</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1181</x>
+     <y>370</y>
     </hint>
    </hints>
   </connection>
