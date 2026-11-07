@@ -18,9 +18,6 @@ FORMS = sorted(path.stem for path in PYQT_DIR.glob("*.ui"))
 # Forms whose strings still live in the .ui file; remove the stem once its texts moved to
 # config.json (``ui.<form>``). One form per line.
 NOT_YET_MIGRATED = {
-    "alert",
-    "connection",
-    "control",
     "mainwindow",
 }
 

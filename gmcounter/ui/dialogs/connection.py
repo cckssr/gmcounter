@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Layer: ui/dialogs — ConnectionDialog.
-# Port enumeration, baud select, refresh, demo-mode mock port, AlertDialog retry.
+# Port enumeration, baud select, refresh, demo-mode mock port, retry prompt.
+# All user-visible texts come from config.json (ui.connection).
 
 import logging
 import os
@@ -10,14 +11,16 @@ from typing import Optional
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QApplication,
     QDialog,
+    QDialogButtonBox,
     QMessageBox,
     QWidget,
 )
 from serial.tools import list_ports
 
-from ...infrastructure.config import import_config
+from ...infrastructure.config import AppConfig, default_config, import_config
 from ...infrastructure.device_manager import DeviceManager
-from ...pyqt.ui_connection import Ui_Dialog as Ui_Connection
+from ...pyqt.ui_connection import Ui_ConnectionDialog
+from ..i18n import apply_strings
 
 _log = logging.getLogger(__name__)
 CONFIG = import_config()
@@ -36,7 +39,9 @@ class ConnectionWindow(QDialog):
         demo_mode: bool = False,
         default_device: str = "None",
         measurement_state=None,
+        config: Optional[AppConfig] = None,
     ) -> None:
+        self._config = config or default_config()
         # Build a fresh Qt-free DeviceManager
         self.device_manager = DeviceManager(measurement_state=measurement_state)
         # Wire status callback to our label
@@ -50,22 +55,43 @@ class ConnectionWindow(QDialog):
         self.demo_mode = demo_mode and mock_port is not None
         if self.demo_mode and mock_port:
             self.ports.append(
-                [mock_port, "Mock Device", "Virtual device for demonstration"]
+                [
+                    mock_port,
+                    self._text("text_mock_name"),
+                    self._text("text_mock_description"),
+                ]
             )
             _log.debug("Demo mode enabled: %s", mock_port)
 
         super().__init__(parent)
-        self.ui = Ui_Connection()
+        self.ui = Ui_ConnectionDialog()
         self.ui.setupUi(self)
-        self.combo = self.ui.comboSerial
+        apply_strings(self, self._config.section("ui").get("connection", {}))
+        self._apply_button_texts()
+        self.combo = self.ui.comboPort
         self._update_ports()
 
-        self.ui.buttonRefreshSerial.clicked.connect(self._update_ports)
+        self.ui.buttonRefreshPorts.clicked.connect(self._update_ports)
         self.combo.currentIndexChanged.connect(self._update_port_description)
-        self.status_message("Bereit zur Verbindung...", "white")
+        self.status_message(self._text("text_ready"), "white")
 
     # ------------------------------------------------------------------
     # Helpers
+
+    def _text(self, key: str, **fmt) -> str:
+        """Configured German text ``ui.connection.<key>``."""
+        return self._config.text(f"connection.{key}", **fmt)
+
+    def _apply_button_texts(self) -> None:
+        """Set the standard-button captions, which ``apply_strings`` cannot reach."""
+        box = self.ui.buttonBox
+        for standard, key in (
+            (QDialogButtonBox.StandardButton.Open, "button_open"),
+            (QDialogButtonBox.StandardButton.Cancel, "button_cancel"),
+        ):
+            button = box.button(standard)
+            if button is not None:
+                button.setText(self._text(key))
 
     def _check_mock_port(self) -> Optional[str]:
         path = os.path.join(gettempdir(), "virtual_serial_port.txt")
@@ -76,9 +102,9 @@ class ConnectionWindow(QDialog):
 
     def status_message(self, message: str, color: str = "white") -> None:
         try:
-            if hasattr(self.ui, "status_msg") and self.ui.status_msg is not None:
-                self.ui.status_msg.setText(message)
-                self.ui.status_msg.setStyleSheet(f"color: {color};")
+            if hasattr(self.ui, "valueStatus") and self.ui.valueStatus is not None:
+                self.ui.valueStatus.setText(message)
+                self.ui.valueStatus.setStyleSheet(f"color: {color};")
                 QApplication.processEvents()
         except Exception as exc:
             _log.error("Failed to set status message: %s", exc)
@@ -110,8 +136,8 @@ class ConnectionWindow(QDialog):
         return info
 
     def _update_ports(self) -> None:
-        self.ui.comboSerial.clear()
-        for field in [self.ui.device_name, self.ui.device_address, self.ui.device_desc]:
+        self.ui.comboPort.clear()
+        for field in [self.ui.editName, self.ui.editAddress, self.ui.editDescription]:
             field.clear()
 
         if self.demo_mode:
@@ -143,21 +169,21 @@ class ConnectionWindow(QDialog):
         idx = self.combo.currentIndex()
         if idx >= 0 and idx < len(self.ports):
             port = self.ports[idx]
-            self.ui.device_name.setText(port[1])
-            self.ui.device_address.setText(port[0])
-            self.ui.device_desc.setText(port[2])
+            self.ui.editName.setText(port[1])
+            self.ui.editAddress.setText(port[0])
+            self.ui.editDescription.setText(port[2])
         else:
             for field in [
-                self.ui.device_name,
-                self.ui.device_address,
-                self.ui.device_desc,
+                self.ui.editName,
+                self.ui.editAddress,
+                self.ui.editDescription,
             ]:
                 field.clear()
 
     def attempt_connection(self):
         port = self.combo.currentText()
-        baudrate = int(self.ui.comboBox.currentText())
-        self.status_message(f"Verbinde mit {port}...", "orange")
+        baudrate = int(self.ui.comboBaud.currentText())
+        self.status_message(self._text("text_connecting", port=port), "orange")
         QApplication.processEvents()
 
         # The mock PTY port is served by run_pty_server() (infrastructure/mocks).
@@ -165,11 +191,11 @@ class ConnectionWindow(QDialog):
         # slave using the standard SCPI command set — no special device class needed.
         success = self.device_manager.connect_device(port, baudrate)
         if success:
-            self.status_message(f"Verbunden mit {port}", "darkgreen")
+            self.status_message(self._text("text_connected", port=port), "darkgreen")
             self.connection_successful = True
             return True, self.device_manager
         else:
-            self.status_message(f"Verbindung zu {port} fehlgeschlagen", "red")
+            self.status_message(self._text("text_failed", port=port), "red")
             QApplication.processEvents()
             self.connection_successful = False
             return False, None
@@ -180,15 +206,14 @@ class ConnectionWindow(QDialog):
             return super().accept()
 
         msg = QMessageBox(self)
-        msg.setWindowTitle("Verbindungsfehler")
-        msg.setText(
-            f"Verbindung zu {self.combo.currentText()} fehlgeschlagen.\n\n"
-            "Bitte überprüfen Sie die Verbindung."
-        )
+        msg.setWindowTitle(self._text("text_error_title"))
+        msg.setText(self._text("text_error_body", port=self.combo.currentText()))
         msg.setIcon(QMessageBox.Icon.Warning)
-        retry_btn = msg.addButton("Wiederholen", QMessageBox.ButtonRole.AcceptRole)
-        msg.addButton("Anderen Port wählen", QMessageBox.ButtonRole.ResetRole)
-        msg.addButton("Abbrechen", QMessageBox.ButtonRole.RejectRole)
+        retry_btn = msg.addButton(
+            self._text("button_retry"), QMessageBox.ButtonRole.AcceptRole
+        )
+        msg.addButton(self._text("button_other_port"), QMessageBox.ButtonRole.ResetRole)
+        msg.addButton(self._text("button_cancel"), QMessageBox.ButtonRole.RejectRole)
         msg.exec()
 
         clicked = msg.clickedButton()
@@ -196,4 +221,4 @@ class ConnectionWindow(QDialog):
             return self.accept()  # Recursive retry
         if msg.buttonRole(clicked) == QMessageBox.ButtonRole.RejectRole:
             return super().reject()
-        # "Anderen Port wählen" — leave dialog open
+        # "choose another port" — leave dialog open

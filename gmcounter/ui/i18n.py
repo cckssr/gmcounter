@@ -14,7 +14,7 @@ import logging
 from collections.abc import Mapping
 
 from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QDockWidget, QTabWidget, QWidget
+from PySide6.QtWidgets import QDockWidget, QTabWidget, QToolBar, QWidget
 
 _log = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ def apply_strings(root: QObject, strings: Mapping[str, object]) -> None:
         elif kind == "tab":
             if not _set_tab_title(obj, text):
                 _log.warning(f"ui string {key!r}: {name!r} is not a tab page")
-        elif isinstance(obj, QDockWidget):
+        elif isinstance(obj, (QDockWidget, QToolBar)):
             obj.setWindowTitle(text)
         elif hasattr(obj, "setTitle"):
             obj.setTitle(text)

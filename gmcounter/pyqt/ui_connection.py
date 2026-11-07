@@ -60,25 +60,25 @@ from PySide6.QtWidgets import (
 )
 
 
-class Ui_Dialog(object):
-    def setupUi(self, Dialog):
-        if not Dialog.objectName():
-            Dialog.setObjectName("Dialog")
-        Dialog.resize(550, 500)
+class Ui_ConnectionDialog(object):
+    def setupUi(self, ConnectionDialog):
+        if not ConnectionDialog.objectName():
+            ConnectionDialog.setObjectName("ConnectionDialog")
+        ConnectionDialog.resize(550, 500)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Maximum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(Dialog.sizePolicy().hasHeightForWidth())
-        Dialog.setSizePolicy(sizePolicy)
-        Dialog.setMinimumSize(QSize(550, 500))
-        Dialog.setMaximumSize(QSize(550, 510))
+        sizePolicy.setHeightForWidth(ConnectionDialog.sizePolicy().hasHeightForWidth())
+        ConnectionDialog.setSizePolicy(sizePolicy)
+        ConnectionDialog.setMinimumSize(QSize(550, 500))
+        ConnectionDialog.setMaximumSize(QSize(550, 510))
         font = QFont()
         font.setPointSize(12)
-        Dialog.setFont(font)
-        Dialog.setSizeGripEnabled(True)
-        self.gridLayout = QGridLayout(Dialog)
+        ConnectionDialog.setFont(font)
+        ConnectionDialog.setSizeGripEnabled(True)
+        self.gridLayout = QGridLayout(ConnectionDialog)
         self.gridLayout.setObjectName("gridLayout")
-        self.buttonBox = QDialogButtonBox(Dialog)
+        self.buttonBox = QDialogButtonBox(ConnectionDialog)
         self.buttonBox.setObjectName("buttonBox")
         font1 = QFont()
         font1.setPointSize(11)
@@ -92,23 +92,23 @@ class Ui_Dialog(object):
 
         self.gridLayout.addWidget(self.buttonBox, 8, 0, 1, 1)
 
-        self.label_5 = QLabel(Dialog)
-        self.label_5.setObjectName("label_5")
+        self.labelIntro = QLabel(ConnectionDialog)
+        self.labelIntro.setObjectName("labelIntro")
         sizePolicy1 = QSizePolicy(
             QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
         )
         sizePolicy1.setHorizontalStretch(0)
         sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
-        self.label_5.setSizePolicy(sizePolicy1)
-        self.label_5.setMaximumSize(QSize(700, 500))
-        self.label_5.setFont(font1)
-        self.label_5.setTextFormat(Qt.TextFormat.RichText)
-        self.label_5.setWordWrap(False)
-        self.label_5.setMargin(0)
-        self.label_5.setIndent(0)
+        sizePolicy1.setHeightForWidth(self.labelIntro.sizePolicy().hasHeightForWidth())
+        self.labelIntro.setSizePolicy(sizePolicy1)
+        self.labelIntro.setMaximumSize(QSize(700, 500))
+        self.labelIntro.setFont(font1)
+        self.labelIntro.setTextFormat(Qt.TextFormat.RichText)
+        self.labelIntro.setWordWrap(False)
+        self.labelIntro.setMargin(0)
+        self.labelIntro.setIndent(0)
 
-        self.gridLayout.addWidget(self.label_5, 0, 0, 1, 1)
+        self.gridLayout.addWidget(self.labelIntro, 0, 0, 1, 1)
 
         self.verticalLayout = QVBoxLayout()
         self.verticalLayout.setObjectName("verticalLayout")
@@ -119,100 +119,100 @@ class Ui_Dialog(object):
         # endif
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.horizontalLayout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
-        self.comboSerial = QComboBox(Dialog)
-        self.comboSerial.setObjectName("comboSerial")
+        self.comboPort = QComboBox(ConnectionDialog)
+        self.comboPort.setObjectName("comboPort")
         sizePolicy2 = QSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
         )
         sizePolicy2.setHorizontalStretch(0)
         sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.comboSerial.sizePolicy().hasHeightForWidth())
-        self.comboSerial.setSizePolicy(sizePolicy2)
-        self.comboSerial.setMinimumSize(QSize(300, 40))
-        self.comboSerial.setMaximumSize(QSize(16777215, 60))
-        self.comboSerial.setBaseSize(QSize(0, 0))
-        self.comboSerial.setFont(font1)
-        self.comboSerial.setFrame(True)
+        sizePolicy2.setHeightForWidth(self.comboPort.sizePolicy().hasHeightForWidth())
+        self.comboPort.setSizePolicy(sizePolicy2)
+        self.comboPort.setMinimumSize(QSize(300, 40))
+        self.comboPort.setMaximumSize(QSize(16777215, 60))
+        self.comboPort.setBaseSize(QSize(0, 0))
+        self.comboPort.setFont(font1)
+        self.comboPort.setFrame(True)
 
-        self.horizontalLayout.addWidget(self.comboSerial)
+        self.horizontalLayout.addWidget(self.comboPort)
 
-        self.buttonRefreshSerial = QPushButton(Dialog)
-        self.buttonRefreshSerial.setObjectName("buttonRefreshSerial")
+        self.buttonRefreshPorts = QPushButton(ConnectionDialog)
+        self.buttonRefreshPorts.setObjectName("buttonRefreshPorts")
         sizePolicy3 = QSizePolicy(
             QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum
         )
         sizePolicy3.setHorizontalStretch(0)
         sizePolicy3.setVerticalStretch(0)
         sizePolicy3.setHeightForWidth(
-            self.buttonRefreshSerial.sizePolicy().hasHeightForWidth()
+            self.buttonRefreshPorts.sizePolicy().hasHeightForWidth()
         )
-        self.buttonRefreshSerial.setSizePolicy(sizePolicy3)
-        self.buttonRefreshSerial.setMinimumSize(QSize(0, 40))
-        self.buttonRefreshSerial.setMaximumSize(QSize(35, 40))
-        self.buttonRefreshSerial.setFont(font1)
+        self.buttonRefreshPorts.setSizePolicy(sizePolicy3)
+        self.buttonRefreshPorts.setMinimumSize(QSize(0, 40))
+        self.buttonRefreshPorts.setMaximumSize(QSize(35, 40))
+        self.buttonRefreshPorts.setFont(font1)
         icon = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.ViewRefresh))
-        self.buttonRefreshSerial.setIcon(icon)
+        self.buttonRefreshPorts.setIcon(icon)
 
-        self.horizontalLayout.addWidget(self.buttonRefreshSerial)
+        self.horizontalLayout.addWidget(self.buttonRefreshPorts)
 
         self.verticalLayout.addLayout(self.horizontalLayout)
 
         self.horizontalLayout_3 = QHBoxLayout()
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
         self.horizontalLayout_3.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
-        self.label_4 = QLabel(Dialog)
-        self.label_4.setObjectName("label_4")
+        self.labelBaud = QLabel(ConnectionDialog)
+        self.labelBaud.setObjectName("labelBaud")
         sizePolicy4 = QSizePolicy(
             QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum
         )
         sizePolicy4.setHorizontalStretch(0)
         sizePolicy4.setVerticalStretch(0)
-        sizePolicy4.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
-        self.label_4.setSizePolicy(sizePolicy4)
-        self.label_4.setMinimumSize(QSize(90, 20))
-        self.label_4.setFont(font1)
-        self.label_4.setAlignment(
+        sizePolicy4.setHeightForWidth(self.labelBaud.sizePolicy().hasHeightForWidth())
+        self.labelBaud.setSizePolicy(sizePolicy4)
+        self.labelBaud.setMinimumSize(QSize(90, 20))
+        self.labelBaud.setFont(font1)
+        self.labelBaud.setAlignment(
             Qt.AlignmentFlag.AlignRight
             | Qt.AlignmentFlag.AlignTrailing
             | Qt.AlignmentFlag.AlignVCenter
         )
 
-        self.horizontalLayout_3.addWidget(self.label_4)
+        self.horizontalLayout_3.addWidget(self.labelBaud)
 
-        self.comboBox = QComboBox(Dialog)
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.addItem("")
-        self.comboBox.setObjectName("comboBox")
-        sizePolicy2.setHeightForWidth(self.comboBox.sizePolicy().hasHeightForWidth())
-        self.comboBox.setSizePolicy(sizePolicy2)
-        self.comboBox.setMinimumSize(QSize(0, 40))
-        self.comboBox.setFont(font1)
+        self.comboBaud = QComboBox(ConnectionDialog)
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.addItem("")
+        self.comboBaud.setObjectName("comboBaud")
+        sizePolicy2.setHeightForWidth(self.comboBaud.sizePolicy().hasHeightForWidth())
+        self.comboBaud.setSizePolicy(sizePolicy2)
+        self.comboBaud.setMinimumSize(QSize(0, 40))
+        self.comboBaud.setFont(font1)
 
-        self.horizontalLayout_3.addWidget(self.comboBox)
+        self.horizontalLayout_3.addWidget(self.comboBaud)
 
         self.verticalLayout.addLayout(self.horizontalLayout_3)
 
         self.gridLayout.addLayout(self.verticalLayout, 3, 0, 1, 1)
 
-        self.line = QFrame(Dialog)
-        self.line.setObjectName("line")
-        self.line.setFont(font1)
-        self.line.setFrameShape(QFrame.Shape.HLine)
-        self.line.setFrameShadow(QFrame.Shadow.Sunken)
+        self.lineSeparator = QFrame(ConnectionDialog)
+        self.lineSeparator.setObjectName("lineSeparator")
+        self.lineSeparator.setFont(font1)
+        self.lineSeparator.setFrameShape(QFrame.Shape.HLine)
+        self.lineSeparator.setFrameShadow(QFrame.Shadow.Sunken)
 
-        self.gridLayout.addWidget(self.line, 2, 0, 1, 1)
+        self.gridLayout.addWidget(self.lineSeparator, 2, 0, 1, 1)
 
         self.formLayout = QFormLayout()
         self.formLayout.setObjectName("formLayout")
@@ -221,182 +221,198 @@ class Ui_Dialog(object):
             QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
         )
         self.formLayout.setContentsMargins(8, -1, -1, -1)
-        self.label = QLabel(Dialog)
-        self.label.setObjectName("label")
-        self.label.setMinimumSize(QSize(90, 0))
-        self.label.setFont(font1)
-        self.label.setAlignment(
+        self.labelAddress = QLabel(ConnectionDialog)
+        self.labelAddress.setObjectName("labelAddress")
+        self.labelAddress.setMinimumSize(QSize(90, 0))
+        self.labelAddress.setFont(font1)
+        self.labelAddress.setAlignment(
             Qt.AlignmentFlag.AlignRight
             | Qt.AlignmentFlag.AlignTrailing
             | Qt.AlignmentFlag.AlignVCenter
         )
 
-        self.formLayout.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label)
+        self.formLayout.setWidget(0, QFormLayout.ItemRole.LabelRole, self.labelAddress)
 
-        self.device_address = QLineEdit(Dialog)
-        self.device_address.setObjectName("device_address")
-        self.device_address.setEnabled(True)
+        self.editAddress = QLineEdit(ConnectionDialog)
+        self.editAddress.setObjectName("editAddress")
+        self.editAddress.setEnabled(True)
         sizePolicy5 = QSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         sizePolicy5.setHorizontalStretch(0)
         sizePolicy5.setVerticalStretch(0)
-        sizePolicy5.setHeightForWidth(
-            self.device_address.sizePolicy().hasHeightForWidth()
+        sizePolicy5.setHeightForWidth(self.editAddress.sizePolicy().hasHeightForWidth())
+        self.editAddress.setSizePolicy(sizePolicy5)
+        self.editAddress.setFont(font1)
+        self.editAddress.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        self.editAddress.setMouseTracking(False)
+        self.editAddress.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+        self.editAddress.setAutoFillBackground(False)
+        self.editAddress.setText("")
+        self.editAddress.setFrame(False)
+        self.editAddress.setReadOnly(True)
+
+        self.formLayout.setWidget(0, QFormLayout.ItemRole.FieldRole, self.editAddress)
+
+        self.labelName = QLabel(ConnectionDialog)
+        self.labelName.setObjectName("labelName")
+        self.labelName.setMinimumSize(QSize(90, 0))
+        self.labelName.setFont(font1)
+        self.labelName.setAlignment(
+            Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignTrailing
+            | Qt.AlignmentFlag.AlignVCenter
         )
-        self.device_address.setSizePolicy(sizePolicy5)
-        self.device_address.setFont(font1)
-        self.device_address.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
-        self.device_address.setMouseTracking(False)
-        self.device_address.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
-        self.device_address.setAutoFillBackground(False)
-        self.device_address.setText("")
-        self.device_address.setFrame(False)
-        self.device_address.setReadOnly(True)
+
+        self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.labelName)
+
+        self.editName = QLineEdit(ConnectionDialog)
+        self.editName.setObjectName("editName")
+        self.editName.setEnabled(True)
+        self.editName.setFont(font1)
+        self.editName.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        self.editName.setFrame(False)
+        self.editName.setReadOnly(True)
+
+        self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.editName)
+
+        self.labelDescription = QLabel(ConnectionDialog)
+        self.labelDescription.setObjectName("labelDescription")
+        self.labelDescription.setMinimumSize(QSize(90, 0))
+        self.labelDescription.setFont(font1)
+        self.labelDescription.setAlignment(
+            Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignTrailing
+            | Qt.AlignmentFlag.AlignVCenter
+        )
 
         self.formLayout.setWidget(
-            0, QFormLayout.ItemRole.FieldRole, self.device_address
+            2, QFormLayout.ItemRole.LabelRole, self.labelDescription
         )
 
-        self.label_2 = QLabel(Dialog)
-        self.label_2.setObjectName("label_2")
-        self.label_2.setMinimumSize(QSize(90, 0))
-        self.label_2.setFont(font1)
-        self.label_2.setAlignment(
-            Qt.AlignmentFlag.AlignRight
-            | Qt.AlignmentFlag.AlignTrailing
-            | Qt.AlignmentFlag.AlignVCenter
+        self.editDescription = QLineEdit(ConnectionDialog)
+        self.editDescription.setObjectName("editDescription")
+        self.editDescription.setEnabled(True)
+        self.editDescription.setFont(font1)
+        self.editDescription.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        self.editDescription.setFrame(False)
+        self.editDescription.setReadOnly(True)
+
+        self.formLayout.setWidget(
+            2, QFormLayout.ItemRole.FieldRole, self.editDescription
         )
-
-        self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_2)
-
-        self.device_name = QLineEdit(Dialog)
-        self.device_name.setObjectName("device_name")
-        self.device_name.setEnabled(True)
-        self.device_name.setFont(font1)
-        self.device_name.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
-        self.device_name.setFrame(False)
-        self.device_name.setReadOnly(True)
-
-        self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.device_name)
-
-        self.label_3 = QLabel(Dialog)
-        self.label_3.setObjectName("label_3")
-        self.label_3.setMinimumSize(QSize(90, 0))
-        self.label_3.setFont(font1)
-        self.label_3.setAlignment(
-            Qt.AlignmentFlag.AlignRight
-            | Qt.AlignmentFlag.AlignTrailing
-            | Qt.AlignmentFlag.AlignVCenter
-        )
-
-        self.formLayout.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label_3)
-
-        self.device_desc = QLineEdit(Dialog)
-        self.device_desc.setObjectName("device_desc")
-        self.device_desc.setEnabled(True)
-        self.device_desc.setFont(font1)
-        self.device_desc.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
-        self.device_desc.setFrame(False)
-        self.device_desc.setReadOnly(True)
-
-        self.formLayout.setWidget(2, QFormLayout.ItemRole.FieldRole, self.device_desc)
 
         self.gridLayout.addLayout(self.formLayout, 5, 0, 1, 1)
 
-        self.status_msg = QLabel(Dialog)
-        self.status_msg.setObjectName("status_msg")
-        self.status_msg.setMinimumSize(QSize(0, 30))
-        self.status_msg.setFont(font1)
-        self.status_msg.setWordWrap(True)
+        self.valueStatus = QLabel(ConnectionDialog)
+        self.valueStatus.setObjectName("valueStatus")
+        self.valueStatus.setMinimumSize(QSize(0, 30))
+        self.valueStatus.setFont(font1)
+        self.valueStatus.setWordWrap(True)
 
-        self.gridLayout.addWidget(self.status_msg, 1, 0, 1, 1)
+        self.gridLayout.addWidget(self.valueStatus, 1, 0, 1, 1)
 
-        self.retranslateUi(Dialog)
-        self.buttonBox.rejected.connect(Dialog.reject)
-        self.buttonBox.accepted.connect(Dialog.accept)
+        self.retranslateUi(ConnectionDialog)
+        self.buttonBox.rejected.connect(ConnectionDialog.reject)
+        self.buttonBox.accepted.connect(ConnectionDialog.accept)
 
-        self.comboBox.setCurrentIndex(12)
+        self.comboBaud.setCurrentIndex(12)
 
-        QMetaObject.connectSlotsByName(Dialog)
+        QMetaObject.connectSlotsByName(ConnectionDialog)
 
     # setupUi
 
-    def retranslateUi(self, Dialog):
-        Dialog.setWindowTitle(
-            QCoreApplication.translate("Dialog", "Verbindung herstellen", None)
-        )
-        self.label_5.setText(
+    def retranslateUi(self, ConnectionDialog):
+        ConnectionDialog.setWindowTitle(
             QCoreApplication.translate(
-                "Dialog",
+                "ConnectionDialog", "Verbindung herstellen", None
+            )
+        )
+        self.labelIntro.setText(
+            QCoreApplication.translate(
+                "ConnectionDialog",
                 '<html><head/><body><p>Einen Port und passende Baud-Rate ausw\u00e4hlen und mit &quot;\u00d6ffnen&quot; verbinden. </p><p><span style=" color:#ff9300;">Besonderheit Windows:</span></p><p>Ger\u00e4teinformationen werden nicht korrekt dargestellt. Meistens ist es der letzte &quot;COM&quot; Port. </p><p>Ansonsten: </p><p>GM-Z\u00e4hler abstecken, Liste aktualisieren, Z\u00e4hler anstecken, Liste aktualisieren, <br/>Neuen Port ausw\u00e4hlen</p></body></html>',
                 None,
             )
         )
         # if QT_CONFIG(tooltip)
-        self.comboSerial.setToolTip(
+        self.comboPort.setToolTip(
             QCoreApplication.translate(
-                "Dialog",
+                "ConnectionDialog",
                 "<html><head/><body><p>Kommunikation mit dem Arduino erfolgt \u00fcber die serielle Schnittstelle. </p><p>Wenn Arduino nicht erkannt wird, die Verbindung pr\u00fcfen und evtl. Treiber installieren.</p></body></html>",
                 None,
             )
         )
         # endif // QT_CONFIG(tooltip)
-        self.comboSerial.setPlaceholderText(
+        self.comboPort.setPlaceholderText(
             QCoreApplication.translate(
-                "Dialog", "Bitte Seriellen Port ausw\u00e4hlen", None
+                "ConnectionDialog", "Bitte Seriellen Port ausw\u00e4hlen", None
             )
         )
         # if QT_CONFIG(tooltip)
-        self.buttonRefreshSerial.setToolTip(
+        self.buttonRefreshPorts.setToolTip(
             QCoreApplication.translate(
-                "Dialog", "Die Liste der Ports aktualisieren", None
+                "ConnectionDialog", "Die Liste der Ports aktualisieren", None
             )
         )
         # endif // QT_CONFIG(tooltip)
-        self.buttonRefreshSerial.setText("")
-        self.label_4.setText(QCoreApplication.translate("Dialog", "Baud Rate", None))
-        self.comboBox.setItemText(0, QCoreApplication.translate("Dialog", "2400", None))
-        self.comboBox.setItemText(1, QCoreApplication.translate("Dialog", "4800", None))
-        self.comboBox.setItemText(2, QCoreApplication.translate("Dialog", "9600", None))
-        self.comboBox.setItemText(
-            3, QCoreApplication.translate("Dialog", "14400", None)
+        self.buttonRefreshPorts.setText("")
+        self.labelBaud.setText(
+            QCoreApplication.translate("ConnectionDialog", "Baud Rate", None)
         )
-        self.comboBox.setItemText(
-            4, QCoreApplication.translate("Dialog", "19200", None)
+        self.comboBaud.setItemText(
+            0, QCoreApplication.translate("ConnectionDialog", "2400", None)
         )
-        self.comboBox.setItemText(
-            5, QCoreApplication.translate("Dialog", "38400", None)
+        self.comboBaud.setItemText(
+            1, QCoreApplication.translate("ConnectionDialog", "4800", None)
         )
-        self.comboBox.setItemText(
-            6, QCoreApplication.translate("Dialog", "57600", None)
+        self.comboBaud.setItemText(
+            2, QCoreApplication.translate("ConnectionDialog", "9600", None)
         )
-        self.comboBox.setItemText(
-            7, QCoreApplication.translate("Dialog", "115200", None)
+        self.comboBaud.setItemText(
+            3, QCoreApplication.translate("ConnectionDialog", "14400", None)
         )
-        self.comboBox.setItemText(
-            8, QCoreApplication.translate("Dialog", "230400", None)
+        self.comboBaud.setItemText(
+            4, QCoreApplication.translate("ConnectionDialog", "19200", None)
         )
-        self.comboBox.setItemText(
-            9, QCoreApplication.translate("Dialog", "460800", None)
+        self.comboBaud.setItemText(
+            5, QCoreApplication.translate("ConnectionDialog", "38400", None)
         )
-        self.comboBox.setItemText(
-            10, QCoreApplication.translate("Dialog", "500000", None)
+        self.comboBaud.setItemText(
+            6, QCoreApplication.translate("ConnectionDialog", "57600", None)
         )
-        self.comboBox.setItemText(
-            11, QCoreApplication.translate("Dialog", "921600", None)
+        self.comboBaud.setItemText(
+            7, QCoreApplication.translate("ConnectionDialog", "115200", None)
         )
-        self.comboBox.setItemText(
-            12, QCoreApplication.translate("Dialog", "1000000", None)
+        self.comboBaud.setItemText(
+            8, QCoreApplication.translate("ConnectionDialog", "230400", None)
         )
-        self.comboBox.setItemText(
-            13, QCoreApplication.translate("Dialog", "2000000", None)
+        self.comboBaud.setItemText(
+            9, QCoreApplication.translate("ConnectionDialog", "460800", None)
+        )
+        self.comboBaud.setItemText(
+            10, QCoreApplication.translate("ConnectionDialog", "500000", None)
+        )
+        self.comboBaud.setItemText(
+            11, QCoreApplication.translate("ConnectionDialog", "921600", None)
+        )
+        self.comboBaud.setItemText(
+            12, QCoreApplication.translate("ConnectionDialog", "1000000", None)
+        )
+        self.comboBaud.setItemText(
+            13, QCoreApplication.translate("ConnectionDialog", "2000000", None)
         )
 
-        self.label.setText(QCoreApplication.translate("Dialog", "Adresse", None))
-        self.label_2.setText(QCoreApplication.translate("Dialog", "Name", None))
-        self.label_3.setText(QCoreApplication.translate("Dialog", "Beschreibung", None))
-        self.device_desc.setPlaceholderText("")
-        self.status_msg.setText("")
+        self.labelAddress.setText(
+            QCoreApplication.translate("ConnectionDialog", "Adresse", None)
+        )
+        self.labelName.setText(
+            QCoreApplication.translate("ConnectionDialog", "Name", None)
+        )
+        self.labelDescription.setText(
+            QCoreApplication.translate("ConnectionDialog", "Beschreibung", None)
+        )
+        self.editDescription.setPlaceholderText("")
+        self.valueStatus.setText("")
 
     # retranslateUi

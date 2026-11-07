@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1280</width>
+    <height>800</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>GM-Counter</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="centralLayout">
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="documentMode">
+       <bool>false</bool>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QToolBar" name="toolBar">
+   <property name="movable">
+    <bool>false</bool>
+   </property>
+   <property name="windowTitle">
+    <string>Werkzeugleiste</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionToggleControls"/>
+   <addaction name="actionToggleLive"/>
+   <addaction name="actionToggleLog"/>
+   <addaction name="separator"/>
+   <addaction name="actionSwitchProfile"/>
+   <addaction name="actionFullScreen"/>
+  </widget>
+  <widget class="QDockWidget" name="dockControls">
+   <property name="features">
+    <set>QDockWidget::DockWidgetFeature::DockWidgetClosable|QDockWidget::DockWidgetFeature::DockWidgetFloatable|QDockWidget::DockWidgetFeature::DockWidgetMovable</set>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::DockWidgetArea::LeftDockWidgetArea|Qt::DockWidgetArea::RightDockWidgetArea</set>
+   </property>
+   <property name="windowTitle">
+    <string>Steuerung</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockControlsContents">
+    <layout class="QVBoxLayout" name="dockControlsLayout">
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QScrollArea" name="scrollControls">
+       <property name="frameShape">
+        <enum>QFrame::Shape::NoFrame</enum>
+       </property>
+       <property name="widgetResizable">
+        <bool>true</bool>
+       </property>
+       <property name="horizontalScrollBarPolicy">
+        <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+       </property>
+       <widget class="QWidget" name="contentControls">
+        <layout class="QVBoxLayout" name="contentControlsLayout">
+         <property name="spacing">
+          <number>6</number>
+         </property>
+         <property name="leftMargin">
+          <number>4</number>
+         </property>
+         <property name="topMargin">
+          <number>4</number>
+         </property>
+         <property name="rightMargin">
+          <number>4</number>
+         </property>
+         <property name="bottomMargin">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="DevicePanel" name="devicePanel"/>
+         </item>
+         <item>
+          <widget class="SamplePanel" name="samplePanel"/>
+         </item>
+         <item>
+          <widget class="MeasurementPanel" name="measurementPanel"/>
+         </item>
+         <item>
+          <spacer name="spacerControls">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dockLive">
+   <property name="features">
+    <set>QDockWidget::DockWidgetFeature::DockWidgetClosable|QDockWidget::DockWidgetFeature::DockWidgetFloatable|QDockWidget::DockWidgetFeature::DockWidgetMovable</set>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::DockWidgetArea::LeftDockWidgetArea|Qt::DockWidgetArea::RightDockWidgetArea</set>
+   </property>
+   <property name="windowTitle">
+    <string>Live-Werte</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockLiveContents">
+    <layout class="QVBoxLayout" name="dockLiveLayout">
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QScrollArea" name="scrollLive">
+       <property name="frameShape">
+        <enum>QFrame::Shape::NoFrame</enum>
+       </property>
+       <property name="widgetResizable">
+        <bool>true</bool>
+       </property>
+       <property name="horizontalScrollBarPolicy">
+        <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+       </property>
+       <widget class="QWidget" name="contentLive">
+        <layout class="QVBoxLayout" name="contentLiveLayout">
+         <property name="spacing">
+          <number>6</number>
+         </property>
+         <property name="leftMargin">
+          <number>4</number>
+         </property>
+         <property name="topMargin">
+          <number>4</number>
+         </property>
+         <property name="rightMargin">
+          <number>4</number>
+         </property>
+         <property name="bottomMargin">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="ReadoutPanel" name="readoutPanel"/>
+         </item>
+         <item>
+          <widget class="DeviceStatusPanel" name="deviceStatusPanel"/>
+         </item>
+         <item>
+          <spacer name="spacerLive">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dockLog">
+   <property name="features">
+    <set>QDockWidget::DockWidgetFeature::DockWidgetClosable|QDockWidget::DockWidgetFeature::DockWidgetFloatable|QDockWidget::DockWidgetFeature::DockWidgetMovable</set>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::DockWidgetArea::BottomDockWidgetArea|Qt::DockWidgetArea::TopDockWidgetArea</set>
+   </property>
+   <property name="visible">
+    <bool>false</bool>
+   </property>
+   <property name="windowTitle">
+    <string>Ereignisprotokoll</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>8</number>
+   </attribute>
+   <widget class="QWidget" name="dockLogContents">
+    <layout class="QVBoxLayout" name="dockLogLayout">
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="EventLogPanel" name="eventLogPanel"/>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QStatusBar" name="statusBar"/>
+  <action name="actionToggleControls">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Steuerung</string>
+   </property>
+   <property name="toolTip">
+    <string>Seitenleiste mit Geräte-, Proben- und Messungssteuerung ein- oder ausblenden</string>
+   </property>
+  </action>
+  <action name="actionToggleLive">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Live-Werte</string>
+   </property>
+   <property name="toolTip">
+    <string>Seitenleiste mit Zählergebnissen und Gerätestatus ein- oder ausblenden</string>
+   </property>
+  </action>
+  <action name="actionToggleLog">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Protokoll</string>
+   </property>
+   <property name="toolTip">
+    <string>Ereignisprotokoll ein- oder ausblenden</string>
+   </property>
+  </action>
+  <action name="actionSwitchProfile">
+   <property name="text">
+    <string>Profil wechseln</string>
+   </property>
+   <property name="toolTip">
+    <string>Zwischen Experten- und Praktikumsprofil wechseln</string>
+   </property>
+  </action>
+  <action name="actionFullScreen">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="shortcut">
+    <string notr="true">F11</string>
+   </property>
+   <property name="text">
+    <string>Vollbild</string>
+   </property>
+   <property name="toolTip">
+    <string>Zwischen Vollbild und Fenster wechseln (F11)</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>DevicePanel</class>
+   <extends>QGroupBox</extends>
+   <header>gmcounter.ui.panels.device_panel</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>SamplePanel</class>
+   <extends>QGroupBox</extends>
+   <header>gmcounter.ui.panels.sample_panel</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>MeasurementPanel</class>
+   <extends>QGroupBox</extends>
+   <header>gmcounter.ui.panels.measurement_panel</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ReadoutPanel</class>
+   <extends>QGroupBox</extends>
+   <header>gmcounter.ui.panels.readout_panel</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>DeviceStatusPanel</class>
+   <extends>QGroupBox</extends>
+   <header>gmcounter.ui.panels.device_status_panel</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>EventLogPanel</class>
+   <extends>QWidget</extends>
+   <header>gmcounter.ui.panels.event_log_panel</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

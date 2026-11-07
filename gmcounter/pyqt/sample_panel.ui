@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SamplePanel</class>
+ <widget class="QGroupBox" name="SamplePanel">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>260</width>
+    <height>200</height>
+   </rect>
+  </property>
+  <property name="title">
+   <string>Probe &amp;&amp; Speicherung</string>
+  </property>
+  <layout class="QGridLayout" name="layoutSamplePanel">
+   <property name="spacing">
+    <number>6</number>
+   </property>
+   <item row="0" column="0">
+    <widget class="QLabel" name="labelSample">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Radioaktive Probe*</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QComboBox" name="comboSample">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="editable">
+      <bool>true</bool>
+     </property>
+     <property name="currentIndex">
+      <number>-1</number>
+     </property>
+     <property name="insertPolicy">
+      <enum>QComboBox::InsertPolicy::NoInsert</enum>
+     </property>
+     <property name="toolTip">
+      <string>Auswahl der verwendeten radioaktiven Probe (Pflichtfeld)</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="labelGroup">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Gruppe*</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QComboBox" name="comboGroup">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="currentIndex">
+      <number>-1</number>
+     </property>
+     <property name="maxCount">
+      <number>24</number>
+     </property>
+     <property name="insertPolicy">
+      <enum>QComboBox::InsertPolicy::NoInsert</enum>
+     </property>
+     <property name="toolTip">
+      <string>Auswahl der GP-Praktikumsgruppe (Pflichtfeld)</string>
+     </property>
+     <item>
+      <property name="text">
+       <string>A</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>B</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>C</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>D</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>E</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>F</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>G</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>H</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>I</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>J</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>K</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>L</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>M</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>N</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>O</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>P</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Q</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>R</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>S</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>T</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>U</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>V</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>W</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Z</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="labelDetector">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Detektor*</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QComboBox" name="comboDetector">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="editable">
+      <bool>true</bool>
+     </property>
+     <property name="currentIndex">
+      <number>-1</number>
+     </property>
+     <property name="insertPolicy">
+      <enum>QComboBox::InsertPolicy::NoInsert</enum>
+     </property>
+     <property name="toolTip">
+      <string>Auswahl des verwendeten Detektors (Geiger-Müller-Zählrohr, Pflichtfeld)</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="labelDistance">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Probenabstand</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QDoubleSpinBox" name="spinDistance">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="decimals">
+      <number>1</number>
+     </property>
+     <property name="maximum">
+      <double>100.0</double>
+     </property>
+     <property name="singleStep">
+      <double>0.5</double>
+     </property>
+     <property name="suffix">
+      <string> cm</string>
+     </property>
+     <property name="toolTip">
+      <string>Abstand zwischen Detektoroberfläche und radioaktiver Probe in cm</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0" colspan="2">
+    <widget class="QCheckBox" name="checkAutoSave">
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>Automatische Speicherung</string>
+     </property>
+     <property name="toolTip">
+      <string>Bei Aktivierung werden die Messungen automatisch als JJJJ_MM_TT-Probe-Suffix.csv im Ordner Dokumente/Geiger-Mueller/ gespeichert</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QLabel" name="labelSuffix">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Eigenes Suffix</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="1">
+    <widget class="QLineEdit" name="editSuffix">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="maxLength">
+      <number>20</number>
+     </property>
+     <property name="toolTip">
+      <string>Ein benutzerdefiniertes Suffix mit maximal 20 Zeichen</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

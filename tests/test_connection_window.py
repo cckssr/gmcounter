@@ -26,6 +26,7 @@ from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 from PySide6.QtCore import Qt, QTimer
 
 from gmcounter.ui.dialogs.connection import ConnectionWindow
+from gmcounter.infrastructure.config import default_config
 from gmcounter.infrastructure.device_manager import DeviceManager
 
 
@@ -121,7 +122,10 @@ class TestConnectionWindow(unittest.TestCase):
                 # Mock-Port sollte in der Portliste stehen
                 self.assertEqual(len(connection_window.ports), 3)  # 2 echte + 1 Mock
                 self.assertEqual(connection_window.ports[0][0], mock_port)
-                self.assertEqual(connection_window.ports[0][1], "Mock Device")
+                self.assertEqual(
+                    connection_window.ports[0][1],
+                    default_config().text("connection.text_mock_name"),
+                )
 
                 connection_window.close()
         finally:
@@ -190,9 +194,9 @@ class TestConnectionWindow(unittest.TestCase):
         connection_window._update_port_description()
 
         # Überprüfen, dass die Beschreibungsfelder korrekt gesetzt wurden
-        self.assertEqual(connection_window.ui.device_address.text(), "/dev/ttyUSB0")
-        self.assertEqual(connection_window.ui.device_name.text(), "USB0")
-        self.assertEqual(connection_window.ui.device_desc.text(), "Arduino Uno")
+        self.assertEqual(connection_window.ui.editAddress.text(), "/dev/ttyUSB0")
+        self.assertEqual(connection_window.ui.editName.text(), "USB0")
+        self.assertEqual(connection_window.ui.editDescription.text(), "Arduino Uno")
 
         connection_window.close()
 
@@ -202,7 +206,7 @@ class TestConnectionWindow(unittest.TestCase):
 
         connection_window = ConnectionWindow()
         connection_window.combo.setCurrentText("/dev/ttyUSB0")
-        connection_window.ui.comboBox.setCurrentText("9600")
+        connection_window.ui.comboBaud.setCurrentText("9600")
 
         success, device_manager = connection_window.attempt_connection()
 
@@ -222,7 +226,7 @@ class TestConnectionWindow(unittest.TestCase):
 
         connection_window = ConnectionWindow()
         connection_window.combo.setCurrentText("/dev/ttyUSB0")
-        connection_window.ui.comboBox.setCurrentText("9600")
+        connection_window.ui.comboBaud.setCurrentText("9600")
 
         success, device_manager = connection_window.attempt_connection()
 
@@ -240,7 +244,7 @@ class TestConnectionWindow(unittest.TestCase):
         connection_window.status_message("Test message", "green")
 
         # Überprüfen, dass die Nachricht gesetzt wurde
-        self.assertEqual(connection_window.ui.status_msg.text(), "Test message")
+        self.assertEqual(connection_window.ui.valueStatus.text(), "Test message")
 
         connection_window.close()
 
@@ -350,7 +354,7 @@ class TestConnectionWindow(unittest.TestCase):
         self.mock_list_ports.comports.return_value = [self.mock_port1, mock_port3]
 
         # Button-Click simulieren
-        connection_window.ui.buttonRefreshSerial.click()
+        connection_window.ui.buttonRefreshPorts.click()
 
         # Überprüfen, dass die Ports aktualisiert wurden
         self.assertEqual(connection_window.combo.count(), 2)
@@ -366,8 +370,8 @@ class TestConnectionWindow(unittest.TestCase):
         connection_window.combo.setCurrentIndex(1)
 
         # Überprüfen, dass die Port-Beschreibung aktualisiert wurde
-        self.assertEqual(connection_window.ui.device_address.text(), "/dev/ttyUSB1")
-        self.assertEqual(connection_window.ui.device_name.text(), "USB1")
+        self.assertEqual(connection_window.ui.editAddress.text(), "/dev/ttyUSB1")
+        self.assertEqual(connection_window.ui.editName.text(), "USB1")
 
         connection_window.close()
 
@@ -380,9 +384,9 @@ class TestConnectionWindow(unittest.TestCase):
         connection_window._update_port_description()
 
         # Felder sollten leer sein
-        self.assertEqual(connection_window.ui.device_address.text(), "")
-        self.assertEqual(connection_window.ui.device_name.text(), "")
-        self.assertEqual(connection_window.ui.device_desc.text(), "")
+        self.assertEqual(connection_window.ui.editAddress.text(), "")
+        self.assertEqual(connection_window.ui.editName.text(), "")
+        self.assertEqual(connection_window.ui.editDescription.text(), "")
 
         connection_window.close()
 

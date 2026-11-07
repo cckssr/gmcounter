@@ -36,8 +36,12 @@ _KIND_PROPERTIES = {
     "placeholder": "placeholderText",
     "title": "windowTitle",
 }
-# Widgets whose caption is not ``text``: group boxes have ``title``, docks use ``windowTitle``.
-_TITLE_PROPERTIES = {"QGroupBox": "title", "QDockWidget": "windowTitle"}
+# Widgets whose caption is not ``text``: group boxes have ``title``, docks and tool bars use ``windowTitle``.
+_TITLE_PROPERTIES = {
+    "QGroupBox": "title",
+    "QDockWidget": "windowTitle",
+    "QToolBar": "windowTitle",
+}
 
 
 def _property_for(kind: str, class_name: str) -> str:

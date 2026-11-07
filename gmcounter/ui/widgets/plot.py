@@ -206,6 +206,8 @@ class GeneralPlot(pg.PlotWidget):
             config: PlotConfig object with initial settings
             parent: Parent widget (None when injected into a layout later)
         """
+        if isinstance(config, QWidget):  # Designer promotion calls Cls(parent)
+            config, parent = None, config
         super().__init__(parent)
 
         if config is None:
@@ -744,6 +746,8 @@ class HistogramWidget(pg.PlotWidget):
             grid_alpha: Grid line transparency (0.0-1.0, legacy parameter)
             parent: Parent widget (None when injected into a layout later)
         """
+        if isinstance(config, QWidget):  # Designer promotion calls Cls(parent)
+            config, parent = None, config
         super().__init__(parent)
 
         # Handle both new PlotConfig style and legacy parameters

@@ -104,4 +104,4 @@ def test_packaged_config_matches_the_legacy_import_config() -> None:
     legacy = import_config()
     assert cfg.get("application.name") == legacy["application"]["name"]
     assert cfg.get("application.window_mode") == "maximized"
-    assert cfg.section("ui").get("main_window") == {}
+    assert cfg.section("ui").get("main_window", {}).get("self@title") == "GM-Counter"
