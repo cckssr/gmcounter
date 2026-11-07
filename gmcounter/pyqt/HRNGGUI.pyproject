@@ -2,7 +2,7 @@
     "files": [
         "../main.py",
         "connection.ui",
-        "mainwindow.ui",
+        "main_window.ui",
         "stylesheet.qrc"
     ]
 }

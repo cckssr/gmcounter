@@ -28,7 +28,7 @@ from ..common.statusbar import StatusBarManager
 
 if TYPE_CHECKING:
     from ..tabs.base import PlotTabBase
-    from ..widgets.event_log_panel import EventLogPanel
+    from ..panels.event_log_panel import EventLogPanel
 
 _log = logging.getLogger(__name__)
 CONFIG = import_config()

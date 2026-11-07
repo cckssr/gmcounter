@@ -1,870 +1,361 @@
 # Layer: ui/windows — thin MainWindow.
-# setupUi + subscribe to AppController signals → slot handlers touch widgets only.
-# No reconnect/measurement/save business logic lives here.
+# main_window.ui + panels + tabs from the TabRegistry; controllers hold the logic.
 
 from __future__ import annotations
 
 import logging
-from typing import Optional
+import tempfile
 
-import gmcounter
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMainWindow, QCompleter
+from PySide6.QtCore import QEvent, QSettings, Signal, Slot
+from PySide6.QtGui import QCloseEvent
+from PySide6.QtWidgets import QMainWindow, QWidget
 
-from ...infrastructure.config import import_config
+from gmcounter.pyqt.ui_main_window import Ui_MainWindow
+
+from ...core.services import SaveService
+from ...infrastructure.config import AppConfig
 from ...infrastructure.device_manager import DeviceManager
 from ...infrastructure.modules.registry import ModuleRegistry
-from ...core.services import SaveService
-from ..controllers.app_controller import AppController
-from ..tabs.registry import TabRegistry
-from ..tabs.gm_timing_tab import GMTimingTab  # registers at import time
-from ..tabs.distance_law_tab import DistanceLawTab  # explicitly wired sweep tab
-from ..tabs.voltage_response_tab import VoltageResponseTab  # explicitly wired sweep tab
-from ..tabs.interval_repeat_tab import (
-    IntervalRepeatTab,
-)  # explicitly wired interval tab
-from ..widgets.event_log_panel import EventLogPanel
-from ..common import dialogs as MessageHelper
+from .. import tabs as _tabs  # noqa: F401  (registers the experiment tabs)
 from ..common.file_dialogs import FileDialogManager
+from ..common.prompt import MessageBoxPrompt
 from ..common.statusbar import StatusBarManager
-from ...pyqt.ui_mainwindow import Ui_MainWindow
+from ..context import AppContext
+from ..controllers.app_controller import AppController
+from ..controllers.session_controller import SessionController
+from ..i18n import apply_strings
+from ..tabs.base import PlotTabBase
+from ..tabs.registry import TabRegistry
+from ..widgets.vscroll import lock_vertical_scroll
 
 _log = logging.getLogger(__name__)
-CONFIG = import_config()
 
-# Named color values for the status LED
-_LED_COLORS = {
-    "green": "rgb(50, 205, 50)",
-    "blue": "rgb(30, 144, 255)",
-    "orange": "rgb(255, 140, 0)",
-    "yellow": "rgb(255, 215, 0)",
-    "red": "rgb(255, 11, 3)",
-    "gray": "rgb(128, 128, 128)",
-}
+WINDOW_MODES = ("maximized", "fullscreen", "normal")
+SETTINGS_ORGANISATION = "gmcounter"
+SETTINGS_APPLICATION = "gmcounter"
+DEFAULT_PROFILE = "expert"
+TAB_COLORS = {"info": "green", "warning": "orange", "error": "red"}
+VOLTAGE_WARNING_MS = 3000
+CONNECTED_MESSAGE_MS = 3000
+AUTO_SAVE_MESSAGE_MS = 1000
+
+
+def layout_settings() -> QSettings:
+    """The user settings that hold the window layout."""
+    return QSettings(SETTINGS_ORGANISATION, SETTINGS_APPLICATION)
 
 
 class MainWindow(QMainWindow):
     """Main application window — chrome only.
 
-    Business logic lives in:
-    - AppController: timers, reconnect FSM, measurement start/stop
-    - GMTimingTab: data accumulation, plots, export
+    Logic lives in AppController (timers, acquisition, reconnect), SessionController
+    (Start / Stop / Save / Reset of the selected tab) and the experiment tabs.
+    ``persist=False`` keeps window layout and save folder out of the user's files (tests).
     """
 
-    def __init__(self, device_manager: DeviceManager, parent=None) -> None:
+    _device_info_received = Signal(dict)
+
+    def __init__(
+        self,
+        config: AppConfig,
+        device_manager: DeviceManager,
+        parent: QWidget | None = None,
+        persist: bool = True,
+    ) -> None:
         super().__init__(parent)
+        self.config = config
+        self.device_manager = device_manager
+        self._persist = persist
+        self._was_maximized = False
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        apply_strings(self, config.section("ui").get("main_window", {}))
+        for panel in self._panels():
+            panel.apply_config(config)
 
         self._status_bar = StatusBarManager(self.ui.statusBar)
-
-        self._save_service = SaveService(
-            base_dir=CONFIG.get("save", {}).get("base_folder", "GMCounter"),
-            tk_designation=CONFIG.get("save", {}).get("tk_designation", "TK47"),
+        base_dir = (
+            config.get("save.base_folder", "GMCounter")
+            if persist
+            else tempfile.mkdtemp(prefix="gmcounter-test-")
         )
-        self._file_dialog_manager = FileDialogManager(self._save_service)
-
-        # Build AppController (needs status_bar for direct notifications)
-        self._ctrl = AppController(
+        save_service = SaveService(
+            base_dir=base_dir,
+            tk_designation=config.get("save.tk_designation", "TK47"),
+        )
+        self.ctrl = AppController(
             device_manager, status_bar=self._status_bar, parent=self
         )
-
-        # Instantiate the GM experiment tab and inject .ui containers
-        self._gm_tab = GMTimingTab(parent=self)
-        self._gm_tab.inject_ui_containers(
-            plot_container=self.ui.timePlot,
-            hist_container=self.ui.histWidget,
-            table_view=self.ui.tableView,
-            count_lcd=self.ui.currentCount,
-            last_count_lcd=self.ui.lastCount,
-            rate_lcd=self.ui.currentRate,
-            tab_widget=self.ui.tabWidget,
+        self.ctrl.event_log = self.ui.eventLogPanel
+        self.context = AppContext(
+            config=config,
+            device_manager=device_manager,
+            ctrl=self.ctrl,
+            save_service=save_service,
+            file_dialogs=FileDialogManager(save_service),
+            voltage_readback=self.ui.deviceStatusPanel.voltage,
+            device_settings=self.ui.devicePanel.settings,
+            sample_metadata=self.ui.samplePanel.metadata,
         )
-        self._gm_tab.build()
-        self._gm_tab.inject_hist_controls(
-            bin_size_slider=self.ui.sldBinSize,
-            cutoff_slider=self.ui.sldBinCutOff,
-            bin_size_spinbox=self.ui.spinBox,
-            cutoff_spinbox=self.ui.spinBox_2,
-        )
+        self.tabs: dict[str, PlotTabBase] = {}
+        self._build_tabs()
+        self.session = self._build_session(save_service)
+        self._connect_panels()
+        self._connect_ctrl()
+        self._setup_docks()
+        self._setup_full_screen()
 
-        # Register with AppController
-        self._ctrl.set_active_tab(self._gm_tab)
-
-        # ── Sweep tabs ────────────────────────────────────────────────────
-        # The QWidget pages already live in .ui; inject widgets and build.
-        # Sweep tabs are NOT registered in TabRegistry — they are wired here.
-
-        # Distance-law sweep tab
-        self._distance_tab = DistanceLawTab(parent=self)
-        self._distance_tab.set_gm_tab(self._gm_tab)
-        self._distance_tab.inject_ui(
-            plot_container=self.ui.distancePlot,
-            table_view=self.ui.distanceTable,
-            status_label=self.ui.distanceStatus,
-            param_input=self.ui.distanceInput,
-        )
-        self._distance_tab.build()
-
-        # Voltage-response sweep tab — parameter comes from the device-control
-        # panel (live cVoltage readback); no tab-local input spinbox.
-        self._voltage_tab = VoltageResponseTab(parent=self)
-        self._voltage_tab.set_gm_tab(self._gm_tab)
-        self._voltage_tab.inject_ui(
-            plot_container=self.ui.voltagePlot,
-            table_view=self.ui.voltageTable,
-            status_label=self.ui.voltageStatus,
-            param_input=self.ui.sVoltage,
-            param_provider=lambda: float(self.ui.cVoltage.value()),
-        )
-        self._voltage_tab.build()
-
-        # Page → sweep-tab map: used by _current_sweep_tab() to resolve which
-        # ParameterSweepTabBase object owns the currently-visible .ui page.
-        self._sweep_tabs = {
-            self.ui.distance: self._distance_tab,
-            self.ui.voltage: self._voltage_tab,
-        }
-
-        # Sweep session state — True while any parameter sweep is running.
-        # _active_sweep_tab holds the specific tab object for this session.
-        self._sweep_session: bool = False
-        self._active_sweep_tab = None  # type: ignore[assignment]
-
-        # Interval tab
-        self._interval_tab = IntervalRepeatTab(parent=self)
-        self._interval_tab.inject_ui(
-            plot_container=self.ui.intervalPlot,
-            table_view=self.ui.intervalTable,
-            width_input=self.ui.intervalWidthInput,
-            repeat_input=self.ui.intervalRepeatInput,
-            status_label=self.ui.intervalStatus,
-        )
-        self._interval_tab.build()
-
-        # Interval session state — True while an interval measurement is active
-        # (from Start until Save or Reset).
-        self._interval_session: bool = False
-        self._active_interval_tab: Optional[IntervalRepeatTab] = None
-
-        # Measurement lifecycle is forwarded to the active sweep tab inside
-        # _on_measurement_started / _on_measurement_stopped (below), which
-        # fire after GMTimingTab via the AppController signal ordering.
-
-        # Wire TabRegistry for any future experiments
-        self._refresh_tab_visibility()
-
-        # Connect AppController signals → MainWindow slots
-        # (status_message is handled directly via StatusBarManager in AppController)
-        self._ctrl.measurement_started.connect(self._on_measurement_started)
-        self._ctrl.measurement_stopped.connect(self._on_measurement_stopped)
-        self._ctrl.device_state_updated.connect(self._on_device_state_updated)
-        self._ctrl.statistics_updated.connect(self._on_statistics_updated)
-        self._ctrl.progress_updated.connect(self._on_progress_updated)
-        self._ctrl.reconnect_succeeded.connect(self._on_reconnect_succeeded)
-        self._ctrl.connection_lost.connect(self._on_connection_lost_terminal)
-
-        # Connect GMTimingTab status signal to event log / status bar
-        self._gm_tab.status_message.connect(self._on_tab_status)
-
-        # Event log dock — give AppController a reference so _notify() can append
-        self._event_log = EventLogPanel(self)
-        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._event_log)
-        self._event_log.hide()
-        self._ctrl.event_log = self._event_log
-
-        # Wire buttons
-        self._setup_buttons()
-        self._setup_radioactive_sample_input()
-        self._setup_detector_code_input()
-        self._setup_voltage_warning()
-        self._setup_global_distance_visibility()
-
-        # Initial device info — set callback before fetch so it fires on initial connect
-        device_manager.on_device_info = self._on_device_info
+        device_manager.on_device_info = self._device_info_received.emit
+        self._device_info_received.connect(self._on_device_info)
         if device_manager.device and device_manager.connected:
-            device_manager._fetch_device_info()
+            device_manager._fetch_device_info()  # pylint: disable=protected-access
 
-        # Initial status
-        self._set_status_indicator("Bereit", "green")
-        self._status_bar.show_message(
-            CONFIG.get("messages", {})
-            .get("connected", "Verbunden mit {0}")
-            .format(device_manager.port),
-            duration=3000,
-        )
-
-        self.showMaximized()
-
-    # ------------------------------------------------------------------
-    # Tab registry
-
-    def _refresh_tab_visibility(self) -> None:
-        """Show/hide module-gated experiment tabs based on the ModuleRegistry."""
-        modules = ModuleRegistry.all()
-        for tab_class in TabRegistry.available(modules):
-            if tab_class is GMTimingTab:
-                continue  # Already contributed via setupUi + inject
-            # Future experiments contribute their own tabs
-            tab_class().contribute_tabs(self.ui.tabWidget)
-
-    # ------------------------------------------------------------------
-    # Button wiring
-
-    def _setup_buttons(self) -> None:
-        self.ui.buttonStart.clicked.connect(self._handle_start)
-        self.ui.buttonStop.clicked.connect(self._handle_stop)
-        self.ui.buttonSave.clicked.connect(self._handle_save)
-        self.ui.buttonReset.clicked.connect(self._handle_reset)
-        self.ui.buttonSetting.clicked.connect(self._handle_apply_settings)
-
-        self.ui.buttonStart.setEnabled(True)
-        self.ui.buttonStop.setEnabled(False)
-        self.ui.buttonSave.setEnabled(False)
-        self.ui.buttonReset.setEnabled(False)
-
-        # Allow typing a custom duration in seconds directly into the combobox
-        self.ui.sDuration.setEditable(True)
-
-        # autoSave — off by default; suffix row must start hidden because the
-        # Designer toggled→setVisible connections only fire on state *change*,
-        # not at construction time when the checkbox is already unchecked.
-        self.ui.autoSave.setChecked(False)
-        self.ui.suffix.setVisible(False)
-        self.ui.label_5.setVisible(False)
-        self.ui.autoSave.toggled.connect(self._on_auto_save_toggled)
-
-        self.ui.autoScroll.toggled.connect(self._on_auto_scroll_toggled)
-        self.ui.sPlotpoints.valueChanged.connect(self._on_plot_points_changed)
-        self.ui.buttonAutoRange.clicked.connect(self._on_auto_range)
-
-        if self._gm_tab._plot:
-            self._gm_tab._plot.user_interaction_detected.connect(
-                self._on_plot_user_interaction
+        self.session.initial_state()
+        if device_manager.connected:
+            self._status_bar.show_message(
+                config.message("connected").format(device_manager.port),
+                duration=CONNECTED_MESSAGE_MS,
             )
+        if persist:
+            self._restore_layout()
 
-        # Query-mode radios: enable and default to Manual (stream b0 = no idle output).
-        if hasattr(self.ui, "sQModeMan"):
-            self.ui.sQModeMan.setEnabled(True)
-            self.ui.sQModeMan.setChecked(True)
-        if hasattr(self.ui, "sQModeAuto"):
-            self.ui.sQModeAuto.setEnabled(True)
+    # ==================== Construction ====================
 
-        if self.ui.autoScroll.isChecked():
-            self._on_auto_scroll_toggled(True)
+    def _panels(self) -> list:
+        ui = self.ui
+        return [
+            ui.devicePanel,
+            ui.samplePanel,
+            ui.measurementPanel,
+            ui.readoutPanel,
+            ui.deviceStatusPanel,
+            ui.eventLogPanel,
+        ]
 
-    def _setup_radioactive_sample_input(self) -> None:
-        samples = CONFIG.get("radioactive_samples", [])
-        self.ui.radSample.clear()
-        self.ui.radSample.addItems(samples)
-        self.ui.radSample.setCurrentIndex(-1)
-        completer = QCompleter(samples)
-        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        self.ui.radSample.setCompleter(completer)
+    def _build_tabs(self) -> None:
+        """Create the registered tabs in order; the timing tab fills ``context.timing``."""
+        hidden = set(self.config.hidden_tabs())
+        for tab_class in TabRegistry.available(ModuleRegistry.all()):
+            if tab_class.tab_id in hidden and not tab_class.provides_timing:
+                continue
+            tab = tab_class(self.context)  # added to tabWidget below (or kept hidden)
+            tab.build()
+            if tab.provides_timing:
+                self.context.timing = tab
+                self.ctrl.set_active_tab(tab)
+                tab.status_message.connect(self._on_tab_status)
+                tab.high_speed_changed.connect(self.ui.readoutPanel.set_high_speed)
+                tab.readout_changed.connect(self._on_readout)
+            self.tabs[tab.tab_id] = tab
+            if tab_class.tab_id not in hidden:
+                self.ui.tabWidget.addTab(tab, tab.title)
+            else:
+                tab.setParent(self)
+                tab.hide()
 
-    def _setup_detector_code_input(self) -> None:
-        codes = CONFIG.get("detektor_codes", [])
-        self.ui.detectorCode.clear()
-        self.ui.detectorCode.addItems(codes)
-        self.ui.detectorCode.setCurrentIndex(-1)
-        completer = QCompleter(codes)
-        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        self.ui.detectorCode.setCompleter(completer)
+    def _build_session(self, save_service: SaveService) -> SessionController:
+        ui = self.ui
+        session = SessionController(
+            self.config,
+            self.ctrl,
+            self.context.timing,
+            save_service,
+            self.context.file_dialogs,
+            MessageBoxPrompt(self),
+            current_tab=lambda: ui.tabWidget.currentWidget(),
+            duration_s=ui.devicePanel.duration_s,
+            sample_metadata=ui.samplePanel.metadata,
+            apply_settings=self._apply_settings,
+            dialog_parent=self,
+            parent=self,
+        )
+        # Connected after the timing tab became the active tab: it sees a stop first.
+        self.ctrl.measurement_started.connect(session.on_measurement_started)
+        self.ctrl.measurement_stopped.connect(session.on_measurement_stopped)
+        self.ctrl.reconnect_succeeded.connect(session.on_reconnect_succeeded)
+        self.ctrl.connection_lost.connect(session.on_connection_lost)
+        session.buttons_changed.connect(ui.measurementPanel.set_state)
+        session.status_changed.connect(ui.deviceStatusPanel.set_status)
+        session.settings_locked.connect(ui.devicePanel.set_locked)
+        session.tabs_locked.connect(self._lock_tabs)
+        session.progress_cleared.connect(ui.measurementPanel.clear_progress)
+        session.message.connect(
+            lambda text, ms: self._status_bar.show_message(text, duration=ms)
+        )
+        return session
 
-    def _setup_global_distance_visibility(self) -> None:
-        self.ui.tabWidget.currentChanged.connect(self._on_tab_changed)
-        self._on_tab_changed(self.ui.tabWidget.currentIndex())
+    def _connect_panels(self) -> None:
+        ui = self.ui
+        panel = ui.measurementPanel
+        panel.start_requested.connect(self.session.start)
+        panel.stop_requested.connect(self.session.stop)
+        panel.save_requested.connect(self.session.save)
+        panel.reset_requested.connect(self.session.reset)
+        ui.devicePanel.apply_requested.connect(self._apply_settings)
+        ui.devicePanel.voltage_warning.connect(self._on_voltage_warning)
+        ui.samplePanel.auto_save_toggled.connect(self._on_auto_save_toggled)
+        ui.tabWidget.currentChanged.connect(self._on_tab_changed)
+        self._on_tab_changed(ui.tabWidget.currentIndex())
 
-    def _setup_voltage_warning(self) -> None:
-        self.ui.sVoltage.valueChanged.connect(self._on_voltage_changed)
+    def _connect_ctrl(self) -> None:
+        ctrl, ui = self.ctrl, self.ui
+        ctrl.device_state_updated.connect(self._on_device_state)
+        ctrl.progress_updated.connect(ui.measurementPanel.set_progress)
 
-    # ------------------------------------------------------------------
-    # AppController signal handlers
+    # ==================== Slots ====================
 
-    def _on_tab_changed(self, index: int) -> None:
-        current_page = self.ui.tabWidget.widget(index)
-        on_distance_tab = current_page is self.ui.distance
-        self.ui.lblDistance.setVisible(not on_distance_tab)
-        self.ui.distanceGlobalDistance.setVisible(not on_distance_tab)
-        if on_distance_tab:
-            self.ui.distanceGlobalDistance.setValue(0.0)
+    def current_tab(self) -> PlotTabBase | None:
+        tab = self.ui.tabWidget.currentWidget()
+        return tab if isinstance(tab, PlotTabBase) else None
 
-        # Route frames to the interval tab when its page is selected;
-        # otherwise the GM timing tab is the active receiver.
-        if current_page is self.ui.interval:
-            self._ctrl.set_active_tab(self._interval_tab)
-        elif not self._interval_session:
-            self._ctrl.set_active_tab(self._gm_tab)
+    def _on_tab_changed(self, _index: int) -> None:
+        tab = self.current_tab()
+        if tab is None:
+            return
+        self.ui.samplePanel.set_distance_visible(not tab.hides_global_distance)
+        self.session.on_tab_changed(tab)
+
+    def _lock_tabs(self, active: PlotTabBase | None) -> None:
+        """While a session runs only its tab stays usable."""
+        tabs = self.ui.tabWidget
+        for index in range(tabs.count()):
+            tabs.setTabEnabled(index, active is None or tabs.widget(index) is active)
+
+    def _apply_settings(self) -> None:
+        settings = self.ui.devicePanel.settings()
+        # Always infinite counting time: the host controls the duration via delta accumulation.
+        self.ctrl.apply_settings(
+            voltage=settings["voltage"],
+            counting_time=0,
+            repeat=settings["repeat"],
+            auto_query=settings["auto_query"],
+        )
 
     def _on_tab_status(self, level: str, text: str) -> None:
-        color = {"info": "green", "warning": "orange", "error": "red"}.get(
-            level, "white"
-        )
+        color = TAB_COLORS.get(level, "white")
         self._status_bar.show_message(text, backcolor=color)
-        self._event_log.append(text, color)
+        self.ui.eventLogPanel.append(text, color)
 
-    def _on_measurement_started(self) -> None:
-        self.ui.buttonStart.setEnabled(False)
-        self.ui.buttonStop.setEnabled(True)
-        self.ui.buttonSave.setEnabled(False)
-        self.ui.buttonReset.setEnabled(False)
-        # Lock all device-settings controls — only binary acquisition runs now
-        self.ui.buttonSetting.setEnabled(False)
-        self.ui.sVoltage.setEnabled(False)
-        self.ui.sDuration.setEnabled(False)
-        self.ui.sModeMulti.setEnabled(False)
-        if hasattr(self.ui, "sQModeAuto"):
-            self.ui.sQModeAuto.setEnabled(False)
-        if hasattr(self.ui, "sQModeMan"):
-            self.ui.sQModeMan.setEnabled(False)
-        self._set_status_indicator("Messung", "blue")
-        # Forward to the active sweep tab so it can record _session_start
-        if self._active_sweep_tab is not None:
-            self._active_sweep_tab.on_measurement_started()
+    def _on_readout(self, count: int, rate: float) -> None:
+        self.ui.readoutPanel.set_count(count)
+        self.ui.readoutPanel.set_rate(rate)
 
-    def _on_measurement_stopped(self) -> None:
-        self.ui.buttonStop.setEnabled(False)
-        self.ui.buttonSave.setEnabled(True)
-        self.ui.buttonReset.setEnabled(True)
-        # Restore all device-settings controls
-        self.ui.buttonSetting.setEnabled(True)
-        self.ui.sVoltage.setEnabled(True)
-        self.ui.sDuration.setEnabled(True)
-        self.ui.sModeMulti.setEnabled(True)
-        if hasattr(self.ui, "sQModeAuto"):
-            self.ui.sQModeAuto.setEnabled(True)
-        if hasattr(self.ui, "sQModeMan"):
-            self.ui.sQModeMan.setEnabled(True)
-        self._set_status_indicator("Gestoppt", "yellow")
-        self.ui.progressBar.setMaximum(1)
-        self.ui.progressBar.setValue(0)
-
-        # Forward to the active sweep tab — GMTimingTab.on_measurement_stopped
-        # fires first (connected via set_active_tab), so its export is ready.
-        if self._active_sweep_tab is not None:
-            self._active_sweep_tab.on_measurement_stopped()
-
-        if self._sweep_session:
-            # In a sweep session Start stays enabled so the user can fire the
-            # next measurement point immediately; unsaved state is tracked by
-            # the sweep tab, not _save_service.
-            self.ui.buttonStart.setEnabled(True)
-        elif self._interval_session:
-            # Interval session: Start disabled until data is saved or reset.
-            # interval_tab.on_measurement_stopped() fires via the ctrl signal.
-            self.ui.buttonStart.setEnabled(False)
-        else:
-            # Normal mode: Start disabled until data is saved/reset.
-            self.ui.buttonStart.setEnabled(False)
-            self._save_service.mark_unsaved()
-
-    def _on_device_state_updated(self, data: dict) -> None:
-        # Skip corrupted / incomplete reads so LCDs are never overwritten
-        # with zeros due to a bad FETC:STAT? response (e.g., right after a
-        # measurement stops when binary bytes might still be in the RX buffer).
+    def _on_device_state(self, data: dict) -> None:
+        # A corrupted read must never overwrite the displays with zeros.
         if data.get("error"):
             return
-        label_map = CONFIG.get("gm_counter", {}).get("label_map", {})
-        self.ui.currentCount.display(data.get("count", 0))
-        self.ui.lastCount.display(data.get("last_count", 0))
-        self.ui.cVoltage.display(data.get("voltage", 0))
-        self.ui.cDuration.display(data.get("counting_time", 0))
-        repeat = data.get("repeat", False)
-        self.ui.cMode.setText(
-            label_map.get("repeat_on", "Repeat On")
-            if repeat
-            else label_map.get("repeat_off", "Repeat Off")
-        )
-
-    def _on_statistics_updated(self, stats: dict) -> None:
-        if stats.get("count", 0) > 1:
-            self.ui.cStatPoints.setText(f"{stats.get('count', 0):.0f}")
-            self.ui.cStatMin.setText(f"{stats.get('min', 0):.0f}")
-            self.ui.cStatMax.setText(f"{stats.get('max', 0):.0f}")
-            self.ui.cStatAvg.setText(f"{stats.get('avg', 0):.0f}")
-            self.ui.cStatSD.setText(f"{stats.get('stdev', 0):.0f}")
-
-    def _on_progress_updated(self, elapsed: int, total: int) -> None:
-        self.ui.progressTimer.setText(f"{elapsed}s")
-        if total > 0:
-            self.ui.progressBar.setMaximum(total)
-            self.ui.progressBar.setValue(elapsed)
-        else:
-            self.ui.progressBar.setMaximum(0)  # indeterminate
-
-    def _on_reconnect_succeeded(self) -> None:
-        self.ui.buttonStart.setEnabled(True)
-        self._set_status_indicator("Verbunden", "green")
-
-    def _on_connection_lost_terminal(self) -> None:
-        self._set_status_indicator("Getrennt", "red")
-        MessageHelper.show_error(
-            self,
-            "Verbindung verloren.\n\nAlle Wiederverbindungsversuche fehlgeschlagen.",
-            "Verbindungsfehler",
-        )
+        self.ui.deviceStatusPanel.set_device_state(data)
+        self.ui.readoutPanel.set_count(data.get("count", 0))
+        self.ui.readoutPanel.set_last_count(data.get("last_count", 0))
 
     def _on_device_info(self, info: dict) -> None:
-        self.ui.cVersion.setText(info.get("version", ""))
-        self.ui.cOpenbis.setText(info.get("openbis", ""))
+        self.ui.deviceStatusPanel.set_device_info(info)
+        self.session.set_device_info(info)
 
-    # ------------------------------------------------------------------
-    # Measurement button handlers
-    #
-    # The same Start / Stop / Speichern / Reset buttons serve both the normal
-    # GM timing mode and any parameter-sweep tab (Abstandsgesetz, etc.).
-    # _current_sweep_tab() returns the active sweep tab when one is selected;
-    # None otherwise.  Button logic branches on that single check.
-
-    def _current_sweep_tab(self):
-        """Return the ParameterSweepTabBase for the currently-selected page, or None.
-
-        Sweep tab objects are separate Python instances injected into plain .ui
-        page widgets — the page widget itself is not a ParameterSweepTabBase.
-        The _sweep_tabs dict maps each .ui page QWidget to its owner tab object.
-        """
-        return self._sweep_tabs.get(self.ui.tabWidget.currentWidget())
-
-    def _current_interval_tab(self):
-        """Return the IntervalRepeatTab if the interval page is active, else None."""
-        return (
-            self._interval_tab
-            if self.ui.tabWidget.currentWidget() is self.ui.interval
-            else None
+    def _on_voltage_warning(self, volts: int) -> None:
+        self._status_bar.show_message(
+            self.config.message("voltage_warning").format(volts),
+            duration=VOLTAGE_WARNING_MS,
         )
-
-    def _parse_duration_s(self) -> int:
-        """Parse the sDuration combobox to total seconds.
-
-        Preset indices map directly; if the user typed a custom value
-        (currentIndex == -1), it is parsed as a float and rounded.
-        Returns 0 (infinite) for the 'unendlich' preset or invalid input.
-        """
-        seconds_map = {0: 0, 1: 1, 2: 10, 3: 60, 4: 100, 5: 300}
-        idx = int(self.ui.sDuration.currentIndex())
-        if idx in seconds_map:
-            return seconds_map[idx]
-        try:
-            return max(0, int(round(float(self.ui.sDuration.currentText()))))
-        except ValueError:
-            return 0
-
-    def _set_sweep_lock(self, locked: bool, active_page=None) -> None:
-        """Lock or unlock tab navigation during a sweep session.
-
-        When *locked*, every tab page is disabled except *active_page* (the
-        sweep tab the user is currently running), so they cannot accidentally
-        switch tabs mid-measurement.  When unlocked, all pages are re-enabled.
-        """
-        for idx in range(self.ui.tabWidget.count()):
-            page = self.ui.tabWidget.widget(idx)
-            self.ui.tabWidget.setTabEnabled(idx, (not locked) or page is active_page)
-
-    def _handle_start(self) -> None:
-        sweep = self._current_sweep_tab()
-        interval = self._current_interval_tab()
-
-        if interval is not None:
-            # ── Interval/Repeat mode ─────────────────────────────────────
-            total = int(interval.width_s * interval.repeat_count)
-
-            self._interval_session = True
-            self._active_interval_tab = interval
-            active_page = self.ui.tabWidget.currentWidget()
-            self._set_sweep_lock(True, active_page)
-            self._gm_tab.set_high_speed_autoswitch(False)
-
-            self._ctrl.start_measurement(total_seconds=total)
-
-        elif sweep is not None:
-            # ── Sweep mode ──────────────────────────────────────────────
-            total = self._parse_duration_s()
-
-            if total == 0 and not self._sweep_session:
-                # Warn on infinite time only at the first measurement of a session
-                if not MessageHelper.ask_question(
-                    self,
-                    "Die Messzeit ist auf 'unbegrenzt' eingestellt.\n\n"
-                    "Für Sweep-Messungen empfiehlt sich eine feste Messzeit, "
-                    "damit alle Messpunkte vergleichbar sind.\n\n"
-                    "Trotzdem fortfahren?",
-                    "Hinweis: unbegrenzte Messzeit",
-                ):
-                    return
-
-            # Previous data already captured in on_measurement_stopped; bypass
-            # the unsaved-data guard for repeat measurements in the same session.
-            self._save_service.mark_saved()
-
-            if not self._sweep_session:
-                # First measurement of this sweep session: record which sweep
-                # tab is active, lock other tabs, and suppress high-speed
-                # auto-switch to Histogramm.
-                self._sweep_session = True
-                self._active_sweep_tab = sweep
-                active_page = self.ui.tabWidget.currentWidget()
-                self._set_sweep_lock(True, active_page)
-                self._gm_tab.set_high_speed_autoswitch(False)
-
-            # For tabs that require device voltage to be applied on each
-            # measurement (e.g. VoltageResponseTab), push the current setpoint
-            # to the device now so the live cVoltage readback is up-to-date.
-            if sweep.applies_device_voltage_on_start:
-                self._handle_apply_settings()
-
-            self._gm_tab.set_measurement_metadata(
-                rad_sample=self.ui.radSample.currentText(),
-                group=self.ui.groupLetter.currentText(),
-                subterm=self.ui.suffix.text().strip(),
-            )
-            self._ctrl.start_measurement(total_seconds=total)
-
-        else:
-            # ── Normal GM timing mode ────────────────────────────────────
-            if self._save_service.has_unsaved():
-                MessageHelper.show_warning(
-                    self,
-                    "Bitte speichern oder löschen Sie die vorhandenen Messdaten.",
-                    "Warnung",
-                )
-                return
-
-            total = self._parse_duration_s()
-            self._gm_tab.set_measurement_metadata(
-                rad_sample=self.ui.radSample.currentText(),
-                group=self.ui.groupLetter.currentText(),
-                subterm=self.ui.suffix.text().strip(),
-            )
-            self._ctrl.start_measurement(total_seconds=total)
-
-    def _handle_stop(self) -> None:
-        self._ctrl.stop_measurement()
-
-    def _handle_save(self) -> None:
-        from ...infrastructure.save_service import write_export
-
-        interval = self._active_interval_tab
-        if self._interval_session and interval is not None and interval.has_data():
-            # ── Interval save: summary CSV + per-interval CSVs ────────────
-            summary = interval.summary_export()
-            if not summary:
-                MessageHelper.show_info(
-                    self, "Keine Intervalldaten vorhanden.", "Information"
-                )
-                return
-
-            extra: dict = {}
-            detector = self.ui.detectorCode.currentText().strip()
-            if detector:
-                extra["detector_code"] = detector
-            if extra:
-                summary.metadata.update(extra)
-
-            saved = self._file_dialog_manager.manual_save_export(
-                self,
-                summary,
-                self.ui.radSample.currentText(),
-                self.ui.groupLetter.currentText(),
-                self.ui.suffix.text().strip(),
-            )
-            if not saved or not saved.exists():
-                return
-
-            per_interval = interval.interval_exports
-            ok_count = 0
-            for exp in per_interval:
-                if extra:
-                    exp.metadata.update(extra)
-                auto_name = f"{saved.stem}_{exp.filename_hint}.csv"
-                try:
-                    write_export(exp, saved.parent / auto_name)
-                    ok_count += 1
-                except Exception as exc:
-                    _log.warning(
-                        "Could not write interval export %s: %s", auto_name, exc
-                    )
-
-            interval.mark_saved()
-            interval.reset()
-            self._interval_session = False
-            self._active_interval_tab = None
-            self._set_sweep_lock(False)
-            self._gm_tab.set_high_speed_autoswitch(True)
-            self._save_service.mark_saved()
-            self._ctrl.finalize_journal()
-
-            self.ui.buttonSave.setEnabled(False)
-            self.ui.buttonStart.setEnabled(True)
-            n = len(per_interval)
-            self._status_bar.show_message(
-                f"Zusammenfassung gespeichert. {ok_count}/{n} Intervall-CSV(s) exportiert.",
-                duration=5000,
-            )
-            self._set_status_indicator("Bereit", "green")
-            return
-
-        sweep = self._active_sweep_tab
-        if self._sweep_session and sweep is not None and sweep.has_data():
-            # ── Sweep save: summary CSV + auto-named individual timing CSVs ──
-            summary = sweep.summary_export()
-            if not summary:
-                MessageHelper.show_info(
-                    self, "Keine Zusammenfassungsdaten vorhanden.", "Information"
-                )
-                return
-
-            # Inject shared metadata into the summary
-            sweep_extra: dict = {}
-            detector = self.ui.detectorCode.currentText().strip()
-            if detector:
-                sweep_extra["detector_code"] = detector
-            global_dist = self.ui.distanceGlobalDistance.value()
-            if global_dist > 0.0:
-                sweep_extra["sample_distance_cm"] = global_dist
-            if sweep_extra:
-                summary.metadata.update(sweep_extra)
-
-            saved = self._file_dialog_manager.manual_save_export(
-                self,
-                summary,
-                self.ui.radSample.currentText(),
-                self.ui.groupLetter.currentText(),
-                self.ui.suffix.text().strip(),
-            )
-            if not saved or not saved.exists():
-                return
-
-            # Auto-write individual timing exports alongside the summary.
-            # File name encodes the parameter value and measurement index.
-            individual = sweep.individual_exports
-            ok_count = 0
-            for i, exp in enumerate(individual):
-                if sweep_extra:
-                    exp.metadata.update(sweep_extra)
-                param_val = exp.metadata.get(sweep.param_metadata_key, "?")
-                auto_name = (
-                    f"{saved.stem}_p{param_val}{sweep.param_unit}_m{i + 1:02d}.csv"
-                )
-                try:
-                    write_export(exp, saved.parent / auto_name)
-                    ok_count += 1
-                except Exception as exc:
-                    _log.warning(
-                        "Could not write individual export %s: %s", auto_name, exc
-                    )
-
-            # Tear down sweep session
-            sweep.mark_saved()
-            sweep.reset_summary()
-            self._sweep_session = False
-            self._active_sweep_tab = None
-            self._set_sweep_lock(False)
-            self._gm_tab.set_high_speed_autoswitch(True)
-            self._gm_tab.on_reset()
-            self._save_service.mark_saved()
-            self._ctrl.finalize_journal()
-
-            self.ui.buttonSave.setEnabled(False)
-            self.ui.buttonStart.setEnabled(True)
-            n = len(individual)
-            self._status_bar.show_message(
-                f"Zusammenfassung gespeichert. {ok_count}/{n} Einzelmessung(en) exportiert.",
-                duration=5000,
-            )
-            self._set_status_indicator("Bereit", "green")
-
-        else:
-            # ── Normal single-measurement save ───────────────────────────
-            if not self._save_service.has_unsaved():
-                MessageHelper.show_info(
-                    self, "Keine ungespeicherten Daten.", "Information"
-                )
-                return
-
-            export = self._gm_tab.export()
-            if not export:
-                MessageHelper.show_error(
-                    self, "Keine Messdaten zum Speichern.", "Fehler"
-                )
-                return
-
-            extra = {"gui_version": gmcounter.__version__}
-            openbis = self.ui.cOpenbis.text()
-            if openbis and openbis != "unknown":
-                extra["counter_openbis_code"] = openbis
-            fw = self.ui.cVersion.text()
-            if fw and fw != "unknown":
-                extra["counter_firmware_version"] = fw
-            if export.rows:
-                extra["total_count"] = len(export.rows)
-            detector = self.ui.detectorCode.currentText().strip()
-            if detector:
-                extra["detector_code"] = detector
-            global_dist = self.ui.distanceGlobalDistance.value()
-            if global_dist > 0.0:
-                extra["sample_distance_cm"] = global_dist
-            export.metadata.update(extra)
-
-            saved = self._file_dialog_manager.manual_save_export(
-                self,
-                export,
-                self.ui.radSample.currentText(),
-                self.ui.groupLetter.currentText(),
-                self.ui.suffix.text().strip(),
-            )
-            if saved and saved.exists():
-                self._save_service.mark_saved()
-                self._ctrl.finalize_journal()
-                self.ui.buttonSave.setEnabled(False)
-                self.ui.buttonStart.setEnabled(True)
-                self._status_bar.show_message("Gespeichert.", duration=3000)
-            else:
-                MessageHelper.show_error(self, "Fehler beim Speichern.", "Fehler")
-
-    def _handle_reset(self) -> None:
-        if self._ctrl.is_measuring:
-            MessageHelper.show_warning(self, "Messung läuft.", "Warnung")
-            return
-
-        if self._interval_session:
-            interval = self._active_interval_tab
-            if interval is not None and interval.has_data():
-                if not MessageHelper.ask_question(
-                    self,
-                    CONFIG.get("messages", {}).get(
-                        "unsaved_data", "Messdaten verwerfen?"
-                    ),
-                    "Warnung",
-                ):
-                    return
-            if interval is not None:
-                interval.reset()
-            self._interval_session = False
-            self._active_interval_tab = None
-            self._set_sweep_lock(False)
-            self._gm_tab.set_high_speed_autoswitch(True)
-            self._save_service.mark_saved()
-            self.ui.buttonSave.setEnabled(False)
-            self.ui.buttonStart.setEnabled(True)
-            self._set_status_indicator("Bereit", "green")
-            return
-
-        if self._sweep_session:
-            # Discard the entire sweep session without saving
-            sweep = self._active_sweep_tab
-            if sweep is not None and sweep.has_data():
-                if not MessageHelper.ask_question(
-                    self,
-                    CONFIG.get("messages", {}).get(
-                        "unsaved_data", "Messdaten verwerfen?"
-                    ),
-                    "Warnung",
-                ):
-                    return
-            if sweep is not None:
-                sweep.reset_summary()
-            self._sweep_session = False
-            self._active_sweep_tab = None
-            self._set_sweep_lock(False)
-            self._gm_tab.set_high_speed_autoswitch(True)
-        else:
-            if self._save_service.has_unsaved():
-                if not MessageHelper.ask_question(
-                    self,
-                    CONFIG.get("messages", {}).get("unsaved_data", "Daten verwerfen?"),
-                    "Warnung",
-                ):
-                    return
-
-        self._gm_tab.on_reset()
-        self._save_service.mark_saved()
-        self.ui.buttonSave.setEnabled(False)
-        self.ui.buttonStart.setEnabled(True)
-        self._set_status_indicator("Bereit", "green")
-
-    def _handle_apply_settings(self) -> None:
-        # Bug fix §6: read repeat from sModeMulti radio (not the broken cMode.text() check)
-        repeat = self.ui.sModeMulti.isChecked()
-        # Bug fix §6: auto-query enabled end-to-end via sQModeAuto radio
-        auto_query = hasattr(self.ui, "sQModeAuto") and self.ui.sQModeAuto.isChecked()
-        self._ctrl.apply_settings(
-            voltage=int(self.ui.sVoltage.value()),
-            counting_time=0,  # always infinite — host controls duration via delta accumulation
-            repeat=repeat,
-            auto_query=auto_query,
-        )
-
-    # ------------------------------------------------------------------
-    # Plot / scroll handlers
-
-    def _on_auto_scroll_toggled(self, checked: bool) -> None:
-        if self._gm_tab._plot:
-            if checked:
-                self._gm_tab._plot.set_auto_scroll(True, self.ui.sPlotpoints.value())
-            else:
-                self._gm_tab._plot.set_auto_scroll(False)
-
-    def _on_plot_points_changed(self, value: int) -> None:
-        if self.ui.autoScroll.isChecked() and self._gm_tab._plot:
-            self._gm_tab._plot.set_auto_scroll(True, value)
-
-    def _on_auto_range(self) -> None:
-        if self._gm_tab._plot:
-            self._gm_tab._plot.enable_auto_range(True)
-        self.ui.autoScroll.setChecked(True)
-
-    def _on_plot_user_interaction(self) -> None:
-        if self.ui.autoScroll.isChecked():
-            self.ui.autoScroll.setChecked(False)
 
     def _on_auto_save_toggled(self, checked: bool) -> None:
-        msg = (
-            CONFIG.get("messages", {}).get("auto_save_enabled", "Auto-Backup aktiviert")
-            if checked
-            else CONFIG.get("messages", {}).get(
-                "auto_save_disabled", "Auto-Backup deaktiviert"
-            )
+        key = "auto_save_enabled" if checked else "auto_save_disabled"
+        self._status_bar.show_message(
+            self.config.message(key), duration=AUTO_SAVE_MESSAGE_MS
         )
-        self._status_bar.show_message(msg, duration=1000)
 
-    def _on_voltage_changed(self, value: int) -> None:
-        threshold = CONFIG.get("gm_counter", {}).get("voltage_warning_threshold", 650)
-        if value > threshold:
-            self.ui.sVoltage.setStyleSheet("background-color: orange;")
-            self._status_bar.show_message(
-                CONFIG.get("messages", {})
-                .get("voltage_warning", "Achtung: {0} V")
-                .format(value),
-                duration=3000,
-            )
+    # ==================== Docks, layout persistence, full screen ====================
+
+    def _setup_docks(self) -> None:
+        """Side docks never scroll horizontally; each has a toggle action wired both ways."""
+        ui = self.ui
+        for dock, scroll, action in (
+            (ui.dockControls, ui.scrollControls, ui.actionToggleControls),
+            (ui.dockLive, ui.scrollLive, ui.actionToggleLive),
+            (ui.dockLog, None, ui.actionToggleLog),
+        ):
+            if scroll is not None:
+                dock.setMinimumWidth(lock_vertical_scroll(scroll) + 2)
+            action.setChecked(not dock.isHidden())
+            action.toggled.connect(dock.setVisible)
+            dock.visibilityChanged.connect(action.setChecked)
+        ui.actionSwitchProfile.setVisible(False)  # profiles come with a later phase
+        ui.actionSwitchProfile.setEnabled(False)
+
+    def _layout_key(self, name: str) -> str:
+        """Each profile keeps its own layout; the default profile uses the plain keys."""
+        profile = self.config.profile
+        return (
+            f"window/{name}"
+            if profile == DEFAULT_PROFILE
+            else f"window/{profile}/{name}"
+        )
+
+    def _restore_layout(self) -> None:
+        settings = layout_settings()
+        geometry = settings.value(self._layout_key("geometry"))
+        state = settings.value(self._layout_key("state"))
+        if geometry is not None:
+            self.restoreGeometry(geometry)
+        if state is not None:
+            self.restoreState(state)
+        ui = self.ui  # a dock hidden by the restored state may not have announced it
+        for dock, action in (
+            (ui.dockControls, ui.actionToggleControls),
+            (ui.dockLive, ui.actionToggleLive),
+            (ui.dockLog, ui.actionToggleLog),
+        ):
+            action.setChecked(not dock.isHidden())
+
+    def _save_layout(self) -> None:
+        settings = layout_settings()
+        settings.setValue(self._layout_key("geometry"), self.saveGeometry())
+        settings.setValue(self._layout_key("state"), self.saveState())
+
+    def show_initial(self, mode: str | None = None) -> None:
+        """Show the window in ``mode`` (default: ``application.window_mode``)."""
+        mode = mode or self.config.get("application.window_mode", WINDOW_MODES[0])
+        if mode not in WINDOW_MODES:
+            _log.warning("unknown window mode %r, using %r", mode, WINDOW_MODES[0])
+            mode = WINDOW_MODES[0]
+        if mode == "fullscreen":
+            self.showFullScreen()
+        elif mode == "maximized":
+            self.showMaximized()
         else:
-            self.ui.sVoltage.setStyleSheet("")
+            self.show()
+        self.ui.actionFullScreen.setChecked(self.isFullScreen())
 
-    # ------------------------------------------------------------------
-    # Status indicator
+    def _setup_full_screen(self) -> None:
+        self.ui.actionFullScreen.triggered.connect(self.set_fullscreen)
 
-    def _set_status_indicator(self, status: str, color: str) -> None:
-        led_color = _LED_COLORS.get(color, _LED_COLORS["gray"])
-        self.ui.statusLED.setStyleSheet(
-            f"background-color: {led_color}; border: 0px; padding: 4px; border-radius: 10px"
-        )
-        self.ui.statusText.setText(status)
+    @Slot(bool)
+    def set_fullscreen(self, on: bool) -> None:
+        """Enter or leave full screen (leaving returns to maximised or normal as before)."""
+        if on == self.isFullScreen():
+            return
+        if on:
+            self._was_maximized = self.isMaximized()
+            self.showFullScreen()
+        elif self._was_maximized:
+            self.showMaximized()
+        else:
+            self.showNormal()
+        self.ui.actionFullScreen.setChecked(self.isFullScreen())
 
-    # ------------------------------------------------------------------
-    # Window lifecycle
+    def changeEvent(self, event: QEvent) -> None:  # noqa: N802
+        """Keep the full-screen action in sync when the OS changes the window state."""
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.WindowStateChange:
+            self.ui.actionFullScreen.setChecked(self.isFullScreen())
 
-    def closeEvent(self, event) -> None:
-        if self._save_service.has_unsaved():
-            if not MessageHelper.ask_question(
-                self,
-                CONFIG.get("messages", {}).get(
-                    "unsaved_data_end", "Daten nicht gespeichert. Trotzdem schließen?"
-                ),
-                "Warnung",
-            ):
-                event.ignore()
-                return
-        self._ctrl.cleanup()
+    # ==================== Window lifecycle ====================
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+        if not self.session.confirm_close():
+            event.ignore()
+            return
+        if self._persist:
+            self._save_layout()
+        self.ctrl.cleanup()
         event.accept()

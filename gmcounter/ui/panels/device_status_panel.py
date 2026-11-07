@@ -56,6 +56,10 @@ class DeviceStatusPanel(QGroupBox):
             auto = "auto_on" if data["auto_query"] else "auto_off"
             self.ui.valueQueryMode.setText(self._label_map.get(auto, auto))
 
+    def voltage(self) -> float:
+        """The GM voltage (V) last reported by the device."""
+        return float(self.ui.lcdVoltage.value())
+
     def set_device_info(self, info: dict) -> None:
         """Show firmware version and OpenBIS code."""
         self.ui.valueFirmware.setText(info.get("version", ""))

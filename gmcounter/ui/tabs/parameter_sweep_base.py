@@ -1,39 +1,31 @@
 # Layer: ui/tabs — generic base for parameter-sweep experiments.
 #
 # Subclass to build "Abstandsgesetz", "Spannungskurve", etc.:
-#   • declare class attributes (param_label, summary_filename_hint, …)
-#   • register in TabRegistry
-#   • MainWindow calls inject_ui() with the .ui widgets, then build()
-#   • MainWindow connects AppController.measurement_stopped here
-#   • MainWindow routes the shared Start/Stop/Speichern buttons via
-#     isinstance(..., ParameterSweepTabBase)
+#   • set the class attributes (tab_id, order, instance, param_unit, …),
+#   • decorate with @TabRegistry.register,
+#   • add the per-instance texts ``text_*_<instance>`` to ui.sweep_tab in config.json.
 #
-# No widgets are created here — all static layout lives in .ui.
+# The form (sweep_tab.ui) is shared by all sweep tabs; the instance-specific labels, tooltips,
+# headers and summary titles come from the ``text_*_<instance>`` keys. The session controller
+# drives the shared Start / Stop / Save / Reset buttons through ``session_kind = "sweep"``.
 
 from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Callable, Optional, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
-from PySide6.QtGui import (
-    QStandardItemModel,
-    QStandardItem,
-)  # pylint: disable=no-name-in-module
-from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
-    QWidget,
-    QTableView,
-    QLabel,
-    QDoubleSpinBox,
-    QSpinBox,
-    QVBoxLayout,
-    QHeaderView,
-)
+from PySide6.QtGui import QStandardItem, QStandardItemModel
+from PySide6.QtWidgets import QHeaderView, QWidget  # pylint: disable=no-name-in-module
 
-from .base import PlotTabBase
+from gmcounter.pyqt.ui_sweep_tab import Ui_SweepTab
+
 from ...core.export import TabExport
+from ..i18n import apply_strings
+from .base import PlotTabBase
 
 if TYPE_CHECKING:
+    from ..context import AppContext
     from .gm_timing_tab import GMTimingTab
 
 _log = logging.getLogger(__name__)
@@ -45,56 +37,44 @@ class ParameterSweepTabBase(PlotTabBase):
     Subclass contract
     -----------------
     Set these class attributes:
-        tab_id                  Stable registry key
-        tab_title               Shown as tab label
-        param_label             Axis / column header (e.g. "Probenabstand (cm)")
+        tab_id                  Stable registry key (``ui.tabs.<tab_id>`` is the title)
+        order                   Tab position
+        instance                Suffix of the ``text_*_<instance>`` keys in ``ui.sweep_tab``
         param_unit              Metadata unit string (e.g. "cm")
         param_metadata_key      Key injected into individual TabExport metadata
                                 (e.g. "sample_distance_cm")
         summary_filename_hint   Stem for the summary CSV (e.g. "abstandsgesetz")
-        summary_title           Human title for the summary (used in metadata)
 
-    Then call TabRegistry.register(MyTab) at module level.
-
-    MainWindow injection order (before build):
-        set_gm_tab(gm_tab)
-        inject_ui(plot_container, table_view, param_input, status_label)
-        build()
-    MainWindow also connects:
-        ctrl.measurement_stopped → self.on_measurement_stopped
+    Optional:
+        param_format                    Table cell format of the parameter value
+        uses_param_input                False: the parameter comes from
+                                        ``context.voltage_readback`` and the input row is hidden
+        applies_device_voltage_on_start True: the session controller sends the device settings
+                                        before each Start
+        clear_param_input_after_stop    Select the input after each point
     """
 
-    # -- Subclass-defined -----------------------------------------------
-    param_label: str = "Parameter"
+    form_name = "sweep_tab"
+    session_kind = "sweep"
+    required_modules: set[str] = set()
+
+    instance: str = ""
     param_unit: str = ""
     param_metadata_key: str = "param_value"
     summary_filename_hint: str = "sweep"
-    summary_title: str = "Parameter-Sweep"
-    # Table cell format string applied to the parameter value
     param_format: str = "{:.1f}"
-    # Set True if the tab requires the device voltage to be applied on each Start
+    uses_param_input: bool = True
     applies_device_voltage_on_start: bool = False
-    # Set True to select _param_input after each measurement so the user can
-    # immediately type the next value without manually clicking/clearing.
     clear_param_input_after_stop: bool = False
 
-    # -- Internal -------------------------------------------------------
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
+    def __init__(self, context: "AppContext", parent: Optional[QWidget] = None) -> None:
+        super().__init__(context, parent)
+        self.ui = Ui_SweepTab()
+        self.ui.setupUi(self)
+        apply_strings(self, self.config.section("ui").get(self.form_name, {}))
+        self._apply_instance_texts()
 
-        self._gm_tab: Optional["GMTimingTab"] = None
-
-        # .ui widget references (set by inject_ui)
-        self._plot_container: Optional[QWidget] = None
-        self._table_view: Optional[QTableView] = None
-        self._param_input: Optional[QDoubleSpinBox] = None
-        self._status_label: Optional[QLabel] = None
-        # Optional callable that provides the parameter value (takes priority
-        # over _param_input when set; used e.g. for voltage from device control).
-        self._param_provider: Optional[Callable[[], float]] = None
-
-        # Created in build()
-        self._plot = None  # GeneralPlot instance
+        self._plot = self.ui.sweepPlot
         self._table_model: Optional[QStandardItemModel] = None
 
         # Summary data
@@ -104,99 +84,79 @@ class ParameterSweepTabBase(PlotTabBase):
         self._has_unsaved = False
 
     # ------------------------------------------------------------------
-    # Dependency injection (called by MainWindow before build)
+    # Texts
 
-    def set_gm_tab(self, gm_tab: "GMTimingTab") -> None:
-        self._gm_tab = gm_tab
+    def _instance_text(self, name: str, default: str = "") -> str:
+        value = self.config.get(f"ui.{self.form_name}.text_{name}_{self.instance}")
+        return value if isinstance(value, str) else default
 
-    def inject_ui(
-        self,
-        plot_container: QWidget,
-        table_view: QTableView,
-        status_label: QLabel,
-        param_input: Optional[QDoubleSpinBox | QSpinBox] = None,
-        param_provider: Optional[Callable[[], float]] = None,
-    ) -> None:
-        """Receive the .ui container widgets. Call before build().
+    @property
+    def param_label(self) -> str:
+        """Column header and axis label of the parameter (with unit)."""
+        return self._instance_text("param_header")
 
-        Either *param_input* (a QDoubleSpinBox in the tab page) or
-        *param_provider* (a zero-argument callable, e.g. ``lambda: ctrl.voltage``)
-        must be supplied so the tab can read the current parameter value.
-        """
-        self._plot_container = plot_container
-        self._table_view = table_view
-        self._param_input = param_input
-        self._param_provider = param_provider
-        self._status_label = status_label
+    @property
+    def summary_title(self) -> str:
+        return self._instance_text("summary_title")
+
+    def _apply_instance_texts(self) -> None:
+        ui = self.ui
+        ui.labelParam.setText(self._instance_text("param"))
+        ui.spinParam.setSuffix(self._instance_text("param_suffix"))
+        ui.spinParam.setToolTip(self._instance_text("param_tooltip"))
+        hint = self._instance_text("hint")
+        ui.labelHint.setText(hint)
+        ui.labelHint.setVisible(bool(hint))
+        ui.labelParam.setVisible(self.uses_param_input)
+        ui.spinParam.setVisible(self.uses_param_input)
 
     # ------------------------------------------------------------------
     # PlotTabBase lifecycle
 
+    @property
+    def _gm_tab(self) -> Optional["GMTimingTab"]:
+        return self.context.timing
+
     def build(self) -> None:
-        """Create GeneralPlot inside the .ui container and wire the table model."""
-        from ..widgets.plot import GeneralPlot, PlotConfig
+        """Label the promoted plot and set up the summary table."""
+        self._plot.reconfigure("xlabel", self.param_label)
+        self._plot.reconfigure("ylabel", self.text("plot_y_label"))
 
-        if self._plot_container and self._plot is None:
-            bg = (
-                self._plot_container.palette()
-                .color(self._plot_container.backgroundRole())
-                .name()
-            )
-            cfg = PlotConfig(
-                xlabel=self.param_label,
-                ylabel="Anzahl Ereignisse",
-                background_color=bg,
-            )
-            self._plot = GeneralPlot(config=cfg)
-            layout = QVBoxLayout(self._plot_container)
-            layout.setContentsMargins(0, 0, 0, 0)
-            layout.addWidget(self._plot)
-
-        if self._table_view is not None and self._table_model is None:
-            cols = [
-                self.param_label,
-                "Anzahl",
-                "Rate (1/s)",
-                "Dauer (s)",
-                "Zeitstempel",
-            ]
-            self._table_model = QStandardItemModel(0, len(cols), self._table_view)
-            self._table_model.setHorizontalHeaderLabels(cols)
-            self._table_view.setModel(self._table_model)
-            hdr = self._table_view.horizontalHeader()
-            hdr.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-
-    # ------------------------------------------------------------------
-    # Measurement lifecycle
+        cols = [
+            self.param_label,
+            *self.config.get(f"ui.{self.form_name}.table_summary_headers", []),
+        ]
+        self._table_model = QStandardItemModel(0, len(cols), self.ui.tableSummary)
+        self._table_model.setHorizontalHeaderLabels(cols)
+        self.ui.tableSummary.setModel(self._table_model)
+        self.ui.tableSummary.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self._update_status()
 
     def on_measurement_started(self) -> None:
         self._session_start = datetime.now()
 
     def on_measurement_stopped(self) -> None:
-        if not self._gm_tab or not self._session_start:
+        gm_tab = self._gm_tab
+        if not gm_tab or not self._session_start:
             return
 
         end = datetime.now()
         duration_s = max((end - self._session_start).total_seconds(), 1e-6)
 
-        # Snapshot individual timing export before GMTimingTab is reset next run.
-        # GMTimingTab.on_measurement_stopped() fires first (set_active_tab connected
-        # earlier), so _session_end is already set on the export.
-        indiv_export = self._gm_tab.export()
+        # Snapshot the individual timing export before the timing tab is reset next run.
+        indiv_export = gm_tab.export()
         if indiv_export:
-            param_val = self._current_param()
-            indiv_export.metadata[self.param_metadata_key] = param_val
+            indiv_export.metadata[self.param_metadata_key] = self.current_param()
             self._individual_exports.append(indiv_export)
 
-        stats = self._gm_tab.get_statistics() if self._gm_tab else {}
-        count = int(stats.get("count", 0))
-        rate = round(count / duration_s, 3)
-
+        count = int(gm_tab.get_statistics().get("count", 0))
         entry = {
-            "param": self._current_param(),
+            "param": self.current_param(),
             "count": count,
             "duration_s": round(duration_s, 2),
-            "rate_hz": rate,
+            "rate_hz": round(count / duration_s, 3),
             "start": self._session_start.isoformat(),
         }
         self._measurements.append(entry)
@@ -213,12 +173,10 @@ class ParameterSweepTabBase(PlotTabBase):
     # Data model
 
     def current_param(self) -> float:
-        return self._current_param()
-
-    def _current_param(self) -> float:
-        if self._param_provider is not None:
-            return float(self._param_provider())
-        return self._param_input.value() if self._param_input else 0.0
+        """The parameter of the running / last point."""
+        if not self.uses_param_input:
+            return float(self.context.voltage_readback())
+        return self.ui.spinParam.value()
 
     def has_data(self) -> bool:
         return bool(self._measurements)
@@ -233,6 +191,16 @@ class ParameterSweepTabBase(PlotTabBase):
     def individual_exports(self) -> List[TabExport]:
         return list(self._individual_exports)
 
+    def session_exports(self) -> List[TabExport]:
+        return self.individual_exports
+
+    def session_file_name(self, export: TabExport, index: int) -> str:
+        value = export.metadata.get(self.param_metadata_key, "?")
+        return f"p{value}{self.param_unit}_m{index + 1:02d}"
+
+    def reset_session(self) -> None:
+        self.reset_summary()
+
     def reset_summary(self) -> None:
         self._measurements.clear()
         self._individual_exports.clear()
@@ -240,8 +208,7 @@ class ParameterSweepTabBase(PlotTabBase):
         self._session_start = None
         if self._table_model:
             self._table_model.removeRows(0, self._table_model.rowCount())
-        if self._plot:
-            self._plot.clear_measurement_data()
+        self._plot.clear_measurement_data()
         self._update_status()
 
     # ------------------------------------------------------------------
@@ -250,7 +217,10 @@ class ParameterSweepTabBase(PlotTabBase):
     def summary_export(self) -> Optional[TabExport]:
         if not self._measurements:
             return None
-        cols = [self.param_label, "Anzahl", "Rate (1/s)", "Dauer (s)", "Zeitstempel"]
+        cols = [
+            self.param_label,
+            *self.config.get(f"ui.{self.form_name}.table_summary_headers", []),
+        ]
         rows = [
             [
                 str(m["param"]),
@@ -281,9 +251,9 @@ class ParameterSweepTabBase(PlotTabBase):
 
     def _focus_param_input(self) -> None:
         """Select all text in the param input and give it keyboard focus."""
-        if self._param_input is not None:
-            self._param_input.selectAll()
-            self._param_input.setFocus()
+        if self.uses_param_input:
+            self.ui.spinParam.selectAll()
+            self.ui.spinParam.setFocus()
 
     def _append_table_row(self, entry: dict) -> None:
         if self._table_model is None:
@@ -297,23 +267,19 @@ class ParameterSweepTabBase(PlotTabBase):
                 QStandardItem(entry["start"]),
             ]
         )
-        if self._table_view:
-            self._table_view.scrollToBottom()
+        self.ui.tableSummary.scrollToBottom()
 
     def _refresh_plot(self) -> None:
-        if not self._plot or not self._measurements:
+        if not self._measurements:
             return
-        # Sort by parameter value for connecting line
+        # Sorted by parameter value for the connecting line
         pts = sorted((m["param"], m["count"]) for m in self._measurements)
         self._plot.set_summary_points(pts)
 
     def _update_status(self) -> None:
-        if not self._status_label:
-            return
         n = len(self._measurements)
         if n == 0:
-            self._status_label.setText("Keine Messpunkte aufgezeichnet.")
+            text = self.text("text_no_points")
         else:
-            self._status_label.setText(
-                f"{n} Messpunkt{'e' if n != 1 else ''} aufgezeichnet."
-            )
+            text = self.text("text_points_one" if n == 1 else "text_points_many", n=n)
+        self.ui.valueStatus.setText(text)

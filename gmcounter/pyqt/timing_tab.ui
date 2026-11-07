@@ -149,15 +149,15 @@
         <number>5</number>
        </property>
        <item row="0" column="0">
-        <layout class="QHBoxLayout" name="layoutStats">
-         <item>
+        <layout class="QGridLayout" name="layoutStats">
+         <item row="0" column="0">
           <widget class="QLabel" name="labelStatCount">
            <property name="text">
             <string>Anzahl</string>
            </property>
           </widget>
          </item>
-         <item>
+         <item row="1" column="0">
           <widget class="QLabel" name="valueStatCount">
            <property name="textInteractionFlags">
             <enum>Qt::TextInteractionFlag::TextSelectableByMouse</enum>
@@ -179,14 +179,14 @@
            </property>
           </widget>
          </item>
-         <item>
+         <item row="0" column="1">
           <widget class="QLabel" name="labelStatMin">
            <property name="text">
             <string>Min / µs</string>
            </property>
           </widget>
          </item>
-         <item>
+         <item row="1" column="1">
           <widget class="QLabel" name="valueStatMin">
            <property name="textInteractionFlags">
             <enum>Qt::TextInteractionFlag::TextSelectableByMouse</enum>
@@ -208,14 +208,14 @@
            </property>
           </widget>
          </item>
-         <item>
+         <item row="0" column="2">
           <widget class="QLabel" name="labelStatMax">
            <property name="text">
             <string>Max / µs</string>
            </property>
           </widget>
          </item>
-         <item>
+         <item row="1" column="2">
           <widget class="QLabel" name="valueStatMax">
            <property name="textInteractionFlags">
             <enum>Qt::TextInteractionFlag::TextSelectableByMouse</enum>
@@ -237,14 +237,14 @@
            </property>
           </widget>
          </item>
-         <item>
+         <item row="0" column="3">
           <widget class="QLabel" name="labelStatMean">
            <property name="text">
             <string>Mittelwert / µs</string>
            </property>
           </widget>
          </item>
-         <item>
+         <item row="1" column="3">
           <widget class="QLabel" name="valueStatMean">
            <property name="textInteractionFlags">
             <enum>Qt::TextInteractionFlag::TextSelectableByMouse</enum>
@@ -266,14 +266,14 @@
            </property>
           </widget>
          </item>
-         <item>
+         <item row="0" column="4">
           <widget class="QLabel" name="labelStatStd">
            <property name="text">
             <string>Standardabw. / µs</string>
            </property>
           </widget>
          </item>
-         <item>
+         <item row="1" column="4">
           <widget class="QLabel" name="valueStatStd">
            <property name="textInteractionFlags">
             <enum>Qt::TextInteractionFlag::TextSelectableByMouse</enum>
@@ -295,7 +295,7 @@
            </property>
           </widget>
          </item>
-         <item>
+         <item row="0" column="5" rowspan="2">
           <spacer name="spacerStats">
            <property name="orientation">
             <enum>Qt::Orientation::Horizontal</enum>

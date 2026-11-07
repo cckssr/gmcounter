@@ -14,8 +14,16 @@ from gmcounter.infrastructure.modules.registry import ModuleRegistry
 # Registry basics (no Qt needed)
 
 
-def setup_function():
+@pytest.fixture(autouse=True)
+def _isolated_registries():
+    """Start every test with empty registries and restore the real tabs afterwards."""
+    saved = TabRegistry.all_registered()
     TabRegistry.clear()
+    ModuleRegistry.clear()
+    yield
+    TabRegistry.clear()
+    for tab_class in saved:
+        TabRegistry.register(tab_class)
     ModuleRegistry.clear()
 
 

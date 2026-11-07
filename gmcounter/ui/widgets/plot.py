@@ -26,7 +26,7 @@ from PySide6.QtCore import Signal, Slot, QTimer  # pylint: disable=no-name-in-mo
 from PySide6.QtGui import QSurfaceFormat  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import QWidget  # pylint: disable=no-name-in-module
 from ...infrastructure.logging import Debug
-from .plot_style import style_plot
+from .plot_style import plot_colors, style_plot
 
 # CRITICAL: Disable vsync for maximum plot update speed
 sfmt = QSurfaceFormat()
@@ -51,6 +51,21 @@ pg.setConfigOption("antialias", False)
 pg.setConfigOption("imageAxisOrder", "row-major")
 # Prefer PlotCurveItem over PlotDataItem (simpler, faster)
 pg.setConfigOption("useNumba", True)  # Use numba if available for acceleration
+
+
+def _line_color():
+    """Colour of the main curve (first entry of ``plot_colors.series``)."""
+    return plot_colors().series_color(0)
+
+
+def _marker_color():
+    """Colour of highlighted data points (``plot_colors.marker``)."""
+    return plot_colors().marker
+
+
+def _bar_color(color: str):
+    """Histogram bar colour: an explicit ``color``, else the configured curve colour."""
+    return color if color and color != "w" else _line_color()
 
 
 class PlotConfig:
@@ -103,9 +118,7 @@ class FastPlotCurveItem(pg.PlotCurveItem):
         """Initialize with performance defaults."""
         # Set performance-optimized defaults
         kwds.setdefault("antialias", False)
-        kwds.setdefault(
-            "pen", pg.mkPen(width=1, color="#0099FF")
-        )  # Cyan - visible on Windows
+        kwds.setdefault("pen", pg.mkPen(width=1, color=_line_color()))
         super().__init__(**kwds)
         self._cached_range: Optional[
             Tuple[Tuple[float, float], Tuple[float, float]]
@@ -460,11 +473,11 @@ class GeneralPlot(pg.PlotWidget):
             self._plot_curve.setData(
                 x_arr,
                 y_arr,
-                pen=pg.mkPen(width=self.config.pen_width, color="#0099FF"),  # Cyan line
+                pen=pg.mkPen(width=self.config.pen_width, color=_line_color()),
                 symbol="o",
                 symbolSize=self.config.symbol_size,
-                symbolBrush=pg.mkBrush("#FF3333"),  # Bright red symbols
-                symbolPen=pg.mkPen("#FF3333", width=2),  # Bright red border
+                symbolBrush=pg.mkBrush(_marker_color()),
+                symbolPen=pg.mkPen(_marker_color(), width=2),
                 antialias=self.config.antialias,
                 skipFiniteCheck=self.config.skip_finite_check,
             )
@@ -472,7 +485,7 @@ class GeneralPlot(pg.PlotWidget):
             self._plot_curve.setData(
                 x_arr,
                 y_arr,
-                pen=pg.mkPen(width=self.config.pen_width, color="#0099FF"),  # Cyan line
+                pen=pg.mkPen(width=self.config.pen_width, color=_line_color()),
                 antialias=self.config.antialias,
                 skipFiniteCheck=self.config.skip_finite_check,
             )
@@ -855,6 +868,7 @@ class HistogramWidget(pg.PlotWidget):
         """Perform actual histogram update (internal method)."""
         if data_arr.size == 0:
             return
+        color = _bar_color(color)
 
         try:
             # Calculate histogram using numpy (vectorized, very fast)
@@ -869,7 +883,7 @@ class HistogramWidget(pg.PlotWidget):
                     x1=bin_edges[1:],
                     height=hist,
                     brush=color,
-                    pen="w",
+                    pen=color,
                 )
                 self.addItem(self._hist_item)
                 Debug.debug(f"Histogram created with {bins} bins")
@@ -880,7 +894,7 @@ class HistogramWidget(pg.PlotWidget):
                     x1=bin_edges[1:],
                     height=hist,
                     brush=color,
-                    pen="w",
+                    pen=color,
                 )
 
             # Auto-range only if bin count changed (optimization)
@@ -902,6 +916,7 @@ class HistogramWidget(pg.PlotWidget):
         """Histogram update with explicit µs bin width and right cutoff."""
         if data_arr.size == 0:
             return
+        color = _bar_color(color)
         try:
             n_bins = max(1, int(cutoff_us / bin_size_us))
             hist, bin_edges = np.histogram(
@@ -913,7 +928,7 @@ class HistogramWidget(pg.PlotWidget):
                     x1=bin_edges[1:],
                     height=hist,
                     brush=color,
-                    pen="w",
+                    pen=color,
                 )
                 self.addItem(self._hist_item)
             else:
@@ -922,7 +937,7 @@ class HistogramWidget(pg.PlotWidget):
                     x1=bin_edges[1:],
                     height=hist,
                     brush=color,
-                    pen="w",
+                    pen=color,
                 )
             # Fix x-range to [0, cutoff] so the view doesn't jump on redraw.
             self.setXRange(0, cutoff_us, padding=0.02)
@@ -953,7 +968,7 @@ class HistogramWidget(pg.PlotWidget):
             data: Raw inter-event times in µs.
             bin_size_us: Width of each bin in µs.
             cutoff_us: Right edge of the displayed range; values above are excluded.
-            color: Bar fill colour (default white).
+            color: Bar fill colour (default: the configured curve colour).
             deferred: Batch into the 16 ms timer (default True).
         """
         if not data:
@@ -995,7 +1010,7 @@ class HistogramWidget(pg.PlotWidget):
         Args:
             data: Values to create histogram from
             bins: Number of histogram bins (default: 50)
-            color: Bar color (default: white)
+            color: Bar color (default: the configured curve colour)
             deferred: If True, batch updates together (16ms intervals)
         """
         if not data:

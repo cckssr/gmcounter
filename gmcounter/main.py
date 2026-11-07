@@ -4,7 +4,10 @@ import logging
 import sys
 import os
 
-from PySide6.QtCore import qInstallMessageHandler, QtMsgType  # pylint: disable=no-name-in-module
+from PySide6.QtCore import (
+    qInstallMessageHandler,
+    QtMsgType,
+)  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QApplication,
     QMessageBox,
@@ -12,7 +15,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
 from .infrastructure.logging import Debug
 from .ui.dialogs.connection import ConnectionWindow
 from .ui.windows.main_window import MainWindow
-from .infrastructure.config import import_config
+from .infrastructure.config import import_config, load_config
 
 _qt_log = logging.getLogger("gmcounter.qt")
 
@@ -90,8 +93,8 @@ def main():
 
         if success and device_manager is not None:
             # Hauptfenster erstellen und anzeigen, wenn Verbindung erfolgreich
-            main_window = MainWindow(device_manager)
-            # MainWindow.__init__ already calls showMaximized(); no show() needed here.
+            main_window = MainWindow(load_config(), device_manager)
+            main_window.show_initial()  # application.window_mode
 
             # Timer starten, wenn vorhanden
             if hasattr(main_window, "timer"):

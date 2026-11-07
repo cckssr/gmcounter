@@ -1,5 +1,5 @@
 # Layer: ui/tabs — GMTimingTab: GM inter-event timing experiment.
-# The first registered experiment; contributes 3 top-level view tabs.
+# The first experiment; its form carries three inner views (Zeitverlauf / Histogramm / Liste).
 
 from __future__ import annotations
 
@@ -8,75 +8,81 @@ import queue
 import threading
 from datetime import datetime
 from time import time
-from typing import Optional, List, Tuple
-
-from PySide6.QtCore import QTimer, Signal  # pylint: disable=no-name-in-module
-from PySide6.QtGui import (
-    QStandardItem,
-    QStandardItemModel,
-)  # pylint: disable=no-name-in-module
-from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
-    QTabWidget,
-    QTableView,
-    QWidget,
-    QVBoxLayout,
-    QLCDNumber,
-    QSlider,
-    QSpinBox,
-)
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy as np
+from PySide6.QtCore import QTimer, Signal  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QStandardItem, QStandardItemModel
+from PySide6.QtWidgets import QWidget  # pylint: disable=no-name-in-module
 
+from gmcounter.pyqt.ui_timing_tab import Ui_TimingTab
+
+from ...core.export import TabExport, build_gm_tab_export
+from ...core.models import Frame, MeasurementPoint, MeasurementSession
+from ...core.utils import calculate_statistics
+from ..i18n import apply_strings
 from .base import PlotTabBase
 from .registry import TabRegistry
-from ...core.export import TabExport, build_gm_tab_export
-from ...core.models import Frame, MeasurementSession, MeasurementPoint
-from ...core.utils import calculate_statistics
-from ...infrastructure.config import import_config
+
+if TYPE_CHECKING:
+    from ..context import AppContext
 
 _log = logging.getLogger(__name__)
-CONFIG = import_config()
 
-_DATA_CFG = CONFIG.get("data_controller", {})
-_HS_CFG = _DATA_CFG.get("high_speed_mode", {})
-HIGH_SPEED_BATCH_THRESHOLD: int = _HS_CFG.get("batch_threshold", 50)
-HIGH_SPEED_BATCH_HISTORY: int = _HS_CFG.get("batch_history", 5)
-MAX_HISTORY: int = _DATA_CFG.get("max_history_size", 2000)
-GUI_UPDATE_INTERVAL: int = max(
-    500, CONFIG.get("timers", {}).get("gui_update_interval", 500)
-)
+QUEUE_SIZE = 10_000
+HISTOGRAM_WINDOW = 10_000  # newest points used for the histogram
+HIGH_SPEED_REFRESH_MS = 2000
+READOUT_COUNT_EVERY_N_TICKS = 5  # the count readout is refreshed every Nth GUI tick
+TABLE_MAX_EVENTS = 5000  # the table stops growing beyond this many events
 
 
+@TabRegistry.register
 class GMTimingTab(PlotTabBase):
     """GM inter-event timing experiment.
 
-    Contributes 3 top-level view tabs to the shared QTabWidget:
-      0 — Zeitverlauf (line plot)
-      1 — Histogramm
-      2 — Liste (data table)
+    Inner views (``tabViews``): Zeitverlauf (line plot), Histogramm, Liste (data table).
 
-    High-speed mode activates when the data rate exceeds the batch
-    threshold: plot/table updates stop, only histogram updates every 2 s.
-    Auto-switch to Histogramm tab happens inside this tab (not MainWindow).
+    High-speed mode activates when the data rate exceeds the batch threshold: line plot and
+    table stop updating, only the histogram and the count / rate readout refresh every 2 s,
+    and the inner view switches to the histogram (suppressed during sweep / interval
+    sessions, see :meth:`set_high_speed_autoswitch`).
+
+    Every frame is stored in ``_data_points`` (the export); only the hand-over to the GUI
+    queue is skipped when the queue is full or the high-speed mode is active. No per-frame
+    widget work happens anywhere.
     """
 
     tab_id = "gm_timing"
-    tab_title = "Zeitverlauf"
+    form_name = "timing_tab"
+    order = 0
+    session_kind = "single"
+    provides_timing = True
     required_modules: set[str] = set()
 
-    # Signal — MainWindow switches to Histogramm tab on high-speed activation
-    _switch_to_histogram = Signal()
+    high_speed_changed = Signal(bool)
+    readout_changed = Signal(int, float)  # (event count, rate in Hz)
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
+    def __init__(self, context: "AppContext", parent: Optional[QWidget] = None) -> None:
+        super().__init__(context, parent)
+        self.ui = Ui_TimingTab()
+        self.ui.setupUi(self)
+        apply_strings(self, self.config.section("ui").get(self.form_name, {}))
 
-        # Raw data storage (unbounded — for CSV export)
+        data_cfg = self.config.section("data_controller")
+        hs_cfg = data_cfg.get("high_speed_mode", {})
+        self._hs_threshold: int = hs_cfg.get("batch_threshold", 50)
+        self._hs_history: int = hs_cfg.get("batch_history", 5)
+        self._max_history: int = data_cfg.get("max_history_size", 2000)
+        self._gui_interval_ms: int = max(
+            500, self.config.get("timers.gui_update_interval", 500)
+        )
+
+        # Raw data storage (unbounded — for CSV export); GUI-limited copy for the plot
         self._data_points: List[Tuple[int, float, str]] = []
-        # GUI-limited copy
         self._gui_points: List[Tuple[int, float, str]] = []
 
-        # Queue from acquisition thread
-        self._queue: queue.Queue = queue.Queue(maxsize=10000)
+        # Queue from the acquisition path to the GUI timer
+        self._queue: queue.Queue = queue.Queue(maxsize=QUEUE_SIZE)
         self._queue_lock = threading.Lock()
         self._overflow_warned = False
 
@@ -84,33 +90,20 @@ class GMTimingTab(PlotTabBase):
         self._high_speed = False
         self._batch_history: List[Tuple[float, int]] = []
         self._hist_timer: Optional[QTimer] = None
-        self._hs_autoswitch: bool = True  # set False during sweep sessions
-
-        # GUI update timer
+        self._hs_autoswitch: bool = True  # False during sweep / interval sessions
         self._gui_timer: Optional[QTimer] = None
-
-        # Injection slots (set by MainWindow after build())
-        self._plot_container: Optional[QWidget] = None
-        self._hist_container: Optional[QWidget] = None
-        self._table_view: Optional[QTableView] = None
-        self._count_lcd: Optional[QLCDNumber] = None
-        self._last_count_lcd: Optional[QLCDNumber] = None
-        self._rate_lcd: Optional[QLCDNumber] = None
-        self._tab_widget_ref: Optional[QTabWidget] = None
+        self._tick = 0  # GUI ticks since the count readout was refreshed
+        self._shown_count = 0
+        self._hist_tick = 0  # GUI ticks since the histogram was redrawn
 
         # Running device-time accumulator (sum of all received deltas in µs)
         self._cum_us: float = 0.0
 
-        # Lazily created widgets
-        self._plot = None
-        self._histogram = None
+        self._plot = self.ui.timePlot
+        self._histogram = self.ui.histogramPlot
         self._table_model: Optional[QStandardItemModel] = None
 
-        # Histogram controls (injected by MainWindow)
-        self._slider_bin_size: Optional[QSlider] = None
-        self._slider_cutoff: Optional[QSlider] = None
-        self._spinbox_bin_size: Optional[QSpinBox] = None
-        self._spinbox_cutoff: Optional[QSpinBox] = None
+        # Histogram controls
         self._hist_bin_size_us: int = 1_000
         self._hist_cutoff_us: int = 50_000
         self._user_adjusted_hist: bool = False
@@ -124,65 +117,79 @@ class GMTimingTab(PlotTabBase):
         self._subterm: str = ""
 
     # ------------------------------------------------------------------
-    # Dependency injection from MainWindow
+    # Setup
 
-    def inject_ui_containers(
-        self,
-        plot_container: QWidget,
-        hist_container: QWidget,
-        table_view: QTableView,
-        count_lcd: Optional[QLCDNumber] = None,
-        last_count_lcd: Optional[QLCDNumber] = None,
-        rate_lcd: Optional[QLCDNumber] = None,
-        tab_widget: Optional[QTabWidget] = None,
-    ) -> None:
-        """Receive the .ui container widgets before build() is called."""
-        self._plot_container = plot_container
-        self._hist_container = hist_container
-        self._table_view = table_view
-        self._count_lcd = count_lcd
-        self._last_count_lcd = last_count_lcd
-        self._rate_lcd = rate_lcd
-        self._tab_widget_ref = tab_widget
+    def build(self) -> None:
+        """Label the promoted plots, set up table and controls, start the GUI timer."""
+        ui = self.ui
+        plot_cfg = self._plot.config
+        plot_cfg.max_plot_points = self.config.get("plot.max_points", 1000)
+        self._plot.reconfigure("xlabel", self.text("plot_x_label"))
+        self._plot.reconfigure("ylabel", self.text("plot_y_label"))
+        self._histogram.reconfigure("xlabel", self.text("histogram_x_label"))
+        self._histogram.reconfigure("ylabel", self.text("histogram_y_label"))
 
-    def inject_hist_controls(
-        self,
-        bin_size_slider: QSlider,
-        cutoff_slider: QSlider,
-        bin_size_spinbox: QSpinBox,
-        cutoff_spinbox: QSpinBox,
-    ) -> None:
-        """Wire the histogram bin-size and cut-off sliders from the .ui.
+        headers = self.config.get(f"ui.{self.form_name}.table_events_headers", [])
+        self._table_model = QStandardItemModel(0, len(headers), ui.tableEvents)
+        self._table_model.setHorizontalHeaderLabels(headers)
+        ui.tableEvents.setModel(self._table_model)
 
-        Sets µs-appropriate ranges for dead-time analysis (overriding .ui defaults),
-        then connects valueChanged so user adjustments are detected.
-        """
-        self._slider_bin_size = bin_size_slider
-        self._slider_cutoff = cutoff_slider
-        self._spinbox_bin_size = bin_size_spinbox
-        self._spinbox_cutoff = cutoff_spinbox
+        self._setup_hist_controls()
+        ui.checkAutoScroll.toggled.connect(self._on_auto_scroll_toggled)
+        ui.spinPlotPoints.valueChanged.connect(self._on_plot_points_changed)
+        ui.buttonAutoRange.clicked.connect(self._on_auto_range)
+        self._plot.user_interaction_detected.connect(self._on_plot_user_interaction)
+        if ui.checkAutoScroll.isChecked():
+            self._on_auto_scroll_toggled(True)
 
+        ctrl = self.context.ctrl
+        if ctrl is not None:
+            ctrl.statistics_updated.connect(self.on_statistics)
+
+        self._gui_timer = QTimer(self)
+        self._gui_timer.timeout.connect(self._process_queue)
+        self._gui_timer.start(self._gui_interval_ms)
+
+    def _setup_hist_controls(self) -> None:
+        """µs ranges for dead-time analysis; sliders drive the read-only spin boxes."""
+        ui = self.ui
         # Bin size: 10 µs … 50 000 µs (50 ms), step 10 µs
-        bin_size_slider.setMinimum(10)
-        bin_size_slider.setMaximum(50_000)
-        bin_size_slider.setSingleStep(10)
-        bin_size_slider.setPageStep(100)
-        bin_size_spinbox.setMinimum(10)
-        bin_size_spinbox.setMaximum(50_000)
-
+        ui.sliderBinSize.setRange(10, 50_000)
+        ui.sliderBinSize.setSingleStep(10)
+        ui.sliderBinSize.setPageStep(100)
+        ui.spinBinSize.setRange(10, 50_000)
         # Cut-off: 1 000 µs (1 ms) … 10 000 000 µs (10 s), step 1 000 µs
-        cutoff_slider.setMinimum(1_000)
-        cutoff_slider.setMaximum(10_000_000)
-        cutoff_slider.setSingleStep(1_000)
-        cutoff_slider.setPageStep(10_000)
-        cutoff_spinbox.setMinimum(1_000)
-        cutoff_spinbox.setMaximum(10_000_000)
+        ui.sliderCutoff.setRange(1_000, 10_000_000)
+        ui.sliderCutoff.setSingleStep(1_000)
+        ui.sliderCutoff.setPageStep(10_000)
+        ui.spinCutoff.setRange(1_000, 10_000_000)
 
-        bin_size_slider.valueChanged.connect(self._on_bin_size_changed)
-        cutoff_slider.valueChanged.connect(self._on_cutoff_changed)
-
-        # Reflect initial auto defaults
+        ui.sliderBinSize.valueChanged.connect(ui.spinBinSize.setValue)
+        ui.sliderCutoff.valueChanged.connect(ui.spinCutoff.setValue)
+        ui.sliderBinSize.valueChanged.connect(self._on_bin_size_changed)
+        ui.sliderCutoff.valueChanged.connect(self._on_cutoff_changed)
         self._set_sliders(self._hist_bin_size_us, self._hist_cutoff_us)
+
+    # ------------------------------------------------------------------
+    # Plot / histogram control handlers
+
+    def _on_auto_scroll_toggled(self, checked: bool) -> None:
+        if checked:
+            self._plot.set_auto_scroll(True, self.ui.spinPlotPoints.value())
+        else:
+            self._plot.set_auto_scroll(False)
+
+    def _on_plot_points_changed(self, value: int) -> None:
+        if self.ui.checkAutoScroll.isChecked():
+            self._plot.set_auto_scroll(True, value)
+
+    def _on_auto_range(self) -> None:
+        self._plot.enable_auto_range(True)
+        self.ui.checkAutoScroll.setChecked(True)
+
+    def _on_plot_user_interaction(self) -> None:
+        if self.ui.checkAutoScroll.isChecked():
+            self.ui.checkAutoScroll.setChecked(False)
 
     def _on_bin_size_changed(self, value: int) -> None:
         if self._updating_sliders:
@@ -198,11 +205,18 @@ class GMTimingTab(PlotTabBase):
         self._hist_cutoff_us = value
         self._refresh_histogram()
 
+    def on_statistics(self, stats: dict) -> None:
+        """Show count / min / max / mean / std of the acquired intervals."""
+        if stats.get("count", 0) > 1:
+            ui = self.ui
+            ui.valueStatCount.setText(f"{stats.get('count', 0):.0f}")
+            ui.valueStatMin.setText(f"{stats.get('min', 0):.0f}")
+            ui.valueStatMax.setText(f"{stats.get('max', 0):.0f}")
+            ui.valueStatMean.setText(f"{stats.get('avg', 0):.0f}")
+            ui.valueStatStd.setText(f"{stats.get('stdev', 0):.0f}")
+
     def _refresh_histogram(self) -> None:
-        if not self._histogram:
-            return
-        # Use all stored points for richer statistics (capped for performance)
-        values = [pt[1] for pt in self._data_points[-10_000:]]
+        values = [pt[1] for pt in self._data_points[-HISTOGRAM_WINDOW:]]
         if len(values) < 2:
             return
         self._histogram.update_histogram_us(
@@ -228,23 +242,33 @@ class GMTimingTab(PlotTabBase):
         bin_size = max(10, int(round(floor_us / 5.0 / 10) * 10))
         # Round cutoff to nearest millisecond
         cutoff = max(1_000, int(round(p95_us / 1_000) * 1_000))
-
-        # Clamp to slider limits
-        bin_size = min(bin_size, 50_000)
-        cutoff = min(cutoff, 10_000_000)
-        return bin_size, cutoff
+        return min(bin_size, 50_000), min(cutoff, 10_000_000)
 
     def _set_sliders(self, bin_size_us: int, cutoff_us: int) -> None:
         """Update sliders programmatically without triggering the user-adjusted flag."""
         self._hist_bin_size_us = bin_size_us
         self._hist_cutoff_us = cutoff_us
-        if self._slider_bin_size and self._slider_cutoff:
-            self._updating_sliders = True
-            try:
-                self._slider_bin_size.setValue(bin_size_us)
-                self._slider_cutoff.setValue(cutoff_us)
-            finally:
-                self._updating_sliders = False
+        self._updating_sliders = True
+        try:
+            self.ui.sliderBinSize.setValue(bin_size_us)
+            self.ui.sliderCutoff.setValue(cutoff_us)
+        finally:
+            self._updating_sliders = False
+
+    def _update_histogram(self) -> None:
+        """Redraw the histogram from the stored data (auto-parameters unless the user chose)."""
+        if len(self._data_points) <= 1:
+            return
+        values = [pt[1] for pt in self._data_points[-HISTOGRAM_WINDOW:]]
+        if not self._user_adjusted_hist:
+            bin_size, cutoff = self._auto_hist_params(values)
+            self._set_sliders(bin_size, cutoff)
+        self._histogram.update_histogram_us(
+            values, self._hist_bin_size_us, self._hist_cutoff_us
+        )
+
+    # ------------------------------------------------------------------
+    # Session API used by the session controller
 
     def set_measurement_metadata(
         self, rad_sample: str, group: str, subterm: str
@@ -254,88 +278,40 @@ class GMTimingTab(PlotTabBase):
         self._subterm = subterm
 
     def set_high_speed_autoswitch(self, enabled: bool) -> None:
-        """Enable or disable the automatic tab switch to Histogramm on high-speed.
+        """Enable or disable the automatic switch to the Histogramm view on high-speed.
 
-        MainWindow disables this for the duration of a sweep session so the
-        Abstandsgesetz (or voltage) tab stays visible while data accumulates.
-        Data acquisition and histogram updates are unaffected.
+        Disabled for the duration of a sweep / interval session so the experiment tab stays
+        visible while data accumulates. Data acquisition and histogram updates are unaffected.
         """
         self._hs_autoswitch = enabled
+
+    @property
+    def high_speed_active(self) -> bool:
+        return self._high_speed
 
     # ------------------------------------------------------------------
     # PlotTabBase lifecycle
 
-    def build(self) -> None:
-        """Create plot/histogram/table inside the .ui containers."""
-        from ..widgets.plot import GeneralPlot, HistogramWidget, PlotConfig
-
-        if self._plot_container and self._plot is None:
-            bg = (
-                self._plot_container.palette()
-                .color(self._plot_container.backgroundRole())
-                .name()
-            )
-            cfg = PlotConfig(
-                xlabel=CONFIG.get("plot", {}).get("x_label", "Index"),
-                ylabel=CONFIG.get("plot", {}).get("y_label", "Zeit (µs)"),
-                max_plot_points=CONFIG.get("plot", {}).get("max_points", 1000),
-                background_color=bg,
-            )
-            self._plot = GeneralPlot(config=cfg)
-            QVBoxLayout(self._plot_container).addWidget(self._plot)
-
-        if self._hist_container and self._histogram is None:
-            hist_bg = (
-                self._hist_container.palette()
-                .color(self._hist_container.backgroundRole())
-                .name()
-            )
-            self._histogram = HistogramWidget(
-                xlabel=CONFIG.get("histogram", {}).get("x_label", "Zeit (µs)"),
-                ylabel=CONFIG.get("histogram", {}).get("y_label", "Häufigkeit"),
-                background=hist_bg,
-            )
-            QVBoxLayout(self._hist_container).addWidget(self._histogram)
-
-        if self._table_view is not None and self._table_model is None:
-            self._table_model = QStandardItemModel(0, 3, self._table_view)
-            self._table_model.setHorizontalHeaderLabels(["Index", "Wert (µs)", "Zeit"])
-            self._table_view.setModel(self._table_model)
-
-        # GUI update timer
-        self._gui_timer = QTimer(self)
-        self._gui_timer.timeout.connect(self._process_queue)
-        self._gui_timer.start(GUI_UPDATE_INTERVAL)
-
     def on_frame(self, frame: Frame) -> None:
-        """Enqueue incoming data point (called from main thread via Qt signal)."""
-        try:
-            ts = frame.timestamp
-            self._data_points.append((frame.index, frame.value, ts))
-            with self._queue_lock:
-                self._queue.put_nowait((frame.index, frame.value, ts))
-        except queue.Full:
-            if not self._overflow_warned:
-                _log.warning("Data queue overflow — GUI cannot keep up")
-                self._overflow_warned = True
+        self.on_frames([frame])
 
     def on_frames(self, frames: List[Frame]) -> None:
-        """Batch entrypoint — append a whole batch under one lock acquisition.
+        """Store a whole batch; hand it to the GUI queue unless high-speed is active.
 
-        Overrides PlotTabBase.on_frames so a 10 kHz stream costs one lock cycle
-        per GUI-thread delivery instead of one per point.
+        Every frame is appended to the export data. Only the queue put may be skipped: the
+        queue is not used at all in high-speed mode, and a full queue drops the surplus
+        points for the plot (never for the export).
         """
         if not frames:
             return
-        dp = self._data_points
-        q = self._queue
+        rows = [(f.index, f.value, f.timestamp) for f in frames]
+        self._data_points.extend(rows)
+        self._cum_us += sum(row[1] for row in rows)
+        if self._high_speed:
+            return
         with self._queue_lock:
-            for frame in frames:
-                row = (frame.index, frame.value, frame.timestamp)
-                dp.append(row)
-                self._cum_us += (
-                    frame.value
-                )  # always accumulate for device-time tracking
+            q = self._queue
+            for row in rows:
                 try:
                     q.put_nowait(row)
                 except queue.Full:
@@ -351,47 +327,40 @@ class GMTimingTab(PlotTabBase):
         self._gui_points.clear()
         self._cum_us = 0.0
         with self._queue_lock:
-            self._queue = queue.Queue(maxsize=10000)
+            self._queue = queue.Queue(maxsize=QUEUE_SIZE)
         self._overflow_warned = False
         self._session_start = datetime.now()
         self._session_end = None
+        self._tick = 0
+        self._shown_count = 0
+        self._hist_tick = 0
 
         # Return histogram controls to auto mode for the new measurement
         self._user_adjusted_hist = False
         self._set_sliders(1_000, 50_000)
 
-        if self._plot and hasattr(self._plot, "clear_measurement_data"):
-            self._plot.clear_measurement_data()
-        if self._histogram and hasattr(self._histogram, "clear_measurement_data"):
-            self._histogram.clear_measurement_data()
-        if self._count_lcd:
-            self._count_lcd.display(0)
-        if self._rate_lcd:
-            self._rate_lcd.display(0)
+        self._plot.clear_measurement_data()
+        self._histogram.clear_measurement_data()
+        self.readout_changed.emit(0, 0.0)
         if self._table_model:
-            while self._table_model.rowCount() > 0:
-                self._table_model.removeRow(0)
+            self._table_model.removeRows(0, self._table_model.rowCount())
 
         if self._gui_timer and not self._gui_timer.isActive():
-            self._gui_timer.start(GUI_UPDATE_INTERVAL)
+            self._gui_timer.start(self._gui_interval_ms)
 
     def on_measurement_started(self) -> None:
         self._session_start = datetime.now()
 
     def on_measurement_stopped(self) -> None:
         self._session_end = datetime.now()
+        if self._high_speed:
+            self._refresh_high_speed_view()
+            if self._hist_timer is not None:
+                self._hist_timer.stop()
+        else:
+            self._process_queue(final=True)
         if self._gui_timer:
             self._gui_timer.stop()
-
-    def contribute_tabs(self, tab_widget: QTabWidget) -> None:
-        """Add Zeitverlauf / Histogramm / Liste as top-level tabs.
-
-        The tab pages are already in the .ui (setupUi created them); this
-        method ensures they are properly labelled and registered.
-        """
-        # The existing 3 pages are already added by setupUi.
-        # Store the reference for high-speed auto-switch.
-        self._tab_widget_ref = tab_widget
 
     # ------------------------------------------------------------------
     # Export (§7)
@@ -411,7 +380,7 @@ class GMTimingTab(PlotTabBase):
         )
         return build_gm_tab_export(
             session,
-            tk_designation=CONFIG.get("save", {}).get("tk_designation", "TK00"),
+            tk_designation=self.config.get("save.tk_designation", "TK00"),
         )
 
     def get_statistics(self) -> dict:
@@ -419,114 +388,101 @@ class GMTimingTab(PlotTabBase):
             return {}
         values = [pt[1] for pt in self._data_points]
         s = calculate_statistics(values)
-        true_count = (
-            len(self._data_points) + 1
-        )  # +1: the event at t=0 before first delta
         return {
-            "count": true_count,
+            "count": self._event_count(),
             "min": s["min"],
             "max": s["max"],
             "avg": s["mean"],
             "stdev": s["std"],
         }
 
-    def get_csv_data(self) -> List[List[str]]:
-        """Legacy helper used by save dialogs."""
-        rows = [["Index", "Value (µs)", "Time"]]
-        for idx, val, ts in self._data_points:
-            rows.append([str(idx), str(val), ts])
-        return rows
-
     # ------------------------------------------------------------------
     # Internal — GUI update loop
 
-    def _process_queue(self) -> None:
-        if self._queue.empty():
+    def _event_count(self) -> int:
+        """Events seen so far (+1: the event at t=0 before the first delta)."""
+        return len(self._data_points) + 1 if self._data_points else 0
+
+    def _rate_hz(self) -> float:
+        if self._cum_us <= 0 or not self._data_points:
+            return 0.0
+        return round(self._event_count() / (self._cum_us / 1e6), 1)
+
+    def _publish_readout(self, count: Optional[int] = None) -> None:
+        self.readout_changed.emit(
+            self._event_count() if count is None else count, self._rate_hz()
+        )
+
+    def _process_queue(self, final: bool = False) -> None:
+        """GUI tick: drain the queue, refresh plot / table / readout, detect high-speed.
+
+        ``final`` flushes what is left after the measurement stopped (no high-speed
+        detection, readout refreshed regardless of the throttle).
+        """
+        if self._high_speed:
             return
-
-        new_points: List[Tuple[int, float, str]] = []
-        now = time()
-
         with self._queue_lock:
-            while not self._queue.empty():
+            new_points: List[Tuple[int, float, str]] = []
+            while True:
                 try:
                     new_points.append(self._queue.get_nowait())
                 except queue.Empty:
                     break
 
         if not new_points:
+            if final:
+                self._publish_readout()
             return
 
-        for pt in new_points:
-            self._gui_points.append(pt)
-        while len(self._gui_points) > MAX_HISTORY:
-            self._gui_points.pop(0)
+        self._gui_points.extend(new_points)
+        if len(self._gui_points) > self._max_history:
+            del self._gui_points[: len(self._gui_points) - self._max_history]
 
-        last_idx, last_val, last_ts = new_points[-1]
+        self._update_plot_and_display(final)
+        if len(self._data_points) < TABLE_MAX_EVENTS:
+            self._update_table(new_points)
 
-        if not self._high_speed:
-            self._update_plot_and_display(last_val)
-            if len(self._data_points) < 5000:
-                self._update_table(new_points)
-            self._update_rate_display(now)
-        else:
-            if self._count_lcd:
-                self._count_lcd.display(last_val)
+        if not final:
+            self._check_high_speed(len(new_points), time())
 
-        # High-speed detection
-        self._check_high_speed(len(new_points), now)
-
-    def _update_plot_and_display(self, last_val: float) -> None:
-        if self._plot and self._gui_points:
+    def _update_plot_and_display(self, final: bool) -> None:
+        if self._gui_points:
             self._plot.update_plot_data(self._gui_points, deferred=True)
 
-        if self._count_lcd:
-            if not hasattr(self, "_lcd_counter"):
-                self._lcd_counter = 0
-            self._lcd_counter += 1
-            if self._lcd_counter >= 5:
-                self._lcd_counter = 0
-                true_count = len(self._data_points) + 1 if self._data_points else 0
-                self._count_lcd.display(true_count)
+        self._tick += 1
+        if final or self._tick >= READOUT_COUNT_EVERY_N_TICKS:
+            self._tick = 0
+            self._shown_count = self._event_count()
+        self._publish_readout(self._shown_count)
 
-        if self._histogram and len(self._data_points) > 1:
-            if not hasattr(self, "_hist_counter"):
-                self._hist_counter = 0
-            self._hist_counter += 1
-            if self._hist_counter >= 10:
-                self._hist_counter = 0
-                values = [pt[1] for pt in self._data_points[-10_000:]]
-                if not self._user_adjusted_hist:
-                    bin_size, cutoff = self._auto_hist_params(values)
-                    self._set_sliders(bin_size, cutoff)
-                self._histogram.update_histogram_us(
-                    values, self._hist_bin_size_us, self._hist_cutoff_us
-                )
+        if len(self._data_points) > 1:
+            self._hist_tick += 1
+            if final or self._hist_tick >= 10:
+                self._hist_tick = 0
+                self._update_histogram()
 
     def _update_table(self, points: List[Tuple[int, float, str]]) -> None:
-        if self._table_model is None:
+        model = self._table_model
+        if model is None:
             return
         for idx, val, ts in points:
-            self._table_model.appendRow(
-                [
-                    QStandardItem(str(idx)),
-                    QStandardItem(str(val)),
-                    QStandardItem(ts),
-                ]
+            model.appendRow(
+                [QStandardItem(str(idx)), QStandardItem(str(val)), QStandardItem(ts)]
             )
-        while self._table_model.rowCount() > MAX_HISTORY:
-            self._table_model.removeRow(0)
+        excess = model.rowCount() - self._max_history
+        if excess > 0:
+            model.removeRows(0, excess)
 
     def _check_high_speed(self, batch_size: int, now: float) -> None:
         if self._high_speed:
             return
         self._batch_history.append((now, batch_size))
-        if len(self._batch_history) > HIGH_SPEED_BATCH_HISTORY:
+        if len(self._batch_history) > self._hs_history:
             self._batch_history.pop(0)
-        if len(self._batch_history) < HIGH_SPEED_BATCH_HISTORY:
+        if len(self._batch_history) < self._hs_history:
             return
         avg = sum(b[1] for b in self._batch_history) / len(self._batch_history)
-        if avg >= HIGH_SPEED_BATCH_THRESHOLD:
+        if avg >= self._hs_threshold:
             self._activate_high_speed()
 
     def _activate_high_speed(self) -> None:
@@ -534,55 +490,37 @@ class GMTimingTab(PlotTabBase):
             return
         self._high_speed = True
         _log.info("HIGH_SPEED_MODE activated")
-        self.status_message.emit("warning", "⚡ HIGH-SPEED MODE — Plot deaktiviert")
+        self.status_message.emit("warning", self.text("text_high_speed"))
+        self.high_speed_changed.emit(True)
 
         if self._gui_timer:
             self._gui_timer.stop()
+        with self._queue_lock:  # the GUI queue is not used any more
+            self._queue = queue.Queue(maxsize=QUEUE_SIZE)
 
-        # Switch to Histogramm tab (index 1) — skipped during sweep sessions
-        if self._tab_widget_ref and self._hs_autoswitch:
-            self._tab_widget_ref.setCurrentIndex(1)
+        if self._hs_autoswitch:
+            self.ui.tabViews.setCurrentWidget(self.ui.pageHistogram)
 
-        # Start histogram-only timer (every 2 s)
-        if self._histogram and self._hist_timer is None:
+        if self._hist_timer is None:
             self._hist_timer = QTimer(self)
-            self._hist_timer.timeout.connect(self._update_histogram_only)
-            self._hist_timer.start(2000)
+            self._hist_timer.timeout.connect(self._refresh_high_speed_view)
+            self._hist_timer.start(HIGH_SPEED_REFRESH_MS)
+        self._refresh_high_speed_view()
 
     def _deactivate_high_speed(self) -> None:
         if not self._high_speed:
             return
         self._high_speed = False
-
         if self._hist_timer:
             self._hist_timer.stop()
             self._hist_timer = None
-
         if self._gui_timer and not self._gui_timer.isActive():
-            self._gui_timer.start(GUI_UPDATE_INTERVAL)
+            self._gui_timer.start(self._gui_interval_ms)
+        self.high_speed_changed.emit(False)
 
-    def _update_rate_display(self, now: float) -> None:
-        if not self._rate_lcd:
+    def _refresh_high_speed_view(self) -> None:
+        """High-speed tick (every 2 s): histogram and count / rate readout only."""
+        if not self._high_speed:
             return
-        if self._cum_us > 0 and self._data_points:
-            true_count = len(self._data_points) + 1
-            cps = true_count / (self._cum_us / 1e6)
-            self._rate_lcd.display(round(cps, 1))
-
-    def _update_histogram_only(self) -> None:
-        if not self._high_speed or not self._histogram:
-            return
-        now = time()
-        if len(self._data_points) > 1:
-            values = [pt[1] for pt in self._data_points[-10_000:]]
-            if not self._user_adjusted_hist:
-                bin_size, cutoff = self._auto_hist_params(values)
-                self._set_sliders(bin_size, cutoff)
-            self._histogram.update_histogram_us(
-                values, self._hist_bin_size_us, self._hist_cutoff_us
-            )
-        self._update_rate_display(now)
-
-
-# Register this experiment at import time
-TabRegistry.register(GMTimingTab)
+        self._update_histogram()
+        self._publish_readout()

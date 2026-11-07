@@ -142,12 +142,12 @@ class Ui_TimingTab(object):
         self.gridHistogram = QGridLayout(self.pageHistogram)
         self.gridHistogram.setObjectName("gridHistogram")
         self.gridHistogram.setContentsMargins(10, 10, 10, 5)
-        self.layoutStats = QHBoxLayout()
+        self.layoutStats = QGridLayout()
         self.layoutStats.setObjectName("layoutStats")
         self.labelStatCount = QLabel(self.pageHistogram)
         self.labelStatCount.setObjectName("labelStatCount")
 
-        self.layoutStats.addWidget(self.labelStatCount)
+        self.layoutStats.addWidget(self.labelStatCount, 0, 0, 1, 1)
 
         self.valueStatCount = QLabel(self.pageHistogram)
         self.valueStatCount.setObjectName("valueStatCount")
@@ -164,12 +164,12 @@ class Ui_TimingTab(object):
         self.valueStatCount.setSizePolicy(sizePolicy1)
         self.valueStatCount.setMinimumSize(QSize(70, 0))
 
-        self.layoutStats.addWidget(self.valueStatCount)
+        self.layoutStats.addWidget(self.valueStatCount, 1, 0, 1, 1)
 
         self.labelStatMin = QLabel(self.pageHistogram)
         self.labelStatMin.setObjectName("labelStatMin")
 
-        self.layoutStats.addWidget(self.labelStatMin)
+        self.layoutStats.addWidget(self.labelStatMin, 0, 1, 1, 1)
 
         self.valueStatMin = QLabel(self.pageHistogram)
         self.valueStatMin.setObjectName("valueStatMin")
@@ -183,12 +183,12 @@ class Ui_TimingTab(object):
         self.valueStatMin.setSizePolicy(sizePolicy1)
         self.valueStatMin.setMinimumSize(QSize(70, 0))
 
-        self.layoutStats.addWidget(self.valueStatMin)
+        self.layoutStats.addWidget(self.valueStatMin, 1, 1, 1, 1)
 
         self.labelStatMax = QLabel(self.pageHistogram)
         self.labelStatMax.setObjectName("labelStatMax")
 
-        self.layoutStats.addWidget(self.labelStatMax)
+        self.layoutStats.addWidget(self.labelStatMax, 0, 2, 1, 1)
 
         self.valueStatMax = QLabel(self.pageHistogram)
         self.valueStatMax.setObjectName("valueStatMax")
@@ -202,12 +202,12 @@ class Ui_TimingTab(object):
         self.valueStatMax.setSizePolicy(sizePolicy1)
         self.valueStatMax.setMinimumSize(QSize(70, 0))
 
-        self.layoutStats.addWidget(self.valueStatMax)
+        self.layoutStats.addWidget(self.valueStatMax, 1, 2, 1, 1)
 
         self.labelStatMean = QLabel(self.pageHistogram)
         self.labelStatMean.setObjectName("labelStatMean")
 
-        self.layoutStats.addWidget(self.labelStatMean)
+        self.layoutStats.addWidget(self.labelStatMean, 0, 3, 1, 1)
 
         self.valueStatMean = QLabel(self.pageHistogram)
         self.valueStatMean.setObjectName("valueStatMean")
@@ -221,12 +221,12 @@ class Ui_TimingTab(object):
         self.valueStatMean.setSizePolicy(sizePolicy1)
         self.valueStatMean.setMinimumSize(QSize(70, 0))
 
-        self.layoutStats.addWidget(self.valueStatMean)
+        self.layoutStats.addWidget(self.valueStatMean, 1, 3, 1, 1)
 
         self.labelStatStd = QLabel(self.pageHistogram)
         self.labelStatStd.setObjectName("labelStatStd")
 
-        self.layoutStats.addWidget(self.labelStatStd)
+        self.layoutStats.addWidget(self.labelStatStd, 0, 4, 1, 1)
 
         self.valueStatStd = QLabel(self.pageHistogram)
         self.valueStatStd.setObjectName("valueStatStd")
@@ -240,13 +240,13 @@ class Ui_TimingTab(object):
         self.valueStatStd.setSizePolicy(sizePolicy1)
         self.valueStatStd.setMinimumSize(QSize(70, 0))
 
-        self.layoutStats.addWidget(self.valueStatStd)
+        self.layoutStats.addWidget(self.valueStatStd, 1, 4, 1, 1)
 
         self.spacerStats = QSpacerItem(
             40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
         )
 
-        self.layoutStats.addItem(self.spacerStats)
+        self.layoutStats.addItem(self.spacerStats, 0, 5, 2, 1)
 
         self.gridHistogram.addLayout(self.layoutStats, 0, 0, 1, 1)
 
