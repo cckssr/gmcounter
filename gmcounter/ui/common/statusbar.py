@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QLabel,
 )
 from PySide6.QtCore import QTimer  # pylint: disable=no-name-in-module
+from shiboken6 import isValid
 
 from ...infrastructure.logging import Debug
 
@@ -45,15 +46,17 @@ class StatusBarManager:
             self.statusbar.showMessage(message, duration)
             Debug.debug(f"Statusbar message: {message} with duration: {duration}")
             # reset to old state after duration
-            QTimer.singleShot(
-                duration, lambda: self.statusbar.setStyleSheet(self.old_state[1])
-            )
-            QTimer.singleShot(
-                duration, lambda: self.statusbar.showMessage(self.old_state[0])
-            )
+            QTimer.singleShot(duration, self._restore_state)
         else:
             self.statusbar.showMessage(message)
             Debug.debug(f"Permanent Statusbar message: {message}")
+
+    def _restore_state(self) -> None:
+        """Back to the saved message and style (no-op if the window is already gone)."""
+        if not isValid(self.statusbar):
+            return
+        self.statusbar.setStyleSheet(self.old_state[1])
+        self.statusbar.showMessage(self.old_state[0])
 
     def add_permanent_widget(
         self, message: str, index: int = 0, backcolor: str = ""

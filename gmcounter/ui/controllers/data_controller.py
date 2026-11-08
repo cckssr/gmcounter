@@ -26,6 +26,7 @@ from ...infrastructure.logging import Debug
 from ...infrastructure.config import import_config
 from ...core.services import SaveService
 from ..common import dialogs as MessageHelper
+from ..common.messages import message
 
 # Configuration constants
 CONFIG = import_config()
@@ -113,9 +114,9 @@ class DataController(QObject):
 
         # HIGH_SPEED_MODE: Batch-based detection
         self._high_speed_mode = False
-        self._batch_history: List[
-            Tuple[float, int]
-        ] = []  # List of (timestamp, batch_size)
+        self._batch_history: List[Tuple[float, int]] = (
+            []
+        )  # List of (timestamp, batch_size)
         self._histogram_update_timer = (
             None  # Separate timer for histogram in high-speed mode
         )
@@ -775,29 +776,22 @@ class DataController(QObject):
         if not data or len(data) <= 1:
             MessageHelper.show_info(
                 parent,
-                CONFIG.get("messages", {}).get(
-                    "no_data_to_save", "Keine Messdaten zum Speichern vorhanden."
-                ),
-                "Warnung",
+                message("no_data_to_save"),
             )
             return None
 
         if not rad_sample or not group_letter:
             MessageHelper.show_info(
                 parent,
-                CONFIG.get("messages", {}).get(
-                    "select_sample_and_group",
-                    "Bitte wählen Sie eine radioaktive Probe und eine Gruppenzuordnung aus.",
-                ),
-                "Warnung",
+                message("select_sample_and_group"),
             )
             return None
 
         file_path, _ = QFileDialog.getSaveFileName(
             parent,
-            "Messung speichern",
+            message("title_save_measurement"),
             str(self._save_service.base_dir),
-            "CSV-Dateien (*.csv);;Alle Dateien (*)",
+            message("filter_csv"),
             "CSV-Dateien (*.csv)",
         )
         if not file_path:

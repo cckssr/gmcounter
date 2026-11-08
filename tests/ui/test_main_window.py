@@ -24,10 +24,10 @@ def test_the_dock_toggle_actions_follow_the_docks_both_ways(window):
         assert action.isChecked() == initially
 
 
-def test_the_log_dock_is_hidden_by_default_and_the_profile_switch_is_off(window):
+def test_the_log_dock_is_hidden_by_default_and_the_profile_switch_is_offered(window):
     assert not window.ui.dockLog.isVisible()
-    assert not window.ui.actionSwitchProfile.isVisible()
-    assert not window.ui.actionSwitchProfile.isEnabled()
+    assert window.ui.actionSwitchProfile.isVisible()
+    assert window.ui.actionSwitchProfile.isEnabled()
 
 
 def test_the_start_state_offers_only_start(window):

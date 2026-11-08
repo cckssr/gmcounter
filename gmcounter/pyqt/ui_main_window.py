@@ -268,7 +268,7 @@ class Ui_MainWindow(object):
         )
         # endif // QT_CONFIG(tooltip)
         self.actionToggleLive.setText(
-            QCoreApplication.translate("MainWindow", "Live-Werte", None)
+            QCoreApplication.translate("MainWindow", "Anzeige", None)
         )
         # if QT_CONFIG(tooltip)
         self.actionToggleLive.setToolTip(
@@ -316,7 +316,7 @@ class Ui_MainWindow(object):
             QCoreApplication.translate("MainWindow", "Steuerung", None)
         )
         self.dockLive.setWindowTitle(
-            QCoreApplication.translate("MainWindow", "Live-Werte", None)
+            QCoreApplication.translate("MainWindow", "Anzeige", None)
         )
         self.dockLog.setWindowTitle(
             QCoreApplication.translate("MainWindow", "Ereignisprotokoll", None)

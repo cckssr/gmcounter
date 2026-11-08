@@ -24,6 +24,7 @@ from ..context import AppContext
 from ..controllers.app_controller import AppController
 from ..controllers.session_controller import SessionController
 from ..i18n import apply_strings
+from ..profile import apply_profile, next_profile
 from ..tabs.base import PlotTabBase
 from ..tabs.registry import TabRegistry
 from ..widgets.vscroll import lock_vertical_scroll
@@ -54,6 +55,7 @@ class MainWindow(QMainWindow):
     """
 
     _device_info_received = Signal(dict)
+    profile_switch_requested = Signal(str)  # id of the profile to switch to
 
     def __init__(
         self,
@@ -67,6 +69,7 @@ class MainWindow(QMainWindow):
         self.device_manager = device_manager
         self._persist = persist
         self._was_maximized = False
+        self._keep_device = False  # set while closing for a profile switch
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         apply_strings(self, config.section("ui").get("main_window", {}))
@@ -99,10 +102,13 @@ class MainWindow(QMainWindow):
         )
         self.tabs: dict[str, PlotTabBase] = {}
         self._build_tabs()
+        # before the docks measure their minimum width: hidden controls take no room
+        self.missing_profile_names = apply_profile(self)
         self.session = self._build_session(save_service)
         self._connect_panels()
         self._connect_ctrl()
         self._setup_docks()
+        self._setup_profile_switch()
         self._setup_full_screen()
 
         device_manager.on_device_info = self._device_info_received.emit
@@ -279,8 +285,45 @@ class MainWindow(QMainWindow):
             action.setChecked(not dock.isHidden())
             action.toggled.connect(dock.setVisible)
             dock.visibilityChanged.connect(action.setChecked)
-        ui.actionSwitchProfile.setVisible(False)  # profiles come with a later phase
-        ui.actionSwitchProfile.setEnabled(False)
+
+    def _setup_profile_switch(self) -> None:
+        """The toolbar action names the profile it leads to; it is off without a second one."""
+        action = self.ui.actionSwitchProfile
+        names = self.config.profile_names
+        target = next_profile(self.config.profile, names)
+        available = target != self.config.profile
+        action.setVisible(available)
+        action.setEnabled(available)
+        if available:
+            target_name = self.config.get(f"profiles.{target}.name", target)
+            action.setText(
+                self.config.text("main_window.text_switch_profile", profile=target_name)
+            )
+            action.triggered.connect(
+                lambda _checked=False: self.profile_switch_requested.emit(target)
+            )
+
+    def switch_blocker(self) -> str | None:
+        """Why the profile cannot be switched right now (config message), else ``None``."""
+        if self.session.is_busy():
+            return self.config.message("profile_switch_busy")
+        if self.session.has_unsaved():
+            return self.config.message("profile_switch_unsaved")
+        return None
+
+    def notify(self, text: str, color: str = "") -> None:
+        """Show ``text`` in the status bar and the event log."""
+        self._status_bar.show_message(text, backcolor=color)
+        self.ui.eventLogPanel.append(text, color)
+
+    def close_for_switch(self) -> bool:
+        """Close for a profile switch: the device stays connected for the next window and the
+        unsaved-data question is not asked (a switch is refused while data exists)."""
+        self._keep_device = True
+        try:
+            return self.close()
+        finally:
+            self._keep_device = False
 
     def _layout_key(self, name: str) -> str:
         """Each profile keeps its own layout; the default profile uses the plain keys."""
@@ -352,10 +395,10 @@ class MainWindow(QMainWindow):
     # ==================== Window lifecycle ====================
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
-        if not self.session.confirm_close():
+        if not self._keep_device and not self.session.confirm_close():
             event.ignore()
             return
         if self._persist:
             self._save_layout()
-        self.ctrl.cleanup()
+        self.ctrl.cleanup(disconnect=not self._keep_device)
         event.accept()

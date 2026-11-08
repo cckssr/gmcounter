@@ -24,6 +24,7 @@ from ...infrastructure.config import import_config
 from ...infrastructure.session_journal import SessionJournal, find_orphan_journals
 from ...core.models import DesiredState, Frame
 from ...core.duration import accumulate_and_trim
+from ..common.messages import message
 from ..common.statusbar import StatusBarManager
 
 if TYPE_CHECKING:
@@ -163,7 +164,7 @@ class AppController(QObject):
     def start_measurement(self, total_seconds: int = 0) -> bool:
         """Start a measurement.  total_seconds=0 → indeterminate."""
         if not (self.device_manager.connected and self.device_manager.device):
-            self._notify("Kein Gerät verbunden", "red")
+            self._notify(message("no_device"), "red")
             return False
 
         if self._active_tab is not None:
@@ -191,7 +192,8 @@ class AppController(QObject):
             self._progress_timer.start(1000)
             self.measurement_started.emit()
             self._notify(
-                "Messung läuft...", CONFIG.get("colors", {}).get("blue", "blue")
+                message("measurement_running"),
+                CONFIG.get("colors", {}).get("blue", "blue"),
             )
             return True
 
@@ -206,7 +208,8 @@ class AppController(QObject):
         self._state_poller.resume()
         self.measurement_stopped.emit()
         self._notify(
-            "Messung gestoppt.", CONFIG.get("colors", {}).get("green", "green")
+            message("measurement_stopped"),
+            CONFIG.get("colors", {}).get("green", "green"),
         )
 
     def finalize_journal(self) -> None:
@@ -251,7 +254,7 @@ class AppController(QObject):
             names = ", ".join(unconfirmed.keys())
             _log.warning("Settings not confirmed by device: %s", names)
             self._notify(
-                f"Einstellungen gesendet — warte auf Bestätigung ({names})…",
+                message("settings_unconfirmed", names=names),
                 CONFIG.get("colors", {}).get("orange", "orange"),
             )
             # Schedule a re-check after 3 s; if values match after re-poll
@@ -259,9 +262,7 @@ class AppController(QObject):
             QTimer.singleShot(3000, lambda: self._warn_unconfirmed(unconfirmed))
         else:
             self._notify(
-                CONFIG.get("messages", {}).get(
-                    "settings_applied", "Einstellungen gesetzt"
-                ),
+                message("settings_applied"),
                 CONFIG.get("colors", {}).get("green", "green"),
             )
         # Trigger a fresh state poll so LCDs update immediately after Apply.
@@ -279,8 +280,7 @@ class AppController(QObject):
             ", ".join(unconfirmed.keys()),
         )
         self._notify(
-            "Achtung: Einstellungen möglicherweise nicht angewendet — "
-            + ", ".join(unconfirmed.keys()),
+            message("settings_maybe_not_applied", names=", ".join(unconfirmed.keys())),
             CONFIG.get("colors", {}).get("orange", "orange"),
         )
         # Force an immediate re-poll so the LCDs reflect actual device state.
@@ -289,8 +289,12 @@ class AppController(QObject):
     # ------------------------------------------------------------------
     # Cleanup
 
-    def cleanup(self) -> None:
-        """Call from MainWindow.closeEvent() — stop all timers and threads."""
+    def cleanup(self, disconnect: bool = True) -> None:
+        """Call from MainWindow.closeEvent() — stop all timers and threads.
+
+        ``disconnect=False`` leaves the device connected, so a new window (profile switch)
+        can take over the same ``DeviceManager``.
+        """
         for timer in (self._stats_timer, self._progress_timer):
             if timer.isActive():
                 timer.stop()
@@ -308,7 +312,8 @@ class AppController(QObject):
         if self._journal:
             self._journal.close()
 
-        self.device_manager.disconnect_device()
+        if disconnect:
+            self.device_manager.disconnect_device()
 
     # ------------------------------------------------------------------
     # Internal wiring
@@ -437,7 +442,7 @@ class AppController(QObject):
         self.device_manager.handle_connection_lost()
 
         self._notify(
-            "Verbindung unterbrochen — Wiederverbindung...",
+            message("connection_interrupted"),
             CONFIG.get("colors", {}).get("orange", "orange"),
         )
 
@@ -479,7 +484,9 @@ class AppController(QObject):
             self._journal.mark_gap()
 
         self.reconnect_succeeded.emit()
-        self._notify("Wiederverbunden", CONFIG.get("colors", {}).get("green", "green"))
+        self._notify(
+            message("reconnected"), CONFIG.get("colors", {}).get("green", "green")
+        )
 
     def _on_reconnect_failed(self) -> None:
         """All retry attempts exhausted (B7) — notify UI and offer journal export."""
@@ -489,12 +496,12 @@ class AppController(QObject):
         if self._journal:
             self._journal.close()
             self._notify(
-                f"Verbindung verloren. Journal gespeichert: {self._journal.path}",
+                message("connection_lost_journal", path=self._journal.path),
                 CONFIG.get("colors", {}).get("red", "red"),
             )
         else:
             self._notify(
-                "Verbindung verloren. Alle Wiederverbindungsversuche fehlgeschlagen.",
+                message("connection_lost_retries"),
                 CONFIG.get("colors", {}).get("red", "red"),
             )
 
@@ -507,6 +514,6 @@ class AppController(QObject):
             paths = "\n".join(str(p) for p in orphans)
             _log.warning("Found %d orphan journal(s):\n%s", len(orphans), paths)
             self._notify(
-                f"{len(orphans)} ungespeichertes Journal gefunden. Daten unter ~/.gmcounter/sessions/",
+                message("orphan_journal", count=len(orphans)),
                 CONFIG.get("colors", {}).get("orange", "orange"),
             )

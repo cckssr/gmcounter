@@ -104,13 +104,20 @@ class SessionController(QObject):
         """Firmware version / OpenBIS code, written into the saved metadata."""
         self._device_info = dict(info)
 
-    def confirm_close(self) -> bool:
-        """``True`` if the window may close (no unsaved data, or the user discards it)."""
+    def has_unsaved(self) -> bool:
+        """``True`` if measured data would be lost when the window closed."""
         tab = self._tab
-        unsaved = self._save_service.has_unsaved() or (
+        return self._save_service.has_unsaved() or (
             tab is not None and tab.has_unsaved_data()
         )
-        if not unsaved:
+
+    def is_busy(self) -> bool:
+        """``True`` while a measurement or a sweep / interval session is running."""
+        return self._ctrl.is_measuring or self._tab is not None
+
+    def confirm_close(self) -> bool:
+        """``True`` if the window may close (no unsaved data, or the user discards it)."""
+        if not self.has_unsaved():
             return True
         return self._prompt.ask(self._m("unsaved_data_end"), self._m("title_warning"))
 

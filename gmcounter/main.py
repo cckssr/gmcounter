@@ -1,5 +1,6 @@
-"""GMCounter - Hauptprogramm für die Geiger-Müller Counter GUI-Anwendung."""
+"""GMCounter - main program of the Geiger-Mueller counter GUI application."""
 
+import argparse
 import logging
 import sys
 import os
@@ -14,8 +15,8 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
 )
 from .infrastructure.logging import Debug
 from .ui.dialogs.connection import ConnectionWindow
-from .ui.windows.main_window import MainWindow
-from .infrastructure.config import import_config, load_config
+from .ui.launcher import Launcher
+from .infrastructure.config import import_config
 
 _qt_log = logging.getLogger("gmcounter.qt")
 
@@ -42,17 +43,30 @@ if __package__ is None:
     __package__ = "src"
 
 
-# Konfigurationsdatei laden
+# Load the configuration file
 CONFIG = import_config()
 
 
-def main():
-    """Haupteinstiegspunkt der Anwendung.
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Command line: ``--profile`` selects an entry of the ``profiles`` config section."""
+    parser = argparse.ArgumentParser(prog="gmcounter")
+    parser.add_argument(
+        "--profile",
+        choices=sorted(CONFIG.get("profiles", {}) or ["expert"]),
+        default=None,
+        help="UI profile (default: application.profile from config.json)",
+    )
+    args, _unknown = parser.parse_known_args(argv)  # Qt options pass through
+    return args
 
-    Initialisiert das Debug-System, startet die Verbindungsdialog
-    und erstellt das Hauptfenster.
+
+def main():
+    """Application entry point.
+
+    Initialises the debug system, shows the connection dialog and creates the main window.
     """
-    # Debug-System initialisieren
+    args = parse_args()
+    # Initialise the debug system
     match CONFIG["debug"]["level_default"]:
         case "verbose":
             debug_level = Debug.DEBUG_VERBOSE
@@ -68,52 +82,44 @@ def main():
     # Redirect Qt's own warning/error messages into our log file
     qInstallMessageHandler(_qt_message_handler)
 
-    # Globalen Exception-Handler registrieren
+    # Register the global exception handler
     sys.excepthook = Debug.exception_hook
 
-    Debug.info("Starte Anwendung...")
+    Debug.info("Starting application...")
 
-    # QApplication erstellen
+    # Create the QApplication
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
 
-    # Stylesheet anwenden
-    # apply_stylesheet(app, CONFIG.get("ui", {}).get("theme", "dark"))
-    # Debug.debug("Stylesheet angewendet")
-    # Verbindungsdialog anzeigen
+    # Show the connection dialog
     connection_dialog = ConnectionWindow(
         demo_mode=CONFIG["gm_counter"]["demo_mode"],
         default_device=CONFIG["gm_counter"]["default_arduino"],
     )
 
-    # Wenn der Dialog bestätigt wurde, Verbindung herstellen
+    # Dialog accepted: the connection has been tried
     if connection_dialog.exec():
         success = connection_dialog.connection_successful
         device_manager = connection_dialog.device_manager
 
         if success and device_manager is not None:
-            # Hauptfenster erstellen und anzeigen, wenn Verbindung erfolgreich
-            main_window = MainWindow(load_config(), device_manager)
-            main_window.show_initial()  # application.window_mode
-
-            # Timer starten, wenn vorhanden
-            if hasattr(main_window, "timer"):
-                main_window.timer.start()
-
-            # Anwendung ausführen
+            # Connected: the launcher builds the main window for the profile and can
+            # rebuild it on a profile switch, keeping this device manager connected.
+            launcher = Launcher(device_manager, profile=args.profile)
+            launcher.start()  # application.window_mode
             sys.exit(app.exec())
         else:
-            # Fehlerfall: Verbindung fehlgeschlagen
+            # Connection failed
             msg_box = QMessageBox()
             msg_box.setIcon(QMessageBox.Icon.Critical)
             msg_box.setText(CONFIG["messages"]["connection_failed"])
-            msg_box.setWindowTitle("Verbindungsfehler")
+            msg_box.setWindowTitle(CONFIG["messages"]["title_connection_error"])
             msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
             msg_box.exec()
             sys.exit(1)
     else:
-        # Benutzer hat den Dialog abgebrochen
-        Debug.info("Verbindung vom Benutzer abgebrochen")
+        # The user cancelled the dialog
+        Debug.info("Connection cancelled by the user")
         sys.exit(0)
 
 

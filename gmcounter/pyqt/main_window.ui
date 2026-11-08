@@ -148,7 +148,7 @@
     <set>Qt::DockWidgetArea::LeftDockWidgetArea|Qt::DockWidgetArea::RightDockWidgetArea</set>
    </property>
    <property name="windowTitle">
-    <string>Live-Werte</string>
+    <string>Anzeige</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>2</number>
@@ -280,7 +280,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Live-Werte</string>
+    <string>Anzeige</string>
    </property>
    <property name="toolTip">
     <string>Seitenleiste mit Zählergebnissen und Gerätestatus ein- oder ausblenden</string>

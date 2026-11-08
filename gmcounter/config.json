@@ -5,7 +5,8 @@
       "name": "GM-Counter_GUI",
       "version": "2.1.0",
       "author": "C. Kessler, H. Celik",
-      "window_mode": "maximized"
+      "window_mode": "maximized",
+      "profile": "expert"
     },
     "debug": {
       "level_default": "verbose"
@@ -18,6 +19,7 @@
     },
     "plot": {
       "max_points": 300,
+      "line_width": 1,
       "x_label": "Ereignis k",
       "y_label": "Zeit / µs"
     },
@@ -77,18 +79,19 @@
         "self@title": "GM-Counter",
         "toolBar": "Werkzeugleiste",
         "dockControls": "Steuerung",
-        "dockLive": "Live-Werte",
+        "dockLive": "Anzeige",
         "dockLog": "Ereignisprotokoll",
         "actionToggleControls": "Steuerung",
         "actionToggleControls@tooltip": "Seitenleiste mit Geräte-, Proben- und Messungssteuerung ein- oder ausblenden",
-        "actionToggleLive": "Live-Werte",
+        "actionToggleLive": "Anzeige",
         "actionToggleLive@tooltip": "Seitenleiste mit Zählergebnissen und Gerätestatus ein- oder ausblenden",
         "actionToggleLog": "Protokoll",
         "actionToggleLog@tooltip": "Ereignisprotokoll ein- oder ausblenden",
         "actionSwitchProfile": "Profil wechseln",
         "actionSwitchProfile@tooltip": "Zwischen Experten- und Praktikumsprofil wechseln",
         "actionFullScreen": "Vollbild",
-        "actionFullScreen@tooltip": "Zwischen Vollbild und Fenster wechseln (F11)"
+        "actionFullScreen@tooltip": "Zwischen Vollbild und Fenster wechseln (F11)",
+        "text_switch_profile": "Zu Profil \"{profile}\" wechseln"
       },
       "connection": {
         "self@title": "Verbindung herstellen",
@@ -415,7 +418,28 @@
       "status_measuring": "Messung",
       "status_stopped": "Gestoppt",
       "status_connected": "Verbunden",
-      "status_disconnected": "Getrennt"
+      "status_disconnected": "Getrennt",
+      "profile_switch_busy": "Profilwechsel nicht möglich: Es läuft noch eine Messung.",
+      "profile_switch_unsaved": "Profilwechsel nicht möglich: Es sind ungespeicherte Messdaten vorhanden. Bitte zuerst speichern oder verwerfen.",
+      "no_device": "Kein Gerät verbunden",
+      "settings_unconfirmed": "Einstellungen gesendet — warte auf Bestätigung ({names})…",
+      "settings_maybe_not_applied": "Achtung: Einstellungen möglicherweise nicht angewendet — {names}",
+      "connection_interrupted": "Verbindung unterbrochen — Wiederverbindung...",
+      "reconnected": "Wiederverbunden",
+      "connection_lost_journal": "Verbindung verloren. Journal gespeichert: {path}",
+      "connection_lost_retries": "Verbindung verloren. Alle Wiederverbindungsversuche fehlgeschlagen.",
+      "orphan_journal": "{count} ungespeichertes Journal gefunden. Daten unter ~/.gmcounter/sessions/",
+      "select_sample_group": "Bitte Probe und Gruppe auswählen.",
+      "select_sample_and_group": "Bitte wählen Sie eine radioaktive Probe und eine Gruppenzuordnung aus.",
+      "no_data_to_save": "Keine Messdaten zum Speichern vorhanden.",
+      "save_failed_detail": "Fehler beim Speichern: {error}",
+      "title_save_measurement": "Messung speichern",
+      "title_question": "Frage",
+      "title_save_file": "Datei speichern",
+      "title_open_file": "Datei öffnen",
+      "title_quit": "Beenden",
+      "confirm_quit": "Wollen Sie sicher das Programm schließen?",
+      "filter_csv": "CSV-Dateien (*.csv);;Alle Dateien (*)"
     },
     "plot_colors": {
       "series": [
@@ -435,6 +459,35 @@
       "marker": "tab:orange",
       "band_alpha": 60,
       "point_alpha": 200
+    },
+    "profiles": {
+      "expert": {
+        "name": "Experte",
+        "hidden_tabs": [],
+        "hidden_widgets": {},
+        "overrides": {}
+      },
+      "student": {
+        "name": "Praktikum",
+        "hidden_tabs": [],
+        "hidden_widgets": {
+          "device_panel": [
+            "labelQueryMode",
+            "radioQueryManual",
+            "radioQueryAuto"
+          ],
+          "device_status_panel": [
+            "labelQueryReadback",
+            "valueQueryMode",
+            "labelFirmware",
+            "valueFirmware",
+            "labelOpenbis",
+            "valueOpenbis"
+          ],
+          "main_window": []
+        },
+        "overrides": {}
+      }
     }
   }
 }

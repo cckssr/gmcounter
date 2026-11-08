@@ -9,6 +9,7 @@ from ...core.export import TabExport
 from ...infrastructure.save_service import write_export
 from ...infrastructure.logging import Debug
 from . import dialogs as MessageHelper
+from .messages import message
 
 
 class FileDialogManager:
@@ -33,16 +34,10 @@ class FileDialogManager:
         Returns the saved path, or None if the user cancelled.
         """
         if not export or not export.rows:
-            MessageHelper.show_warning(
-                parent, "Keine Messdaten zum Speichern.", "Warnung"
-            )
+            MessageHelper.show_warning(parent, message("no_export_data"))
             return None
         if not rad_sample or not group_letter:
-            MessageHelper.show_warning(
-                parent,
-                "Bitte Probe und Gruppe auswählen.",
-                "Warnung",
-            )
+            MessageHelper.show_warning(parent, message("select_sample_group"))
             return None
 
         if export.filename_tokens:
@@ -55,10 +50,10 @@ class FileDialogManager:
 
         file_path, _ = QFileDialog.getSaveFileName(
             parent,
-            "Messung speichern",
+            message("title_save_measurement"),
             str(suggested_folder),
-            "CSV-Dateien (*.csv);;Alle Dateien (*)",
-            "CSV-Dateien (*.csv)",
+            message("filter_csv"),
+            message("filter_csv").split(";;")[0],
         )
         if not file_path:
             return None
@@ -71,5 +66,5 @@ class FileDialogManager:
             return csv_path
         except Exception as exc:
             Debug.error(f"Failed to save export: {exc}")
-            MessageHelper.show_error(parent, f"Fehler beim Speichern: {exc}", "Fehler")
+            MessageHelper.show_error(parent, message("save_failed_detail", error=exc))
             return None
