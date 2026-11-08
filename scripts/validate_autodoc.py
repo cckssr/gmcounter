@@ -30,7 +30,7 @@ def validate_api_documentation():
         "DataController",
         "DeviceManager",
         "PlotWidget",
-        "ControlWidget",
+        "SessionController",
         "class",
         "method",
         "function",
@@ -104,13 +104,11 @@ def validate_module_index():
 
     # Prüfe auf src-Module
     src_modules = [
-        "src.main_window",
-        "src.data_controller",
-        "src.device_manager",
-        "src.plot",
-        "src.control",
-        "src.helper_classes",
-        "src.debug_utils",
+        "gmcounter.ui.windows.main_window",
+        "gmcounter.ui.controllers.session_controller",
+        "gmcounter.infrastructure.device_manager",
+        "gmcounter.ui.widgets.plot",
+        "gmcounter.ui.panels.event_log_panel",
     ]
 
     found_modules = []
@@ -129,7 +127,7 @@ def main():
     print("🎯 Validierung der API-Dokumentation")
     print("=" * 50)
 
-    os.chdir(Path(__file__).parent)
+    os.chdir(Path(__file__).resolve().parent.parent)  # repository root
 
     api_ok = validate_api_documentation()
     modindex_ok = validate_module_index()

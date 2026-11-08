@@ -36,10 +36,10 @@ Die GMCounter-Anwendung ist eine GUI für die Steuerung und Datenerfassung mit e
   - Zeigt verfügbare serielle Ports an
   - Ermöglicht die Geräteauswahl und Verbindungsherstellung
 
-* **ControlWidget**: Widget zur Steuerung des GM-Zählers
+* **SessionController**: Steuert Start, Stopp, Speichern und Zurücksetzen für den gewählten Tab
 
-  - Bietet Benutzeroberfläche für Gerätesteuerung
-  - Setzt Einstellungen wie Spannung und Messzeit
+  - Unterscheidet Einzelmessung, Sweep und Intervall über ``session_kind``
+  - Prüft auf ungespeicherte Daten und schreibt Zusammenfassung und Einzeldateien
 
 * **PlotWidget**: Visualisiert die Messdaten
   - Zeichnet Diagramme der aufgenommenen Daten

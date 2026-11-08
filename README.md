@@ -68,12 +68,29 @@ python -m gmcounter
 
 When the application launches, it opens the connection dialog first. From there you can choose a serial device or use the demo/testing path when the mock serial port helper is available.
 
+### Profiles
+
+The interface comes in two profiles, defined in `gmcounter/config.json`:
+
+- `expert` (default): all controls, including the query mode and the firmware and openBIS read-back
+- `student`: a reduced interface for lab courses
+
+```bash
+gmcounter --profile student
+```
+
+The profile can also be switched while the application runs (toolbar action); the window is rebuilt on the same device connection.
+
+### Layout
+
+Each experiment is a tab in the central area. The controls (device, sample, measurement), the live readout with the device status, and the event log are dockable side panels; the toolbar shows or hides each of them and toggles full-screen mode.
+
 ## Project Structure
 
 - gmcounter/core/: pure domain logic, data models, exports, and services
 - gmcounter/infrastructure/: serial adapters, persistence, configuration, logging, and Qt-free helpers
 - gmcounter/ui/: PySide6 user interface, controllers, dialogs, tabs, and widgets
-- gmcounter/pyqt/: generated Qt UI code from the designer files
+- gmcounter/pyqt/: Qt Designer forms (`.ui`) and the generated `ui_*.py` modules; German texts come from `config.json`
 - tests/: unit, integration, and UI tests
 - docs/: Sphinx documentation and user guides
 

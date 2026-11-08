@@ -6,7 +6,6 @@
 
 ```python
 from .helper_classes import SaveManager, MessageHelper, Statusbar
-from .control import ControlWidget
 from .helper_classes import import_config
 ```
 
@@ -133,11 +132,6 @@ data = self.measurement_service.get_data_as_list()
 ### 5. Gerät steuern
 
 ```python
-# ❌ Alt
-from .control import ControlWidget
-self.control = ControlWidget(device_manager)
-self.control.apply_settings({"repeat": True, "voltage": 500, ...})
-
 # ✅ Neu
 from gmcounter.core.services import DeviceControlService
 from gmcounter.core.models import DeviceSettings

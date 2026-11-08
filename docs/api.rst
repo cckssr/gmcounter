@@ -40,11 +40,6 @@ Helper Classes
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: src.control
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Debug Utilities
 ---------------
 
@@ -76,14 +71,6 @@ DeviceManager
 ~~~~~~~~~~~~~
 
 .. automodule:: src.device_manager
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Control
-~~~~~~~
-
-.. automodule:: src.control
    :members:
    :undoc-members:
    :show-inheritance:
