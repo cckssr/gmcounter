@@ -119,6 +119,7 @@ class ParameterSweepTabBase(PlotTabBase):
 
     def build(self) -> None:
         """Label the promoted plot and set up the summary table."""
+        self._plot.config.pen_width = self.config.get("plot.line_width", 1)
         self._plot.reconfigure("xlabel", self.param_label)
         self._plot.reconfigure("ylabel", self.text("plot_y_label"))
 

@@ -124,6 +124,7 @@ class GMTimingTab(PlotTabBase):
         ui = self.ui
         plot_cfg = self._plot.config
         plot_cfg.max_plot_points = self.config.get("plot.max_points", 1000)
+        plot_cfg.pen_width = self.config.get("plot.line_width", 1)
         self._plot.reconfigure("xlabel", self.text("plot_x_label"))
         self._plot.reconfigure("ylabel", self.text("plot_y_label"))
         self._histogram.reconfigure("xlabel", self.text("histogram_x_label"))

@@ -82,7 +82,7 @@ class PlotConfig:
         use_opengl (bool): Enable OpenGL rendering (best performance)
         antialias (bool): Enable antialiasing (slower but prettier)
         skip_finite_check (bool): Skip checking for NaN/inf values (faster if data is pre-validated)
-        pen_width (int): Width of plot line
+        pen_width (int): Width of the plot line in pixels (config ``plot.line_width``)
         symbol_size (int): Size of plot symbols
     """
 
@@ -96,7 +96,7 @@ class PlotConfig:
     use_opengl: bool = True
     antialias: bool = False
     skip_finite_check: bool = False
-    pen_width: int = 5
+    pen_width: int = 1
     symbol_size: int = 10
 
     def __init__(self, **kwargs):
@@ -283,10 +283,12 @@ class GeneralPlot(pg.PlotWidget):
         """Connect signals for user interaction detection."""
         viewbox = self.getViewBox()
         if viewbox:
-            viewbox.sigRangeChanged.connect(self._on_view_range_changed)
+            # Only the viewbox's own mouse/wheel/zoom-box handlers emit this signal, so
+            # pyqtgraph's deferred auto-range updates are never mistaken for the user.
+            viewbox.sigRangeChangedManually.connect(self._on_view_range_changed)
 
-    def _on_view_range_changed(self) -> None:
-        """Detect when user manually pans or zooms the plot.
+    def _on_view_range_changed(self, *_args) -> None:
+        """React to a manual pan or zoom of the plot (mouse drag, wheel, zoom box).
 
         Automatically disables auto-range/auto-scroll when user interacts,
         allowing manual control.
