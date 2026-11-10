@@ -66,7 +66,17 @@ or
 python -m gmcounter
 ```
 
-When the application launches, it opens the connection dialog first. From there you can choose a serial device or use the demo/testing path when the mock serial port helper is available.
+The main window opens directly. Connect the GM counter in the **Verbindung** panel at the top of the right-hand side panel: pick the serial port (the last successfully used port is preselected), and click **Verbinden**. The same button disconnects; while the link drops, the application reconnects automatically.
+
+### Simulation
+
+Without hardware, start the application on a simulated GM counter:
+
+```bash
+gmcounter --simulate
+```
+
+A mock counter runs on a pseudo-terminal inside the application and is the only port the connection panel offers; connect to it as to a real device. The window title says "Simulation". `--simulate` needs a source checkout (the mocks are not part of the wheel) and a Unix-like OS (macOS, Linux).
 
 ### Profiles
 
@@ -83,13 +93,13 @@ The profile can also be switched while the application runs (toolbar action); th
 
 ### Layout
 
-Each experiment is a tab in the central area. The controls (device, sample, measurement), the live readout with the device status, and the event log are dockable side panels; the toolbar shows or hides each of them and toggles full-screen mode.
+Each experiment is a tab in the central area. The controls (device, sample, measurement), the connection with the live readout and the device status, and the event log are dockable side panels; the toolbar shows or hides each of them and toggles full-screen mode.
 
 ## Project Structure
 
 - gmcounter/core/: pure domain logic, data models, exports, and services
 - gmcounter/infrastructure/: serial adapters, persistence, configuration, logging, and Qt-free helpers
-- gmcounter/ui/: PySide6 user interface, controllers, dialogs, tabs, and widgets
+- gmcounter/ui/: PySide6 user interface, controllers, panels, tabs, and widgets
 - gmcounter/pyqt/: Qt Designer forms (`.ui`) and the generated `ui_*.py` modules; German texts come from `config.json`
 - tests/: unit, integration, and UI tests
 - docs/: Sphinx documentation and user guides
@@ -98,7 +108,7 @@ Each experiment is a tab in the central area. The controls (device, sample, meas
 
 The application is organized around a small number of focused workflows:
 
-1. Connect to a device through the serial connection dialog.
+1. Connect to a device in the connection panel of the main window (or run `--simulate`).
 2. Configure voltage, counting time, and measurement mode.
 3. Start acquisition and monitor the live signal in the main window.
 4. Switch between time-series, histogram, and list views for the same data set.

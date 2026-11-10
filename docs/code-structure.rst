@@ -31,10 +31,10 @@ Die GMCounter-Anwendung ist eine GUI für die Steuerung und Datenerfassung mit e
   - Speichert und verarbeitet Messwerte
   - Berechnet Statistiken und bereitet Daten für die Visualisierung vor
 
-* **ConnectionWindow**: Dialog zur Auswahl und Verbindung mit einem Gerät
+* **ConnectionController** / **ConnectionPanel**: Verbindung im Hauptfenster (kein Startdialog mehr)
 
-  - Zeigt verfügbare serielle Ports an
-  - Ermöglicht die Geräteauswahl und Verbindungsherstellung
+  - Zeigt verfügbare serielle Ports an (mit ``--simulate`` nur den simulierten Zähler)
+  - Verbindet und trennt im Hintergrund, zeigt den Verbindungsstatus und merkt sich den zuletzt genutzten Port
 
 * **SessionController**: Steuert Start, Stopp, Speichern und Zurücksetzen für den gewählten Tab
 

@@ -14,6 +14,7 @@ python -m gmcounter
 # or after pip install -e .
 gmcounter
 python -m gmcounter --profile student   # UI profile: expert (default) or student (Praktikum)
+python -m gmcounter --simulate          # simulated GM counter (MockGMCounter on a PTY), no hardware
 
 # Tests
 pytest                                # all tests
@@ -66,12 +67,14 @@ Lower layers must never import from higher ones.
 ### `gmcounter/infrastructure/` — Adapters, Qt only in qt_threads.py
 
 - `serial_device.py`: `SerialDevice` — Qt-free pyserial base class
-- `devices/gm_counter.py`: `GMCounterAdapter` — GM counter command set (s/b/j/o/f/w/U)
+- `devices/gm_counter.py`: `GMCounterAdapter` — GM counter SCPI command set over USB serial (`*IDN?`, `INIT`/`ABOR`, `CONF:VOLT|TIME|REP|STR|SPKR`, `FETC:STAT?`, `SYST:CLR`, `SYST:ERR?`); the firmware translates these into the single-letter protocol of the GM board on `Serial1` (see `docs/hardware/gm-counter-protocol.rst`)
 - `mocks/mock_gm_counter.py`: `MockGMCounter` — wire-compatible PTY-based mock (**excluded from wheel**)
+- `simulation.py`: `SimulatedCounter` (runs `run_pty_server` with `MockGMCounter` in a daemon thread; `start()` returns the PTY path, `stop()`) + `simulation_available()` (mocks installed and `termios` present); imports the mocks lazily
+- `serial_ports.py`: `SerialPortInfo(device, description, usb)`, `list_serial_ports()`, `preferred_port(ports, last_port, hint)` (last port → hint match → first USB port → first), `with_port()`
 - `modules/registry.py`: `HostModule` Protocol + `ModuleRegistry` (§8)
 - `device_manager.py`: `DeviceManager` — **Qt-free**, plain callbacks, manages connection lifecycle
 - `packet_parser.py`: `PacketParser` — incremental binary decoder; extracted from `qt_threads.py` for testability; owned by `DataAcquisitionThread`
-- `qt_threads.py`: `DataAcquisitionThread`, `StatePollerThread`, `ReconnectWorker` (all `QThread`) — **only Qt file in infrastructure/**
+- `qt_threads.py`: `DataAcquisitionThread`, `StatePollerThread`, `ReconnectWorker`, `ConnectWorker` (all `QThread`) — **only Qt file in infrastructure/**
 - `session_journal.py`: `SessionJournal` — append-only crash-safe journal, `find_orphan_journals()`
 - `save_service.py`: `SaveService` — generic `TabExport` writer (no per-experiment code)
 - `config.py`: `AppConfig` (`get`, `section`, `text`, `message`, profile helpers) + `load_config(path, overrides, profile)` — loads `gmcounter/config.json` (language key `"de"`), merges the profile overrides; `default_config()` and `import_config()` for module-level use
@@ -79,13 +82,14 @@ Lower layers must never import from higher ones.
 
 ### `gmcounter/ui/` — PySide6 presentation, no device logic
 
-Startup: `gmcounter/main.py` (`--profile`) shows `dialogs/connection.py`, then `launcher.py` builds the `MainWindow` for the profile.
+Startup: `gmcounter/main.py` (`--profile`, `--simulate`) creates the `Launcher`, which builds the `MainWindow` for the profile directly — there is no connection dialog; the user connects in the connection panel of the window.
 
-- `launcher.py`: `Launcher(QObject)` — builds the main window from `load_config(profile=...)` on the connected `DeviceManager`; a runtime profile switch closes the window and builds the other one on the same connection, keeping the window mode; refused while measuring or with unsaved data
+- `launcher.py`: `Launcher(QObject)` — owns the `DeviceManager` (and with `simulate=True` the `SimulatedCounter`) for the whole run and builds the main window from `load_config(profile=...)`; a runtime profile switch closes the window and builds the other one on the same `DeviceManager` (a connection stays up), keeping the window mode; refused while measuring or with unsaved data; `shutdown()` (on `aboutToQuit`) stops the simulation
 - `profile.py`: `apply_profile(window)` hides the widgets of `hidden_widgets` (by Designer object name, below `main_window`, a panel or a tab id); `next_profile()` for the switch action
 - `i18n.py`: `apply_strings(root, strings)` — sets the configured German texts on the children of a Designer form (see "Strings & profiles")
 - `context.py`: `AppContext` dataclass — what the tabs may use: `config`, `device_manager`, `ctrl`, `save_service`, `file_dialogs`, `timing` (the timing tab, set when built), and the callables `voltage_readback`, `device_settings`, `sample_metadata` that hide the panels from the tabs
-- `controllers/app_controller.py`: **`AppController(QObject)`** — owns all QTimers, DataAcquisitionThread, reconnect FSM (§5), frame fan-out to the active tab (`frames_ready` → `on_frames`)
+- `controllers/app_controller.py`: **`AppController(QObject)`** — owns all QTimers, DataAcquisitionThread, reconnect FSM (§5), frame fan-out to the active tab (`frames_ready` → `on_frames`); `connect_device(port, baud)` connects in a `ConnectWorker` (`connecting_changed`, `connect_finished`), `disconnect_device()`; `connection_changed(bool)` on connect / reconnect / disconnect / final loss, `reconnecting` when the link drops; acquisition runs only while connected
+- `controllers/connection_controller.py`: `ConnectionController(QObject)` — drives the connection panel: port list (or only the simulated port), panel states `disconnected` / `connecting` / `connected` / `reconnecting` / `failed` / `lost`, remembers the last successful port and baud rate in `QSettings` (`connection/port`, `connection/baud`; not with `persist=False`); `connected_changed` enables Start (`SessionController.set_connected`) and Apply (`DevicePanel.set_connected`)
 - `controllers/session_controller.py`: **`SessionController(QObject)`** — what the shared Start / Stop / Save / Reset buttons mean for the selected tab; branches on `session_kind` ("single", "sweep", "interval"), guards unsaved data, writes summary and detail files; talks to the user through `common/prompt.py`
 - `controllers/data_controller.py`: `DataController` — legacy, no longer wired into the window; do not extend
 - `tabs/base.py`: `PlotTabBase(QWidget)` — experiment tab contract (§6)
@@ -95,9 +99,8 @@ Startup: `gmcounter/main.py` (`--profile`) shows `dialogs/connection.py`, then `
 - `tabs/parameter_sweep_base.py`: `ParameterSweepTabBase` — base of the sweep experiments; form `sweep_tab.ui` shared by all of them
 - `tabs/distance_law_tab.py`: `DistanceLawTab` (`order=10`) and `tabs/voltage_response_tab.py`: `VoltageResponseTab` (`order=20`) — class-attribute subclasses of `ParameterSweepTabBase`
 - `tabs/interval_repeat_tab.py`: `IntervalRepeatTab(PlotTabBase)` (`order=30`, form `interval_tab.ui`, `session_kind="interval"`, `receives_frames=True`) — bins one continuous acquisition into R equal-width intervals with `IntervalBinner`
-- `panels/`: dock panels `DevicePanel`, `SamplePanel`, `MeasurementPanel`, `ReadoutPanel`, `DeviceStatusPanel`, `EventLogPanel` — each a `QGroupBox` (`EventLogPanel`: `QWidget`) with its own `.ui`; they expose intent signals and setters, never talk to devices; `panels/__init__.py` has the shared combo helpers
-- `windows/main_window.py`: `MainWindow` — composes the three docks (`dockControls`: device, sample, measurement panel; `dockLive`: readout and device status panel; `dockLog`: event log) and the tab widget; builds the tabs from `TabRegistry` and never names a concrete tab; keeps no experiment logic
-- `dialogs/connection.py`: `ConnectionWindow` — port enumeration, baud select, demo-mode mock port
+- `panels/`: dock panels `ConnectionPanel`, `DevicePanel`, `SamplePanel`, `MeasurementPanel`, `ReadoutPanel`, `DeviceStatusPanel`, `EventLogPanel` — each a `QGroupBox` (`EventLogPanel`: `QWidget`) with its own `.ui`; they expose intent signals and setters, never talk to devices; `panels/__init__.py` has the shared combo helpers
+- `windows/main_window.py`: `MainWindow(config, device_manager=None, persist=True, *, simulate=False, simulation=None)` — composes the three docks (`dockControls`: device, sample, measurement panel; `dockLive`: connection, readout and device status panel; `dockLog`: event log) and the tab widget; builds the tabs from `TabRegistry` and never names a concrete tab; keeps no experiment logic; `simulate=True` starts (and on close stops) its own `SimulatedCounter`, `simulation=` uses the caller's
 - `widgets/plot.py`: `GeneralPlot` (real-time line plot, `reconfigure(...)`, `set_summary_points()`) and `HistogramWidget` — pyqtgraph, promoted in the `.ui` files
 - `widgets/plot_style.py`: palette-following plot chrome and the curve colours of `plot_colors` in config.json
 - `widgets/status_led.py` (`StatusLed`), `widgets/elided_label.py` (`ElidedLabel`, middle elision for paths), `widgets/vscroll.py` (`lock_vertical_scroll`) — small reusable widgets
@@ -106,7 +109,7 @@ Startup: `gmcounter/main.py` (`--profile`) shows `dialogs/connection.py`, then `
 
 ### `gmcounter/pyqt/` — Designer forms and generated code
 
-- `*.ui` forms are the only source of visual structure: `main_window.ui` (MainWindow), `device_panel.ui`, `sample_panel.ui`, `measurement_panel.ui`, `readout_panel.ui`, `device_status_panel.ui`, `event_log_panel.ui` (panels), `timing_tab.ui`, `sweep_tab.ui`, `interval_tab.ui` (experiment tabs), `connection.ui` (connection dialog)
+- `*.ui` forms are the only source of visual structure: `main_window.ui` (MainWindow), `connection_panel.ui`, `device_panel.ui`, `sample_panel.ui`, `measurement_panel.ui`, `readout_panel.ui`, `device_status_panel.ui`, `event_log_panel.ui` (panels), `timing_tab.ui`, `sweep_tab.ui`, `interval_tab.ui` (experiment tabs)
 - `ui_<form>.py`: generated by `pyside6-uic` from `<form>.ui` (`pyuic.sh`). **Never hand-edit these files.**
 - `sync_texts.py`: copies the configured German texts into the `.ui` properties, so Qt Designer shows them; run by `pyuic.sh`
 - `preview.py`: shows one form with its texts, without controllers or devices
@@ -139,7 +142,7 @@ After any `.ui` edit run `bash gmcounter/pyqt/pyuic.sh [form]` to regenerate bef
 
 **Profiles**: `profiles.<id>` in config.json with `name`, `hidden_tabs` (tab ids), `hidden_widgets` (root → object names) and `overrides` (merged over the defaults for this profile).
 
-- `expert` (Experte) hides nothing; `student` (Praktikum) hides the query mode and some readback rows
+- `expert` (Experte) hides nothing; `student` (Praktikum) hides the baud rate, the query mode and some readback rows
 - select with `--profile <id>` or `application.profile`; the toolbar action (`actionSwitchProfile`) switches at run time through `Launcher`
 - a profile is config only: no code change; hidden controls keep their default values
 - tests: `tests/ui/test_profile.py`; `tests/ui/test_designer_forms.py` and `test_main_window_strings.py` check forms and texts
@@ -213,9 +216,12 @@ A sweep tab accumulates (parameter, count, rate) points across several measureme
 
 ## Key Conventions
 
-**Config**: All tuneable constants live in `gmcounter/config.json` under the `"de"` key. Access with `load_config()` / `default_config()` from `gmcounter.infrastructure.config`. `demo_mode: true` by default (no real hardware needed).
+**Config**: All tuneable constants live in `gmcounter/config.json` under the `"de"` key. Access with `load_config()` / `default_config()` from `gmcounter.infrastructure.config`. Connection defaults: `gm_counter.baud_rates`, `gm_counter.default_baud` (1000000), `gm_counter.default_arduino` (port hint).
+
+**Connection & simulation**: the window opens unconnected; the user connects in `ConnectionPanel` (top of `dockLive`). Start and Apply stay disabled until the link is up. `--simulate` (or `MainWindow(config, simulate=True)` in tests) runs a `MockGMCounter` on a PTY in-process; the panel offers only that port and disables the baud rate. Tests: `tests/ui/test_connection.py`.
 
 **Binary protocol**: Three marker types, all decoded by `PacketParser`:
+
 - Start marker: `0xFF × 6` — everything before it is discarded; parser must see this before accepting data packets
 - Data packet: `[0xAA, b0, b1, b2, b3, 0x55]` — bytes 1–4 encode inter-event delta in firmware timer ticks (little-endian 32-bit); divide by `ticks_per_us` (config, default 48 for RA4M1 at 48 MHz) to get µs
 - End-of-period marker: `0xEE × 6` — firmware sends this when a finite-time counting period completes; `PacketParser.end_of_period` flag is set; caller must call `clear_end_of_period()` after handling
