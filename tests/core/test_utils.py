@@ -3,6 +3,7 @@
 import pytest
 from gmcounter.core.utils import (
     sanitize_subterm_for_folder,
+    create_dropbox_foldername,
     create_group_name,
     calculate_statistics,
 )
@@ -56,3 +57,15 @@ def test_create_group_name_valid():
 def test_create_group_name_invalid():
     name = create_group_name("1")
     assert name == "Ungültige Gruppe"
+
+
+def test_create_group_name_empty_is_not_logged_as_an_error(caplog):
+    with caplog.at_level("ERROR"):
+        assert create_group_name("") == "Ungültige Gruppe"
+    assert not caplog.records
+
+
+def test_dropbox_foldername_with_empty_group_is_not_logged_as_an_error(caplog):
+    with caplog.at_level("ERROR"):
+        assert create_dropbox_foldername("", "TK47") == ""
+    assert not caplog.records
