@@ -86,3 +86,18 @@ markers = [
     "hardware: requires physical GM counter hardware (pass --port /dev/tty... to enable)",
     "integration: end-to-end test using MockGMCounter PTY server or real hardware",
 ]
+
+[tool.pyside6-project]
+files = [
+    "gmcounter/pyqt/connection_panel.ui",
+    "gmcounter/pyqt/interval_tab.ui",
+    "gmcounter/pyqt/sample_panel.ui",
+    "gmcounter/pyqt/device_panel.ui",
+    "gmcounter/pyqt/main_window.ui",
+    "gmcounter/pyqt/sweep_tab.ui",
+    "gmcounter/pyqt/device_status_panel.ui",
+    "gmcounter/pyqt/measurement_panel.ui",
+    "gmcounter/pyqt/timing_tab.ui",
+    "gmcounter/pyqt/event_log_panel.ui",
+    "gmcounter/pyqt/readout_panel.ui"
+]

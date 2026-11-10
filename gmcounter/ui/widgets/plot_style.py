@@ -185,9 +185,7 @@ class _PaletteWatcher(QObject):
         super().__init__(widget)
         self._widget = widget
 
-    def eventFilter(
-        self, watched: QObject, event: QEvent
-    ) -> bool:  # noqa: N802 (Qt API)
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802 (Qt API)
         if watched is self._widget and event.type() in self._EVENTS:
             try:
                 _apply(self._widget)

@@ -9,6 +9,7 @@ Usage:
 The slave PTY path is written to /tmp/virtual_serial_port.txt so the app's
 connection dialog finds it automatically when demo_mode is enabled.
 """
+
 import argparse
 import logging
 import os
