@@ -288,8 +288,8 @@ static void handleHELP()
     Serial.println(F("  SYST:VERS?                    SCPI version string"));
     Serial.println(F("  INIT   !                      Start acquisition"));
     Serial.println(F("  ABOR   !                      Stop acquisition"));
-    Serial.println(F("  CONF:VOLT [300..900]          HV voltage in V (query/set)"));
-    Serial.println(F("  CONF:TIME [0..9]              Counting time mode (query/set)"));
+    Serial.println(F("  CONF:VOLT [300..700]          HV voltage in V (query/set)"));
+    Serial.println(F("  CONF:TIME [0..5]              Counting time mode (query/set)"));
     Serial.println(F("  CONF:REP  [ON|OFF|1|0]        Repeat mode (query/set)"));
     Serial.println(F("  CONF:STR  [0..4]              Stream mode (query/set; 4=continuous)"));
     Serial.println(F("  FETC:STAT?                    GM counter status CSV"));
