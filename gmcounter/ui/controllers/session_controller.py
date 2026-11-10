@@ -85,6 +85,7 @@ class SessionController(QObject):
             None  # tab of the running sweep / interval session
         )
         self._buttons = [True, False, False, False]  # start, stop, reset, save
+        self._connected = True  # Start needs a connected device; see set_connected()
         self._device_info: dict = {}
 
     # ------------------------------------------------------------------
@@ -96,9 +97,24 @@ class SessionController(QObject):
         return self._tab
 
     def initial_state(self) -> None:
-        """Publish the idle state (Start enabled, status "ready")."""
+        """Publish the idle state (Start enabled once connected, status "ready")."""
         self._set_buttons(start=True, stop=False, reset=False, save=False)
-        self._set_status("status_ready", "green")
+        if self._connected:
+            self._set_status("status_ready", "green")
+        else:
+            self._set_status("status_disconnected", "off")
+
+    def set_connected(self, connected: bool) -> None:
+        """Device link up or down: Start is offered only while connected."""
+        if connected == self._connected:
+            return
+        self._connected = connected
+        if not self._ctrl.is_measuring:
+            self._set_status(
+                "status_ready" if connected else "status_disconnected",
+                "green" if connected else "off",
+            )
+        self._set_buttons()
 
     def set_device_info(self, info: dict) -> None:
         """Firmware version / OpenBIS code, written into the saved metadata."""
@@ -390,7 +406,10 @@ class SessionController(QObject):
         for i, value in enumerate((start, stop, reset, save)):
             if value is not None:
                 self._buttons[i] = value
-        self.buttons_changed.emit(*self._buttons)
+        start_now, stop_now, reset_now, save_now = self._buttons
+        self.buttons_changed.emit(
+            start_now and self._connected, stop_now, reset_now, save_now
+        )
 
     def _set_status(self, key: str, colour: str) -> None:
         self.status_changed.emit(self._m(key), colour)

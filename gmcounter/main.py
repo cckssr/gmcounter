@@ -1,4 +1,12 @@
-"""GMCounter - main program of the Geiger-Mueller counter GUI application."""
+"""GMCounter - main program of the Geiger-Mueller counter GUI application.
+
+Flags:
+    --profile   UI profile of the main window (expert or student); default:
+                ``application.profile`` of config.json. The toolbar can switch it at run time.
+    --simulate  Run on a simulated GM counter (mock on a pseudo-terminal, no hardware needed).
+
+The window opens directly; the device is connected in its connection panel.
+"""
 
 import argparse
 import logging
@@ -9,12 +17,10 @@ from PySide6.QtCore import (
     qInstallMessageHandler,
     QtMsgType,
 )  # pylint: disable=no-name-in-module
-from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
-    QApplication,
-    QMessageBox,
-)
+from PySide6.QtWidgets import QApplication  # pylint: disable=no-name-in-module
+
 from .infrastructure.logging import Debug
-from .ui.dialogs.connection import ConnectionWindow
+from .infrastructure.simulation import simulation_available
 from .ui.launcher import Launcher
 from .infrastructure.config import import_config
 
@@ -48,7 +54,8 @@ CONFIG = import_config()
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Command line: ``--profile`` selects an entry of the ``profiles`` config section."""
+    """Command line: ``--profile`` selects an entry of the ``profiles`` config section,
+    ``--simulate`` runs on the simulated counter."""
     parser = argparse.ArgumentParser(prog="gmcounter")
     parser.add_argument(
         "--profile",
@@ -56,14 +63,25 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="UI profile (default: application.profile from config.json)",
     )
+    parser.add_argument(
+        "--simulate",
+        action="store_true",
+        help="run on a simulated GM counter (no hardware needed)",
+    )
     args, _unknown = parser.parse_known_args(argv)  # Qt options pass through
+    if args.simulate and not simulation_available():
+        parser.error(
+            "--simulate needs the mock devices (not in the release wheel; use a source "
+            "checkout with pip install -e .) and pseudo-terminals (not on Windows)"
+        )
     return args
 
 
 def main():
     """Application entry point.
 
-    Initialises the debug system, shows the connection dialog and creates the main window.
+    Initialises the debug system and opens the main window; the user connects the device in
+    the window's connection panel.
     """
     args = parse_args()
     # Initialise the debug system
@@ -85,42 +103,18 @@ def main():
     # Register the global exception handler
     sys.excepthook = Debug.exception_hook
 
-    Debug.info("Starting application...")
+    Debug.info(f"Starting application (simulate={args.simulate})...")
 
     # Create the QApplication
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
 
-    # Show the connection dialog
-    connection_dialog = ConnectionWindow(
-        demo_mode=CONFIG["gm_counter"]["demo_mode"],
-        default_device=CONFIG["gm_counter"]["default_arduino"],
-    )
-
-    # Dialog accepted: the connection has been tried
-    if connection_dialog.exec():
-        success = connection_dialog.connection_successful
-        device_manager = connection_dialog.device_manager
-
-        if success and device_manager is not None:
-            # Connected: the launcher builds the main window for the profile and can
-            # rebuild it on a profile switch, keeping this device manager connected.
-            launcher = Launcher(device_manager, profile=args.profile)
-            launcher.start()  # application.window_mode
-            sys.exit(app.exec())
-        else:
-            # Connection failed
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Icon.Critical)
-            msg_box.setText(CONFIG["messages"]["connection_failed"])
-            msg_box.setWindowTitle(CONFIG["messages"]["title_connection_error"])
-            msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-            msg_box.exec()
-            sys.exit(1)
-    else:
-        # The user cancelled the dialog
-        Debug.info("Connection cancelled by the user")
-        sys.exit(0)
+    # The launcher builds the main window for the profile and can rebuild it on a profile
+    # switch, keeping the device manager (and its connection).
+    launcher = Launcher(profile=args.profile, simulate=args.simulate, parent=app)
+    app.aboutToQuit.connect(launcher.shutdown)
+    launcher.start()  # application.window_mode
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

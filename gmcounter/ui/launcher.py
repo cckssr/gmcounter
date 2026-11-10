@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication
 
 from ..infrastructure.config import load_config
 from ..infrastructure.device_manager import DeviceManager
+from ..infrastructure.simulation import SimulatedCounter
 from .windows.main_window import MainWindow
 
 _log = logging.getLogger(__name__)
@@ -18,23 +19,31 @@ _log = logging.getLogger(__name__)
 class Launcher(QObject):
     """Creates the main window for a profile and swaps it for another one on request.
 
-    A switch closes the old window without disconnecting the device, builds the new window
-    from ``load_config(profile=...)`` on the SAME connected ``DeviceManager`` and keeps the
+    The launcher owns the ``DeviceManager`` (and, with ``simulate``, the simulated counter)
+    for the whole run; the user connects in the window's connection panel. A switch closes the
+    old window without disconnecting the device, builds the new window from
+    ``load_config(profile=...)`` on the SAME ``DeviceManager`` (still connected) and keeps the
     window mode (full screen, maximised, normal). It is refused while a measurement runs or
     unsaved data exists, so the close never asks the unsaved-data question.
     """
 
     def __init__(
         self,
-        device_manager: DeviceManager,
+        device_manager: DeviceManager | None = None,
         profile: str | None = None,
         window_mode: str | None = None,
         persist: bool = True,
         overrides: dict[str, Any] | None = None,
         parent: QObject | None = None,
+        *,
+        simulate: bool = False,
     ) -> None:
         super().__init__(parent)
-        self._device_manager = device_manager
+        self._device_manager = device_manager or DeviceManager()
+        self.simulation: SimulatedCounter | None = None
+        if simulate:
+            self.simulation = SimulatedCounter()
+            self.simulation.start()
         self._profile = profile
         self._window_mode = window_mode
         self._persist = persist
@@ -47,7 +56,12 @@ class Launcher(QObject):
 
     def _open(self, profile: str | None, window_mode: str | None) -> MainWindow:
         config = load_config(profile=profile, overrides=self._overrides)
-        window = MainWindow(config, self._device_manager, persist=self._persist)
+        window = MainWindow(
+            config,
+            self._device_manager,
+            persist=self._persist,
+            simulation=self.simulation,
+        )
         window.profile_switch_requested.connect(self._on_switch_requested)
         window.show_initial(window_mode)
         self.window = window
@@ -70,7 +84,9 @@ class Launcher(QObject):
         mode = (
             "fullscreen"
             if old.isFullScreen()
-            else "maximized" if old.isMaximized() else "normal"
+            else "maximized"
+            if old.isMaximized()
+            else "normal"
         )
         app = QApplication.instance()
         if app is not None:
@@ -83,3 +99,9 @@ class Launcher(QObject):
         finally:
             if app is not None:
                 app.setQuitOnLastWindowClosed(True)
+
+    def shutdown(self) -> None:
+        """Stop the simulated counter (application exit; the window closed the port)."""
+        if self.simulation is not None:
+            self.simulation.stop()
+            self.simulation = None

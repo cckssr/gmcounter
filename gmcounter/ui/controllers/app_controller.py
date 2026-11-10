@@ -16,6 +16,7 @@ from PySide6.QtCore import (  # pylint: disable=no-name-in-module
 
 from ...infrastructure.device_manager import DeviceManager
 from ...infrastructure.qt_threads import (
+    ConnectWorker,
     DataAcquisitionThread,
     ReconnectWorker,
     StatePollerThread,
@@ -51,6 +52,10 @@ class AppController(QObject):
     retry_connecting(int, float)  — (attempt_no, delay_ms)
     reconnect_succeeded()
     connection_lost()             — terminal; all retries exhausted
+    connecting_changed(bool)      — a connect (connect_device) runs in the background
+    connect_finished(bool)        — result of connect_device
+    connection_changed(bool)      — link up (connect, reconnect) / down (disconnect, final loss)
+    reconnecting()                — link dropped, automatic reconnect running
     """
 
     frames_ready = Signal(object)  # list[Frame] (frozen dataclasses)
@@ -64,6 +69,12 @@ class AppController(QObject):
     retry_connecting = Signal(int, float)
     reconnect_succeeded = Signal()
     connection_lost = Signal()
+    connecting_changed = Signal(bool)
+    connect_finished = Signal(bool)
+    connection_changed = Signal(bool)
+    reconnecting = Signal()  # the link dropped; the automatic reconnect has started
+    # DeviceManager status callback; may fire on a worker thread, so it is queued to _notify
+    _device_status = Signal(str, str)
 
     # ------------------------------------------------------------------
     # Reconnect state-machine states
@@ -94,9 +105,13 @@ class AppController(QObject):
         self._accum_us: float = 0.0
         self._target_us: float = 0.0
 
-        # Reconnect state machine
-        self._reconnect_state = self._CONNECTED
+        # Reconnect state machine; a window may be built on an already connected device
+        # (profile switch), otherwise the user connects through the connection panel.
+        self._reconnect_state = (
+            self._CONNECTED if device_manager.connected else self._DISCONNECTED
+        )
         self._reconnect_worker: Optional[ReconnectWorker] = None
+        self._connect_worker: Optional[ConnectWorker] = None
         self._desired_state = DesiredState()  # Saved before disconnect for B5 replay
 
         # Journal
@@ -105,7 +120,8 @@ class AppController(QObject):
         # Acquisition thread
         self._acquire_thread: Optional[DataAcquisitionThread] = None
         self._wire_device_manager()
-        self._start_acquisition()
+        if device_manager.connected:
+            self._start_acquisition()
 
         # Background state poller — replaces the old main-thread _control_timer.
         # get_data() blocks for up to 2 s; running it off the main thread keeps
@@ -222,6 +238,85 @@ class AppController(QObject):
         return self._is_measuring
 
     # ------------------------------------------------------------------
+    # Connection (called by the ConnectionController)
+
+    @property
+    def is_connected(self) -> bool:
+        """``True`` while the device link is up (not while reconnecting)."""
+        return self._reconnect_state == self._CONNECTED and bool(
+            self.device_manager.connected
+        )
+
+    @property
+    def is_connecting(self) -> bool:
+        """``True`` while :meth:`connect_device` runs in the background."""
+        return self._connect_worker is not None
+
+    @property
+    def is_reconnecting(self) -> bool:
+        return self._reconnect_state == self._RECONNECTING
+
+    def connect_device(self, port: str, baudrate: int) -> bool:
+        """Connect to ``port`` in the background; ``connect_finished`` reports the result.
+
+        Returns ``False`` (and does nothing) while another connect is running. A pending
+        automatic reconnect is cancelled first.
+        """
+        if self._connect_worker is not None:
+            return False
+        self._abort_reconnect()
+        self._stop_acquisition()
+        # No FETC:STAT? may run while the port is (re)opened and the device info is read.
+        self._state_poller.pause()
+        self.connecting_changed.emit(True)
+        worker = ConnectWorker(
+            lambda: self.device_manager.connect_device(port, baudrate), parent=self
+        )
+        worker.done.connect(self._on_connect_done)
+        self._connect_worker = worker
+        worker.start()
+        return True
+
+    def _on_connect_done(self, ok: bool) -> None:
+        worker, self._connect_worker = self._connect_worker, None
+        if worker is not None:
+            worker.wait()
+            worker.deleteLater()
+        self._state_poller.resume()
+        self.connecting_changed.emit(False)
+        if ok:
+            self._reconnect_state = self._CONNECTED
+            self._start_acquisition()
+            if self._acquire_thread:
+                self._acquire_thread.reset_connection_lost()
+        else:
+            self._reconnect_state = self._DISCONNECTED
+        self.connect_finished.emit(ok)
+        if ok:
+            self.connection_changed.emit(True)
+
+    def disconnect_device(self) -> None:
+        """User-initiated disconnect: stop a running measurement, close the port."""
+        if self._is_measuring:
+            self.stop_measurement()
+        self._abort_reconnect()
+        self._stop_acquisition()
+        self._state_poller.pause()
+        try:
+            self.device_manager.disconnect_device()
+        finally:
+            self._state_poller.resume()
+        self._reconnect_state = self._DISCONNECTED
+        self.connection_changed.emit(False)
+
+    def _abort_reconnect(self) -> None:
+        worker, self._reconnect_worker = self._reconnect_worker, None
+        if worker is not None and worker.isRunning():
+            worker.blockSignals(True)  # a late success must not revive the old link
+            worker.abort()
+            worker.wait(2000)
+
+    # ------------------------------------------------------------------
     # Settings
 
     def apply_settings(
@@ -302,9 +397,13 @@ class AppController(QObject):
         if self._state_poller and self._state_poller.isRunning():
             self._state_poller.stop()
 
-        if self._reconnect_worker and self._reconnect_worker.isRunning():
-            self._reconnect_worker.abort()
-            self._reconnect_worker.wait(2000)
+        self._abort_reconnect()
+
+        if self._connect_worker is not None:
+            # a blocking port open cannot be interrupted; it ends after a few seconds
+            self._connect_worker.blockSignals(True)
+            self._connect_worker.wait(10_000)
+            self._connect_worker = None
 
         if self._acquire_thread and self._acquire_thread.isRunning():
             self._acquire_thread.stop()
@@ -319,7 +418,8 @@ class AppController(QObject):
     # Internal wiring
 
     def _wire_device_manager(self) -> None:
-        self.device_manager.on_status = self._notify
+        self._device_status.connect(self._notify)
+        self.device_manager.on_status = self._device_status.emit
         self.device_manager.on_connection_lost = self._on_connection_lost_cb
 
     def _start_acquisition(self) -> None:
@@ -468,6 +568,7 @@ class AppController(QObject):
         self._reconnect_worker.failed.connect(self._on_reconnect_failed)
         self._reconnect_worker.status_update.connect(self._notify)
         self._reconnect_worker.start()
+        self.reconnecting.emit()
 
     def _on_connection_lost_cb(self) -> None:
         """DeviceManager callback — route to the Qt signal handler."""
@@ -484,6 +585,7 @@ class AppController(QObject):
             self._journal.mark_gap()
 
         self.reconnect_succeeded.emit()
+        self.connection_changed.emit(True)
         self._notify(
             message("reconnected"), CONFIG.get("colors", {}).get("green", "green")
         )
@@ -491,6 +593,9 @@ class AppController(QObject):
     def _on_reconnect_failed(self) -> None:
         """All retry attempts exhausted (B7) — notify UI and offer journal export."""
         self._reconnect_state = self._DISCONNECTED
+        self._reconnect_worker = None
+        self._stop_acquisition()
+        self.connection_changed.emit(False)
         self.connection_lost.emit()
 
         if self._journal:

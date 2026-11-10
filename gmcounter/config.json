@@ -54,8 +54,11 @@
       "base_folder": "GMCounter"
     },
     "gm_counter": {
-      "demo_mode": true,
       "default_arduino": "UNO",
+      "baud_rates": [
+        9600, 57600, 115200, 230400, 460800, 500000, 921600, 1000000, 2000000
+      ],
+      "default_baud": 1000000,
       "default_voltage": 500,
       "voltage_warning_threshold": 650,
       "count_time_map": {
@@ -84,37 +87,38 @@
         "actionToggleControls": "Steuerung",
         "actionToggleControls@tooltip": "Seitenleiste mit Geräte-, Proben- und Messungssteuerung ein- oder ausblenden",
         "actionToggleLive": "Anzeige",
-        "actionToggleLive@tooltip": "Seitenleiste mit Zählergebnissen und Gerätestatus ein- oder ausblenden",
+        "actionToggleLive@tooltip": "Seitenleiste mit Verbindung, Zählergebnissen und Gerätestatus ein- oder ausblenden",
         "actionToggleLog": "Protokoll",
         "actionToggleLog@tooltip": "Ereignisprotokoll ein- oder ausblenden",
         "actionSwitchProfile": "Profil wechseln",
         "actionSwitchProfile@tooltip": "Zwischen Experten- und Praktikumsprofil wechseln",
         "actionFullScreen": "Vollbild",
         "actionFullScreen@tooltip": "Zwischen Vollbild und Fenster wechseln (F11)",
-        "text_switch_profile": "Zu Profil \"{profile}\" wechseln"
+        "text_switch_profile": "Zu Profil \"{profile}\" wechseln",
+        "text_title_simulation": "{title} – Simulation"
       },
-      "connection": {
-        "self@title": "Verbindung herstellen",
-        "labelIntro": "<html><head/><body><p>Einen Port und passende Baud-Rate auswählen und mit &quot;Öffnen&quot; verbinden. </p><p><span style=\" color:#ff9300;\">Besonderheit Windows:</span></p><p>Geräteinformationen werden nicht korrekt dargestellt. Meistens ist es der letzte &quot;COM&quot; Port. </p><p>Ansonsten: </p><p>GM-Zähler abstecken, Liste aktualisieren, Zähler anstecken, Liste aktualisieren, <br/>Neuen Port auswählen</p></body></html>",
-        "comboPort@tooltip": "<html><head/><body><p>Kommunikation mit dem Arduino erfolgt über die serielle Schnittstelle. </p><p>Wenn Arduino nicht erkannt wird, die Verbindung prüfen und evtl. Treiber installieren.</p></body></html>",
-        "comboPort@placeholder": "Bitte Seriellen Port auswählen",
-        "buttonRefreshPorts@tooltip": "Die Liste der Ports aktualisieren",
-        "labelBaud": "Baud Rate",
-        "labelAddress": "Adresse",
-        "labelName": "Name",
-        "labelDescription": "Beschreibung",
-        "button_open": "Öffnen",
-        "button_cancel": "Abbrechen",
-        "button_retry": "Wiederholen",
-        "button_other_port": "Anderen Port wählen",
-        "text_ready": "Bereit zur Verbindung...",
-        "text_connecting": "Verbinde mit {port}...",
+      "connection_panel": {
+        "self": "Verbindung",
+        "labelPort": "Port",
+        "comboPort@tooltip": "Serieller Port des GM-Zählers (Arduino). Wird der Zähler nicht erkannt: abstecken, Liste aktualisieren, anstecken, erneut aktualisieren und den neuen Port wählen.",
+        "comboPort@placeholder": "Kein Port gefunden",
+        "buttonRefreshPorts": "↻",
+        "buttonRefreshPorts@tooltip": "Liste der seriellen Ports aktualisieren",
+        "labelDescription": "Gerät",
+        "labelBaud": "Baudrate",
+        "comboBaud@tooltip": "Baudrate der seriellen Verbindung (Standard: 1000000)",
+        "labelStatus": "Status",
+        "buttonConnect": "Verbinden",
+        "buttonConnect@tooltip": "GM-Zähler über den gewählten Port verbinden oder trennen",
+        "text_connect": "Verbinden",
+        "text_disconnect": "Trennen",
+        "text_disconnected": "Nicht verbunden",
+        "text_connecting": "Verbinde mit {port} …",
         "text_connected": "Verbunden mit {port}",
+        "text_reconnecting": "Verbindung unterbrochen – neuer Versuch …",
         "text_failed": "Verbindung zu {port} fehlgeschlagen",
-        "text_error_title": "Verbindungsfehler",
-        "text_error_body": "Verbindung zu {port} fehlgeschlagen.\n\nBitte überprüfen Sie die Verbindung.",
-        "text_mock_name": "Mock-Gerät",
-        "text_mock_description": "Virtuelles Gerät zur Demonstration"
+        "text_lost": "Verbindung verloren",
+        "text_simulation_description": "Simulierter GM-Zähler (kein Gerät)"
       },
       "tabs": {
         "gm_timing": "Einzelmessung",
@@ -143,11 +147,7 @@
         "plot_y_label": "Zeit / µs",
         "histogram_x_label": "Zeit / µs",
         "histogram_y_label": "Anzahl Ereignisse",
-        "table_events_headers": [
-          "Index",
-          "Wert (µs)",
-          "Zeit"
-        ],
+        "table_events_headers": ["Index", "Wert (µs)", "Zeit"],
         "text_high_speed": "⚡ High-Speed-Modus — Liniendiagramm pausiert"
       },
       "sweep_tab": {
@@ -197,10 +197,7 @@
           "t_start_s",
           "t_end_s"
         ],
-        "export_interval_columns": [
-          "Index",
-          "Delta (µs)"
-        ],
+        "export_interval_columns": ["Index", "Delta (µs)"],
         "text_no_data": "Keine Daten.",
         "text_status": "{n} Ereignisse in {repeats} Intervallen · {t} s",
         "text_summary_title": "Intervallmessung — Zusammenfassung"
@@ -233,14 +230,7 @@
           "100 Sekunden",
           "300 Sekunden"
         ],
-        "combo_duration_seconds": [
-          0,
-          1,
-          10,
-          60,
-          100,
-          300
-        ]
+        "combo_duration_seconds": [0, 1, 10, 60, 100, 300]
       },
       "sample_panel": {
         "self": "Probe && Speicherung",
@@ -393,7 +383,6 @@
       "no_data": "Es sind keine Messdaten zum Speichern verfügbar.",
       "unsaved_data": "Sie haben ungespeicherte Messdaten. Möchten Sie diese verwerfen und eine neue Messung starten?",
       "unsaved_data_end": "Sie haben ungespeicherte Messdaten. Möchten Sie diese verwerfen, bevor Sie die Applikation beenden?",
-      "connection_failed": "Verbindung zum Gerät fehlgeschlagen. Anwendung wird beendet.",
       "auto_save_enabled": "Automatisches Speichern ist aktiviert. Messdaten werden automatisch gespeichert, wenn die Messung endet.",
       "auto_save_disabled": "Automatisches Speichern ist deaktiviert. Sie müssen die Messdaten manuell speichern.",
       "voltage_warning": "Warnung: Die Betriebsspannung des GM-Zählers ist hoch ({} V). Nicht dauerhaft verwenden.",
@@ -439,7 +428,11 @@
       "title_open_file": "Datei öffnen",
       "title_quit": "Beenden",
       "confirm_quit": "Wollen Sie sicher das Programm schließen?",
-      "filter_csv": "CSV-Dateien (*.csv);;Alle Dateien (*)"
+      "filter_csv": "CSV-Dateien (*.csv);;Alle Dateien (*)",
+      "please_connect": "Bitte den GM-Zähler rechts im Bereich „Verbindung“ verbinden.",
+      "simulation_active": "Simulationsmodus: Es wird ein simulierter GM-Zähler verwendet.",
+      "connect_failed": "Verbindung zu {port} fehlgeschlagen. Port und Kabel prüfen, ggf. einen anderen Port wählen.",
+      "disconnected": "Verbindung zum GM-Zähler getrennt."
     },
     "plot_colors": {
       "series": [
@@ -471,6 +464,7 @@
         "name": "Praktikum",
         "hidden_tabs": [],
         "hidden_widgets": {
+          "connection_panel": ["labelBaud", "comboBaud"],
           "device_panel": [
             "labelQueryMode",
             "radioQueryManual",

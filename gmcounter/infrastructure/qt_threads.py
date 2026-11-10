@@ -302,3 +302,28 @@ class ReconnectWorker(QThread):
             self.succeeded.emit()
         else:
             self.failed.emit()
+
+
+class ConnectWorker(QThread):
+    """Runs one blocking connect call off the GUI thread.
+
+    Opening the serial port and the adapter's initial handshake take a few seconds
+    (the Arduino resets on open); the window stays responsive meanwhile.
+
+    Signals:
+        done(bool): the result of ``connect_fn`` (``False`` if it raised).
+    """
+
+    done = Signal(bool)
+
+    def __init__(self, connect_fn: Callable[[], bool], parent=None) -> None:
+        super().__init__(parent)
+        self._connect_fn = connect_fn
+
+    def run(self) -> None:
+        try:
+            ok = bool(self._connect_fn())
+        except Exception as exc:  # the worker must always report back
+            _log.error("Connect failed: %s", exc, exc_info=True)
+            ok = False
+        self.done.emit(ok)

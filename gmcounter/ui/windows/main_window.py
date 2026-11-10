@@ -16,12 +16,14 @@ from ...core.services import SaveService
 from ...infrastructure.config import AppConfig
 from ...infrastructure.device_manager import DeviceManager
 from ...infrastructure.modules.registry import ModuleRegistry
+from ...infrastructure.simulation import SimulatedCounter
 from .. import tabs as _tabs  # noqa: F401  (registers the experiment tabs)
 from ..common.file_dialogs import FileDialogManager
 from ..common.prompt import MessageBoxPrompt
 from ..common.statusbar import StatusBarManager
 from ..context import AppContext
 from ..controllers.app_controller import AppController
+from ..controllers.connection_controller import ConnectionController
 from ..controllers.session_controller import SessionController
 from ..i18n import apply_strings
 from ..profile import apply_profile, next_profile
@@ -49,9 +51,15 @@ def layout_settings() -> QSettings:
 class MainWindow(QMainWindow):
     """Main application window — chrome only.
 
-    Logic lives in AppController (timers, acquisition, reconnect), SessionController
+    Logic lives in AppController (timers, acquisition, reconnect), ConnectionController
+    (port selection, connect / disconnect in the connection panel), SessionController
     (Start / Stop / Save / Reset of the selected tab) and the experiment tabs.
-    ``persist=False`` keeps window layout and save folder out of the user's files (tests).
+
+    ``device_manager`` may already be connected (profile switch); without one the window
+    creates its own. ``simulate=True`` starts a simulated counter on a pseudo-terminal (or
+    uses ``simulation``, which the caller owns) and offers only its port.
+    ``persist=False`` keeps window layout, save folder and last port out of the user's
+    files (tests).
     """
 
     _device_info_received = Signal(dict)
@@ -60,13 +68,23 @@ class MainWindow(QMainWindow):
     def __init__(
         self,
         config: AppConfig,
-        device_manager: DeviceManager,
+        device_manager: DeviceManager | None = None,
         parent: QWidget | None = None,
         persist: bool = True,
+        *,
+        simulate: bool = False,
+        simulation: SimulatedCounter | None = None,
     ) -> None:
         super().__init__(parent)
         self.config = config
+        if device_manager is None:
+            device_manager = DeviceManager()
         self.device_manager = device_manager
+        self._owns_simulation = simulate and simulation is None
+        if self._owns_simulation:
+            simulation = SimulatedCounter()
+            simulation.start()
+        self.simulation = simulation
         self._persist = persist
         self._was_maximized = False
         self._keep_device = False  # set while closing for a profile switch
@@ -90,6 +108,13 @@ class MainWindow(QMainWindow):
             device_manager, status_bar=self._status_bar, parent=self
         )
         self.ctrl.event_log = self.ui.eventLogPanel
+        self.connection = ConnectionController(
+            config,
+            self.ctrl,
+            simulation_port=simulation.port if simulation is not None else None,
+            settings=(lambda: layout_settings()) if persist else None,
+            parent=self,
+        )
         self.context = AppContext(
             config=config,
             device_manager=device_manager,
@@ -117,11 +142,7 @@ class MainWindow(QMainWindow):
             device_manager._fetch_device_info()  # pylint: disable=protected-access
 
         self.session.initial_state()
-        if device_manager.connected:
-            self._status_bar.show_message(
-                config.message("connected").format(device_manager.port),
-                duration=CONNECTED_MESSAGE_MS,
-            )
+        self._setup_connection()
         if persist:
             self._restore_layout()
 
@@ -130,6 +151,7 @@ class MainWindow(QMainWindow):
     def _panels(self) -> list:
         ui = self.ui
         return [
+            ui.connectionPanel,
             ui.devicePanel,
             ui.samplePanel,
             ui.measurementPanel,
@@ -183,6 +205,7 @@ class MainWindow(QMainWindow):
         session.buttons_changed.connect(ui.measurementPanel.set_state)
         session.status_changed.connect(ui.deviceStatusPanel.set_status)
         session.settings_locked.connect(ui.devicePanel.set_locked)
+        session.settings_locked.connect(ui.connectionPanel.set_locked)
         session.tabs_locked.connect(self._lock_tabs)
         session.progress_cleared.connect(ui.measurementPanel.clear_progress)
         session.message.connect(
@@ -208,7 +231,46 @@ class MainWindow(QMainWindow):
         ctrl.device_state_updated.connect(self._on_device_state)
         ctrl.progress_updated.connect(ui.measurementPanel.set_progress)
 
+    def _setup_connection(self) -> None:
+        """Wire the connection panel and publish the initial link state."""
+        panel, connection = self.ui.connectionPanel, self.connection
+        panel.connect_requested.connect(connection.connect_port)
+        panel.disconnect_requested.connect(connection.disconnect_port)
+        panel.refresh_requested.connect(connection.refresh_ports)
+        connection.ports_changed.connect(panel.set_ports)
+        connection.state_changed.connect(panel.set_state)
+        connection.connected_changed.connect(self._on_connected_changed)
+        connection.notify.connect(self.notify)
+        panel.set_baud_fixed(connection.simulated)
+        _port, baud = connection.last_used()
+        if self.device_manager.connected:
+            baud = self.device_manager.baudrate
+        if baud:
+            panel.set_baud(baud)
+        if self.simulation is not None:
+            self.setWindowTitle(
+                self.config.text(
+                    "main_window.text_title_simulation", title=self.windowTitle()
+                )
+            )
+        connection.publish_state()
+        if self.simulation is not None:
+            self.notify(self.config.message("simulation_active"), "orange")
+        elif not self.device_manager.connected:
+            self._status_bar.show_message(self.config.message("please_connect"))
+
     # ==================== Slots ====================
+
+    def _on_connected_changed(self, connected: bool) -> None:
+        self.session.set_connected(connected)
+        self.ui.devicePanel.set_connected(connected)
+        if connected:
+            self._status_bar.show_message(
+                self.config.message("connected").format(self.device_manager.port),
+                duration=CONNECTED_MESSAGE_MS,
+            )
+        elif not self.ctrl.is_reconnecting:
+            self._on_device_info({})
 
     def current_tab(self) -> PlotTabBase | None:
         tab = self.ui.tabWidget.currentWidget()
@@ -401,4 +463,6 @@ class MainWindow(QMainWindow):
         if self._persist:
             self._save_layout()
         self.ctrl.cleanup(disconnect=not self._keep_device)
+        if self._owns_simulation and self.simulation is not None:
+            self.simulation.stop()
         event.accept()

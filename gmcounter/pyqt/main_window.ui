@@ -196,6 +196,9 @@
           <number>4</number>
          </property>
          <item>
+          <widget class="ConnectionPanel" name="connectionPanel"/>
+         </item>
+         <item>
           <widget class="ReadoutPanel" name="readoutPanel"/>
          </item>
          <item>
@@ -283,7 +286,7 @@
     <string>Anzeige</string>
    </property>
    <property name="toolTip">
-    <string>Seitenleiste mit Zählergebnissen und Gerätestatus ein- oder ausblenden</string>
+    <string>Seitenleiste mit Verbindung, Zählergebnissen und Gerätestatus ein- oder ausblenden</string>
    </property>
   </action>
   <action name="actionToggleLog">
@@ -321,6 +324,12 @@
   </action>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>ConnectionPanel</class>
+   <extends>QGroupBox</extends>
+   <header>gmcounter.ui.panels.connection_panel</header>
+   <container>1</container>
+  </customwidget>
   <customwidget>
    <class>DevicePanel</class>
    <extends>QGroupBox</extends>

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from gmcounter.infrastructure.config import AppConfig
+from gmcounter.ui.panels.connection_panel import ConnectionPanel
 from gmcounter.ui.panels.device_panel import DevicePanel
 from gmcounter.ui.panels.device_status_panel import DeviceStatusPanel
 from gmcounter.ui.panels.event_log_panel import EventLogPanel
@@ -13,6 +14,7 @@ from gmcounter.ui.panels.readout_panel import ReadoutPanel
 from gmcounter.ui.panels.sample_panel import SamplePanel
 
 TITLED_PANELS = {
+    ConnectionPanel: "connection_panel",
     DevicePanel: "device_panel",
     SamplePanel: "sample_panel",
     MeasurementPanel: "measurement_panel",

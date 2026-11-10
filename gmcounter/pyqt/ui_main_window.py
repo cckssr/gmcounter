@@ -56,6 +56,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from gmcounter.ui.panels.connection_panel import ConnectionPanel
 from gmcounter.ui.panels.device_panel import DevicePanel
 from gmcounter.ui.panels.device_status_panel import DeviceStatusPanel
 from gmcounter.ui.panels.event_log_panel import EventLogPanel
@@ -189,6 +190,11 @@ class Ui_MainWindow(object):
         self.contentLiveLayout.setSpacing(6)
         self.contentLiveLayout.setObjectName("contentLiveLayout")
         self.contentLiveLayout.setContentsMargins(4, 4, 4, 4)
+        self.connectionPanel = ConnectionPanel(self.contentLive)
+        self.connectionPanel.setObjectName("connectionPanel")
+
+        self.contentLiveLayout.addWidget(self.connectionPanel)
+
         self.readoutPanel = ReadoutPanel(self.contentLive)
         self.readoutPanel.setObjectName("readoutPanel")
 
@@ -274,7 +280,7 @@ class Ui_MainWindow(object):
         self.actionToggleLive.setToolTip(
             QCoreApplication.translate(
                 "MainWindow",
-                "Seitenleiste mit Z\u00e4hlergebnissen und Ger\u00e4testatus ein- oder ausblenden",
+                "Seitenleiste mit Verbindung, Z\u00e4hlergebnissen und Ger\u00e4testatus ein- oder ausblenden",
                 None,
             )
         )

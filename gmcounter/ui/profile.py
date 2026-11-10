@@ -2,7 +2,7 @@
 
 The renamed texts of a profile are plain config overrides merged by ``load_config``; this module
 only hides things. Widgets are addressed by Designer object name below a *root*: the main
-window, one of the dock panels (``device_panel``, ``device_status_panel`` ...) or a tab id
+window, one of the dock panels (``connection_panel``, ``device_panel``, ``device_status_panel`` ...) or a tab id
 (``gm_timing``). There is no second code path: a hidden control keeps its default value.
 """
 
@@ -26,6 +26,7 @@ def profile_roots(window: MainWindow) -> dict[str, QObject]:
     ui = window.ui
     return {
         "main_window": window,
+        "connection_panel": ui.connectionPanel,
         "device_panel": ui.devicePanel,
         "sample_panel": ui.samplePanel,
         "measurement_panel": ui.measurementPanel,

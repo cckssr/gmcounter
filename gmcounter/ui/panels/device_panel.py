@@ -27,6 +27,8 @@ class DevicePanel(QGroupBox):
         self.ui.setupUi(self)
         self._duration_presets_s: tuple[int, ...] = _DEFAULT_DURATIONS_S
         self._warning_threshold_v = _DEFAULT_VOLTAGE_WARNING_V
+        self._locked = False
+        self._connected = True
         self.ui.buttonApply.clicked.connect(self.apply_requested)
         self.ui.dialVoltage.valueChanged.connect(self.ui.spinVoltage.setValue)
         self.ui.spinVoltage.valueChanged.connect(self._on_voltage_changed)
@@ -77,10 +79,16 @@ class DevicePanel(QGroupBox):
         """Show ``volts`` in the spin box and the dial."""
         self.ui.spinVoltage.setValue(int(volts))
 
+    def set_connected(self, connected: bool) -> None:
+        """Settings can be entered at any time, but only applied to a connected device."""
+        self._connected = connected
+        self.ui.buttonApply.setEnabled(connected and not self._locked)
+
     def set_locked(self, locked: bool) -> None:
         """Disable (``True``) or re-enable every control while a measurement runs."""
+        self._locked = locked
+        self.ui.buttonApply.setEnabled(self._connected and not locked)
         for widget in (
-            self.ui.buttonApply,
             self.ui.spinVoltage,
             self.ui.dialVoltage,
             self.ui.comboDuration,
