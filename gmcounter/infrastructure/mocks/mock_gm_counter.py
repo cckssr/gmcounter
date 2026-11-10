@@ -69,7 +69,6 @@ class MockGMCounter:
         self._stream_mode = 0
         self._start_marker_pending = False
         self._end_marker_pending = False  # True when period ends in streaming mode
-        self._counting_only = False
         self._first_pulse_done = (
             False  # True after first pulse; suppresses start→first-pulse packet
         )
@@ -98,7 +97,7 @@ class MockGMCounter:
         }
         return data if data["voltage"] != 0 else None
 
-    def get_information(self) -> Dict[str, str]:
+    def get_information(self, use_cache: bool = True) -> Dict[str, str]:
         return {
             "copyright": "(C) 2024 TU Berlin - Mock GM Counter",
             "version": "Mock v1.0.0 (GMCounter Test Device)",
@@ -118,7 +117,6 @@ class MockGMCounter:
     def set_counting(self, value: bool = False) -> None:
         if value and not self._counting:
             self._counting = True
-            self._counting_only = False
             self._last_count = self._count
             self._count = 0
             self._measurement_start_time = time.time()
@@ -134,28 +132,7 @@ class MockGMCounter:
             _log.info("MockGMCounter: counting started")
         elif not value and self._counting:
             self._counting = False
-            self._counting_only = False
             _log.info("MockGMCounter: counting stopped (count=%d)", self._count)
-
-    def set_counting_only(self, value: bool = False) -> None:
-        """Start/stop counter without the streaming interrupt (no packet emission)."""
-        if value and not self._counting:
-            self._counting = True
-            self._counting_only = True
-            self._last_count = self._count
-            self._count = 0
-            self._measurement_start_time = time.time()
-            self._next_pulse_interval = (
-                self._pulse_interval_us / 1_000_000
-                if self._pulse_interval_us is not None
-                else random.uniform(self._min_tick, self.max_tick)
-            )
-            self.next_pulse_time = time.time() + self._next_pulse_interval
-            _log.info("MockGMCounter: counter-only started")
-        elif not value and self._counting:
-            self._counting = False
-            self._counting_only = False
-            _log.info("MockGMCounter: counter-only stopped (count=%d)", self._count)
 
     def set_speaker(self, gm: bool = False, ready: bool = False) -> None:
         self._speaker_gm = gm
@@ -185,7 +162,6 @@ class MockGMCounter:
             return f"TU Berlin,GM-Counter,MOCK-001,{info['version']}"
         if upper == "*RST":
             self.set_counting(False)
-            self._counting_only = False
             self._voltage = 500
             self._repeat = False
             self._counting_time_mode = 2
@@ -207,14 +183,6 @@ class MockGMCounter:
             return None
         if upper in ("ABOR", "ABORT"):
             self.set_counting(False)
-            return None
-
-        # ── MEASure (counter-only, no streaming interrupt) ──
-        if upper in ("MEAS:STRT", "MEASURE:START"):
-            self.set_counting_only(True)
-            return None
-        if upper in ("MEAS:STP", "MEASURE:STOP"):
-            self.set_counting_only(False)
             return None
 
         # ── FETCh ──
@@ -285,26 +253,19 @@ class MockGMCounter:
         return None
 
     def tick(self) -> Optional[int]:
-        """Return inter-event time in µs if a packet-streaming pulse is due, else None.
-
-        Returns None in counter-only mode (_counting_only=True) — the count still
-        increments but no binary packet is emitted.
-        """
+        """Return inter-event time in µs if a packet-streaming pulse is due, else None."""
         if not self._counting:
             return None
 
         ct_map = {0: 0, 1: 1, 2: 10, 3: 60, 4: 100, 5: 300}
         limit = ct_map.get(self._counting_time_mode, 0)
         if limit > 0 and (time.time() - self._measurement_start_time) >= limit:
-            if self._counting_only:
-                self.set_counting_only(False)
-            else:
-                # Streaming mode: emit the end-of-period sentinel before stopping.
-                # The sentinel is queued here; run_pty_server() writes it to the PTY.
-                if not self._end_marker_pending:
-                    self._end_marker_pending = True
-                    _log.info("MockGMCounter: period ended — end marker pending")
-                self.set_counting(False)
+            # Emit the end-of-period sentinel before stopping.
+            # The sentinel is queued here; run_pty_server() writes it to the PTY.
+            if not self._end_marker_pending:
+                self._end_marker_pending = True
+                _log.info("MockGMCounter: period ended — end marker pending")
+            self.set_counting(False)
             return None
 
         if time.time() >= self.next_pulse_time:
@@ -326,7 +287,7 @@ class MockGMCounter:
                 # first event at t=0. Subsequent packets are first→second, second→third, …
                 self._first_pulse_done = True
                 return None
-            return None if self._counting_only else interval_us
+            return interval_us
 
         return None
 
