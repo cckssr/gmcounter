@@ -38,8 +38,11 @@ def profile_roots(window: MainWindow) -> dict[str, QObject]:
 
 
 def _keep_rows_left_aligned(root: QObject, hidden: QWidget) -> None:
-    """A box layout row whose only stretching item is now hidden would spread the remaining
-    items over the whole width: give the row a trailing stretch instead."""
+    """Keep a box layout row compact when its only stretching item is hidden.
+
+    Such a row would spread the remaining items over the whole width: give the row a
+    trailing stretch instead.
+    """
     for layout in root.findChildren(QBoxLayout):
         index = layout.indexOf(hidden)
         if index < 0 or layout.stretch(index) <= 0:
@@ -58,8 +61,11 @@ def _keep_rows_left_aligned(root: QObject, hidden: QWidget) -> None:
 
 
 def apply_profile(window: MainWindow) -> list[str]:
-    """Hide the widgets of the active profile; returns the names that could not be found
-    (``root.name``), which are also logged: a typo must not pass silently."""
+    """Hide the widgets of the active profile.
+
+    Returns the names that could not be found (``root.name``), which are also logged: a
+    typo must not pass silently.
+    """
     cfg = window.config
     roots = profile_roots(window)
     missing: list[str] = []

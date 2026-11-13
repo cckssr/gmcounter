@@ -1,6 +1,7 @@
 """The Designer forms carry the German strings from config.json and open on their own.
 
-Regenerate out-of-date forms with ``gmcounter/pyqt/pyuic.sh``."""
+Regenerate out-of-date forms with ``gmcounter/pyqt/pyuic.sh``.
+"""
 
 from __future__ import annotations
 

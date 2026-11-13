@@ -1,5 +1,8 @@
-"""Profiles: the student profile hides expert controls; the window can be rebuilt with the
-other profile while the connected device manager stays in use."""
+"""Profile tests.
+
+The student profile hides expert controls; the window can be rebuilt with the other
+profile while the connected device manager stays in use.
+"""
 
 from __future__ import annotations
 
@@ -106,8 +109,11 @@ def test_the_switch_action_names_the_target_profile(window, student):
 # ---- launcher ----------------------------------------------------------------------------
 @pytest.fixture
 def launcher():
-    """A launcher with its first window; closed without a question at teardown (the windows
-    are not registered with qtbot, whose plain close would ask about unsaved data)."""
+    """A launcher with its first window.
+
+    Closed without a question at teardown (the windows are not registered with qtbot,
+    whose plain close would ask about unsaved data).
+    """
     launcher = Launcher(make_device_manager(), persist=False)
     launcher.start()
     yield launcher

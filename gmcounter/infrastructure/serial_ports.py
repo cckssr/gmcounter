@@ -12,8 +12,11 @@ from serial.tools import list_ports
 
 @dataclass(frozen=True)
 class SerialPortInfo:
-    """One selectable port: the device path, a human-readable description and whether it is
-    a USB serial adapter (the GM counter's Arduino always is)."""
+    """One selectable serial port.
+
+    Holds the device path, a human-readable description and whether it is a USB serial
+    adapter (the GM counter's Arduino always is).
+    """
 
     device: str
     description: str = ""

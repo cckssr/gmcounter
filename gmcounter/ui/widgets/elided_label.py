@@ -8,8 +8,10 @@ from PySide6.QtWidgets import QLabel, QWidget
 
 
 class ElidedLabel(QLabel):
-    """Shows ``text`` on one line, cut out in the middle (``…``) when it does not fit; the full
-    text is the tooltip. Never forces the layout wider (minimum width is small)."""
+    """Label that shows ``text`` on one line, cut out in the middle (``…``) if too long.
+
+    The full text is the tooltip. Never forces the layout wider (minimum width is small).
+    """
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)

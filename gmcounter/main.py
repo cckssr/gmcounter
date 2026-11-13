@@ -54,8 +54,11 @@ CONFIG = import_config()
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Command line: ``--profile`` selects an entry of the ``profiles`` config section,
-    ``--simulate`` runs on the simulated counter."""
+    """Parse the command line.
+
+    ``--profile`` selects an entry of the ``profiles`` config section, ``--simulate`` runs
+    on the simulated counter.
+    """
     parser = argparse.ArgumentParser(prog="gmcounter")
     parser.add_argument(
         "--profile",

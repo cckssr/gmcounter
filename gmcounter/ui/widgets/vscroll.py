@@ -7,8 +7,11 @@ from PySide6.QtWidgets import QScrollArea
 
 
 def lock_vertical_scroll(scroll: QScrollArea) -> int:
-    """Never show a horizontal scrollbar; the area's minimum width is the content's minimum
-    width plus the vertical scrollbar and frame. Returns that width."""
+    """Never show a horizontal scrollbar on ``scroll``.
+
+    The area's minimum width is the content's minimum width plus the vertical scrollbar and
+    frame. Returns that width.
+    """
     scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
     content = scroll.widget()
     content.setMinimumWidth(0)

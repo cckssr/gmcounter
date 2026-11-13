@@ -141,8 +141,11 @@ class SessionController(QObject):
     # Frame routing
 
     def on_tab_changed(self, tab: "PlotTabBase | None") -> None:
-        """Route the acquired frames: to the selected tab if it consumes them itself,
-        else to the timing tab (not while an own-frames session is running)."""
+        """Route the acquired frames to the right tab.
+
+        They go to the selected tab if it consumes them itself, else to the timing tab
+        (not while an own-frames session is running).
+        """
         if tab is None:
             return
         if tab.receives_frames:

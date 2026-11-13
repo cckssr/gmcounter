@@ -379,8 +379,11 @@ class MainWindow(QMainWindow):
         self.ui.eventLogPanel.append(text, color)
 
     def close_for_switch(self) -> bool:
-        """Close for a profile switch: the device stays connected for the next window and the
-        unsaved-data question is not asked (a switch is refused while data exists)."""
+        """Close for a profile switch.
+
+        The device stays connected for the next window and the unsaved-data question is not
+        asked (a switch is refused while data exists).
+        """
         self._keep_device = True
         try:
             return self.close()
