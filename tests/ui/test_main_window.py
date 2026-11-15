@@ -128,8 +128,11 @@ def test_the_layout_is_saved_per_profile_and_restored(
     first.resize(1100, 700)
     first.close()  # closing releases the device, so the next window gets its own manager
     settings = layout_settings()
-    assert settings.value("window/geometry") is not None
-    assert settings.value("window/state") is not None
+    # the student profile is the default and keeps the plain keys; the expert profile
+    # (the `config` fixture) has its own
+    assert settings.value("window/expert/geometry") is not None
+    assert settings.value("window/expert/state") is not None
+    assert settings.value("window/geometry") is None
 
     second = MainWindow(config, make_device_manager(), persist=True)
     qtbot.addWidget(second)

@@ -16,7 +16,7 @@ This is a major release: the user interface was rebuilt from the ground up. The 
 - Dock layout with three dockable side panels (controls, connection with live readout and device status, event log) around a central tab area. The toolbar shows or hides each panel and toggles full-screen mode.
 - Connection panel that replaces the connection dialog. It lists the serial ports, preselects the last used port and baud rate, shows the states disconnected, connecting, connected, reconnecting, failed and lost, and connects in a worker thread so the window never blocks.
 - `gmcounter --simulate` runs the application on a simulated GM counter (mock device on a pseudo-terminal), so every experiment can be tried without hardware. It needs a source checkout and a Unix-like OS.
-- UI profiles `expert` and `student` (Praktikum), selected with `gmcounter --profile <id>` or `application.profile` in `config.json`. A profile hides tabs and widgets purely through configuration, and the toolbar switches it at run time on the same device connection.
+- UI profiles `student` (Praktikum) and `expert`, selected with `gmcounter --profile <id>` or `application.profile` in `config.json`. The student profile is the default, and `gmcounter --help` says so. A profile hides tabs and widgets purely through configuration, and the toolbar switches it at run time on the same device connection.
 - Experiment tabs from a registry: Einzelmessung (timing), Abstandsgesetz (distance law), Spannungskurve (voltage response) and Intervalle (interval repeat). A new tab is a registered class plus a form, with no change to the main window.
 - Interval tab that bins one continuous acquisition into equal-width intervals, with incremental plot refresh and one detail file per interval.
 - Histogram bin-size and cut-off controls.
@@ -28,6 +28,7 @@ This is a major release: the user interface was rebuilt from the ground up. The 
 
 ### Changed
 
+- **Breaking:** `gmcounter` without options starts the reduced `student` (Praktikum) profile, which hides the baud rate, the query mode and some readback rows. Use `gmcounter --profile expert` (or set `application.profile` to `expert`) for every control. Each profile keeps its own saved window layout.
 - **Breaking:** the application opens unconnected. Connect in the connection panel; Start and Apply stay disabled until the link is up. The connection dialog and `ConnectionWindow` no longer exist.
 - **Breaking:** the Python structure of the UI layer changed. `MainWindow` takes `(config, device_manager=None, persist=True, *, simulate=False, simulation=None)`, tabs are built as `Tab(context)` with an `AppContext`, and `Launcher` owns the `DeviceManager`. Code that imported the old `ui_mainwindow`, `ConnectionWindow` or `DataController` must be updated.
 - **Breaking:** `core.services.SaveService` was renamed to `SaveState` (it only tracks the unsaved flag and the base directory). Writing is done by `infrastructure.save_service`.

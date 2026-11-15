@@ -13,7 +13,7 @@ GMCounter is a PySide6 desktop GUI for a Geiger-Müller counter device connected
 python -m gmcounter
 # or after pip install -e .
 gmcounter
-python -m gmcounter --profile student   # UI profile: expert (default) or student (Praktikum)
+python -m gmcounter --profile expert    # UI profile: student (Praktikum, default) or expert (every control)
 python -m gmcounter --simulate          # simulated GM counter (MockGMCounter on a PTY), no hardware
 
 # Tests
@@ -140,8 +140,9 @@ After any `.ui` edit run `bash gmcounter/pyqt/pyuic.sh [form]` to regenerate bef
 
 **Profiles**: `profiles.<id>` in config.json with `name`, `hidden_tabs` (tab ids), `hidden_widgets` (root → object names) and `overrides` (merged over the defaults for this profile).
 
-- `expert` (Experte) hides nothing; `student` (Praktikum) hides the baud rate, the query mode and some readback rows
-- select with `--profile <id>` or `application.profile`; the toolbar action (`actionSwitchProfile`) switches at run time through `Launcher`
+- `student` (Praktikum) is the **default** (`application.profile` in config.json, and `DEFAULT_PROFILE` in `infrastructure/config.py` as the fallback) and hides the baud rate, the query mode and some readback rows; `expert` (Experte) hides nothing
+- the `config` fixture of `tests/ui/conftest.py` is the expert profile, so tests see every control; test the default with `load_config()`
+- select with `--profile <id>` (`gmcounter --help` names the default) or `application.profile`; the toolbar action (`actionSwitchProfile`) switches at run time through `Launcher`
 - a profile is config only: no code change; hidden controls keep their default values
 - tests: `tests/ui/test_profile.py`; `tests/ui/test_designer_forms.py` and `test_main_window_strings.py` check forms and texts
 

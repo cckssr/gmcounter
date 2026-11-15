@@ -1,8 +1,9 @@
 """GMCounter - main program of the Geiger-Mueller counter GUI application.
 
 Flags:
-    --profile   UI profile of the main window (expert or student); default:
-                ``application.profile`` of config.json. The toolbar can switch it at run time.
+    --profile   UI profile of the main window: ``student`` (Praktikum, the default) or
+                ``expert`` (all controls). The default is ``application.profile`` of
+                config.json. The toolbar can switch the profile at run time.
     --simulate  Run on a simulated GM counter (mock on a pseudo-terminal, no hardware needed).
 
 The window opens directly; the device is connected in its connection panel.
@@ -22,7 +23,7 @@ from PySide6.QtWidgets import QApplication  # pylint: disable=no-name-in-module
 from .infrastructure.logging import Debug
 from .infrastructure.simulation import simulation_available
 from .ui.launcher import Launcher
-from .infrastructure.config import import_config
+from .infrastructure.config import DEFAULT_PROFILE, import_config
 
 _qt_log = logging.getLogger("gmcounter.qt")
 
@@ -59,12 +60,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ``--profile`` selects an entry of the ``profiles`` config section, ``--simulate`` runs
     on the simulated counter.
     """
-    parser = argparse.ArgumentParser(prog="gmcounter")
+    default_profile = CONFIG.get("application", {}).get("profile", DEFAULT_PROFILE)
+    parser = argparse.ArgumentParser(
+        prog="gmcounter",
+        description="GMCounter: Geiger-Mueller counter GUI. "
+        f"Without options it starts the '{default_profile}' profile.",
+    )
     parser.add_argument(
         "--profile",
-        choices=sorted(CONFIG.get("profiles", {}) or ["expert"]),
+        choices=sorted(CONFIG.get("profiles", {}) or [default_profile]),
         default=None,
-        help="UI profile (default: application.profile from config.json)",
+        help=f"UI profile; 'student' is the reduced Praktikum interface, 'expert' shows "
+        f"every control (default: {default_profile}, from application.profile in config.json)",
     )
     parser.add_argument(
         "--simulate",

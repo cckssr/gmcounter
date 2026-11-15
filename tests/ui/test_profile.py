@@ -91,11 +91,32 @@ def test_the_cli_profile_selects_the_student_profile():
     from gmcounter.main import parse_args
 
     assert parse_args(["--profile", "student"]).profile == "student"
-    assert parse_args([]).profile is None
+    assert parse_args(["--profile", "expert"]).profile == "expert"
+    assert parse_args([]).profile is None  # none given: application.profile applies
 
 
-def test_the_default_profile_is_expert_and_next_profile_cycles():
-    assert load_config().profile == "expert"
+def test_the_help_names_student_as_the_default(capsys):
+    from gmcounter.main import parse_args
+
+    with pytest.raises(SystemExit):
+        parse_args(["--help"])
+    out = " ".join(capsys.readouterr().out.split())
+    assert "default: student" in out
+    assert "starts the 'student' profile" in out
+
+
+def test_a_launcher_without_a_profile_opens_the_student_window(qtbot):
+    launcher = Launcher(make_device_manager(), persist=False)
+    try:
+        assert launcher.start().config.profile == "student"
+    finally:
+        launcher.window.close_for_switch()
+
+
+def test_the_default_profile_is_student_and_next_profile_cycles():
+    assert load_config().profile == "student"
+    assert load_config().profile_name == "Praktikum"
+    assert load_config(profile="expert").profile == "expert"
     assert next_profile("expert", ["expert", "student"]) == "student"
     assert next_profile("student", ["expert", "student"]) == "expert"
 
@@ -114,7 +135,7 @@ def launcher():
     Closed without a question at teardown (the windows are not registered with qtbot,
     whose plain close would ask about unsaved data).
     """
-    launcher = Launcher(make_device_manager(), persist=False)
+    launcher = Launcher(make_device_manager(), profile="expert", persist=False)
     launcher.start()
     yield launcher
     if launcher.window is not None:

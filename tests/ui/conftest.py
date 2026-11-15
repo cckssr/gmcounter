@@ -24,8 +24,8 @@ def layout_settings(tmp_path_factory, monkeypatch):
 
 @pytest.fixture
 def config() -> AppConfig:
-    """The packaged config.json (German strings, defaults)."""
-    return load_config()
+    """The packaged config.json with the expert profile (every control visible)."""
+    return load_config(profile="expert")
 
 
 class IdleDevice:

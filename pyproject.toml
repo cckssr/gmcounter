@@ -56,6 +56,8 @@ Repository = "https://github.com/cckssr/gmcounter"
 Issues = "https://github.com/cckssr/gmcounter/issues"
 
 [project.gui-scripts]
+# Starts the Praktikum (student) profile by default; `gmcounter --profile expert` shows every
+# control. The default is application.profile in gmcounter/config.json.
 gmcounter = "gmcounter.main:main"
 
 [tool.setuptools.packages.find]

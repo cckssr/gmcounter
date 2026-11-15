@@ -4,7 +4,7 @@ Desktop application for a Geiger-Müller counter on USB serial. GMCounter record
 
 ![GMCounter main window: controls on the left, the experiment tabs in the middle, connection and live readout on the right](docs/20261115-Gmcounter-Haupt.png)
 
-The screenshots show the `student` profile (Praktikum). The interface language is German.
+The screenshots show the `student` profile (Praktikum), which is the default. The interface language is German.
 
 ## Quick start
 
@@ -13,7 +13,7 @@ pip install "git+https://github.com/cckssr/gmcounter.git"
 gmcounter --simulate     # simulated counter, no hardware needed
 ```
 
-Click **Verbinden** in the connection panel (top right) to connect to the simulated device, set the counting time and voltage, and press **Start**. With a real counter, leave out `--simulate`, pick the serial port in the connection panel and connect.
+`gmcounter` opens the reduced Praktikum interface; add `--profile expert` for every control. Click **Verbinden** in the connection panel (top right) to connect to the simulated device, set the counting time and voltage, and press **Start**. With a real counter, leave out `--simulate`, pick the serial port in the connection panel and connect.
 
 ## Experiments
 
@@ -34,14 +34,16 @@ Data is saved as CSV with a sidecar `*_MD.json` file that holds the metadata (sa
 
 | Profile | For | Interface |
 | --- | --- | --- |
-| `expert` (default) | Research and development | All controls, including baud rate and query mode. |
-| `student` | Lab courses | Reduced controls, with the same experiments. |
+| `student` (default) | Lab courses (Praktikum) | Reduced controls, with the same experiments. The baud rate, the query mode and some readback rows are hidden. |
+| `expert` | Research and development | Every control. |
+
+`gmcounter` starts the `student` profile. Ask for every control with:
 
 ```bash
-gmcounter --profile student
+gmcounter --profile expert
 ```
 
-The toolbar switches the profile while the application runs. A profile is configuration only (`profiles` in `gmcounter/config.json`).
+`gmcounter --help` lists the options and names the default. The toolbar switches the profile while the application runs. A profile is configuration only: `application.profile` in `gmcounter/config.json` sets the default and `profiles` defines each one.
 
 ## Installation
 

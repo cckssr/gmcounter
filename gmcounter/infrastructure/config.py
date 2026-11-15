@@ -14,7 +14,7 @@ from typing import Any
 from .logging import Debug
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.json"
-DEFAULT_PROFILE = "expert"
+DEFAULT_PROFILE = "student"  # Praktikum: the profile the application starts with
 LANGUAGE_KEY = "de"
 _log = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ def load_config(
     """Load config.json (UTF-8) and unwrap the ``"de"`` language key.
 
     A missing or broken file yields an empty config (logged). ``profile`` (default:
-    ``application.profile``, else ``"expert"``) selects the entry of ``profiles`` whose
+    ``application.profile``, else ``"student"``) selects the entry of ``profiles`` whose
     ``overrides`` are merged over the defaults; the caller's ``overrides`` come last. An unknown
     profile is logged and replaced by the default one; the ``profiles`` section may be absent.
     """

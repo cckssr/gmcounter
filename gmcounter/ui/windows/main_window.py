@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QMainWindow, QWidget
 from gmcounter.pyqt.ui_main_window import Ui_MainWindow
 
 from ...core.services import SaveState
-from ...infrastructure.config import AppConfig
+from ...infrastructure.config import DEFAULT_PROFILE, AppConfig
 from ...infrastructure.device_manager import DeviceManager
 from ...infrastructure.modules.registry import ModuleRegistry
 from ...infrastructure.simulation import SimulatedCounter
@@ -36,7 +36,6 @@ _log = logging.getLogger(__name__)
 WINDOW_MODES = ("maximized", "fullscreen", "normal")
 SETTINGS_ORGANISATION = "gmcounter"
 SETTINGS_APPLICATION = "gmcounter"
-DEFAULT_PROFILE = "expert"
 TAB_COLORS = {"info": "green", "warning": "orange", "error": "red"}
 VOLTAGE_WARNING_MS = 3000
 CONNECTED_MESSAGE_MS = 3000

@@ -320,7 +320,7 @@ def test_the_simulated_window_connects_and_measures(
 def test_the_launcher_keeps_one_simulation_across_a_profile_switch(qtbot):
     from gmcounter.ui.launcher import Launcher
 
-    launcher = Launcher(persist=False, simulate=True)
+    launcher = Launcher(profile="expert", persist=False, simulate=True)
     try:
         first = launcher.start()
         port = launcher.simulation.port

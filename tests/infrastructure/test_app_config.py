@@ -56,9 +56,9 @@ def test_with_overrides_merges_deeply_without_touching_the_original() -> None:
     assert cfg.text("greeting") == "Hallo {name}"
 
 
-def test_profiles_default_to_expert_and_are_optional() -> None:
+def test_profiles_default_to_student_and_are_optional() -> None:
     cfg = _config()
-    assert cfg.profile == "expert"
+    assert cfg.profile == "student"
     assert cfg.profile_names == []
     assert cfg.hidden_tabs() == []
     assert cfg.hidden_widgets() == {}
@@ -92,7 +92,7 @@ def test_load_config_applies_the_selected_profile(tmp_path: Path) -> None:
         "Praktikum",
         ["t"],
     )
-    assert load_config(path, profile="unknown").profile == "expert"
+    assert load_config(path, profile="unknown").profile == "student"
 
 
 def test_load_config_survives_a_missing_file(tmp_path: Path) -> None:
