@@ -112,6 +112,7 @@ class Ui_IntervalTab(object):
 
         self.valueStatus = QLabel(IntervalTab)
         self.valueStatus.setObjectName("valueStatus")
+        self.valueStatus.setWordWrap(True)
 
         self.layoutIntervalControls.addWidget(self.valueStatus)
 

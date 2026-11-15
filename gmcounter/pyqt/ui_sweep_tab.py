@@ -90,6 +90,7 @@ class Ui_SweepTab(object):
         self.labelHint = QLabel(SweepTab)
         self.labelHint.setObjectName("labelHint")
         self.labelHint.setFont(font1)
+        self.labelHint.setWordWrap(True)
 
         self.layoutSweepControls.addWidget(self.labelHint)
 
@@ -101,6 +102,7 @@ class Ui_SweepTab(object):
 
         self.valueStatus = QLabel(SweepTab)
         self.valueStatus.setObjectName("valueStatus")
+        self.valueStatus.setWordWrap(True)
 
         self.layoutSweepControls.addWidget(self.valueStatus)
 

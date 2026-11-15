@@ -110,7 +110,11 @@
       </spacer>
      </item>
      <item>
-      <widget class="QLabel" name="valueStatus"/>
+      <widget class="QLabel" name="valueStatus">
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
