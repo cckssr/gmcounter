@@ -113,7 +113,7 @@ class Ui_DeviceStatusPanel(object):
         sizePolicy2.setVerticalStretch(0)
         sizePolicy2.setHeightForWidth(self.lcdVoltage.sizePolicy().hasHeightForWidth())
         self.lcdVoltage.setSizePolicy(sizePolicy2)
-        self.lcdVoltage.setMinimumSize(QSize(70, 36))
+        self.lcdVoltage.setMinimumSize(QSize(70, 24))
         self.lcdVoltage.setDigitCount(3)
         self.lcdVoltage.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
 
@@ -132,7 +132,7 @@ class Ui_DeviceStatusPanel(object):
         self.lcdDuration.setObjectName("lcdDuration")
         sizePolicy2.setHeightForWidth(self.lcdDuration.sizePolicy().hasHeightForWidth())
         self.lcdDuration.setSizePolicy(sizePolicy2)
-        self.lcdDuration.setMinimumSize(QSize(70, 36))
+        self.lcdDuration.setMinimumSize(QSize(70, 24))
         self.lcdDuration.setDigitCount(3)
         self.lcdDuration.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
 

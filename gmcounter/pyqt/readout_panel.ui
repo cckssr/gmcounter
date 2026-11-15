@@ -41,7 +41,7 @@
      <property name="minimumSize">
       <size>
        <width>120</width>
-       <height>36</height>
+       <height>24</height>
       </size>
      </property>
      <property name="digitCount">
@@ -76,7 +76,7 @@
      <property name="minimumSize">
       <size>
        <width>120</width>
-       <height>36</height>
+       <height>24</height>
       </size>
      </property>
      <property name="digitCount">
@@ -111,7 +111,7 @@
      <property name="minimumSize">
       <size>
        <width>120</width>
-       <height>36</height>
+       <height>24</height>
       </size>
      </property>
      <property name="digitCount">

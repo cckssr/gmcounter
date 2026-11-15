@@ -72,15 +72,13 @@ class Ui_SweepTab(object):
         self.layoutSweepControls.setObjectName("layoutSweepControls")
         self.labelParam = QLabel(SweepTab)
         self.labelParam.setObjectName("labelParam")
-        font1 = QFont()
-        font1.setPointSize(14)
-        self.labelParam.setFont(font1)
+        self.labelParam.setFont(font)
 
         self.layoutSweepControls.addWidget(self.labelParam)
 
         self.spinParam = QDoubleSpinBox(SweepTab)
         self.spinParam.setObjectName("spinParam")
-        self.spinParam.setFont(font1)
+        self.spinParam.setFont(font)
         self.spinParam.setDecimals(1)
         self.spinParam.setMaximum(99999.000000000000000)
         self.spinParam.setSingleStep(0.500000000000000)
@@ -89,8 +87,9 @@ class Ui_SweepTab(object):
 
         self.labelHint = QLabel(SweepTab)
         self.labelHint.setObjectName("labelHint")
-        self.labelHint.setFont(font1)
-        self.labelHint.setWordWrap(True)
+        self.labelHint.setFont(font)
+        self.labelHint.setTextFormat(Qt.TextFormat.PlainText)
+        self.labelHint.setWordWrap(False)
 
         self.layoutSweepControls.addWidget(self.labelHint)
 

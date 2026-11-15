@@ -34,7 +34,7 @@
       <widget class="QLabel" name="labelWidth">
        <property name="font">
         <font>
-         <pointsize>14</pointsize>
+         <pointsize>11</pointsize>
         </font>
        </property>
        <property name="text">
@@ -46,7 +46,7 @@
       <widget class="QDoubleSpinBox" name="spinWidth">
        <property name="font">
         <font>
-         <pointsize>14</pointsize>
+         <pointsize>11</pointsize>
         </font>
        </property>
        <property name="suffix">
@@ -70,7 +70,7 @@
       <widget class="QLabel" name="labelRepeats">
        <property name="font">
         <font>
-         <pointsize>14</pointsize>
+         <pointsize>11</pointsize>
         </font>
        </property>
        <property name="text">
@@ -82,7 +82,7 @@
       <widget class="QSpinBox" name="spinRepeats">
        <property name="font">
         <font>
-         <pointsize>14</pointsize>
+         <pointsize>11</pointsize>
         </font>
        </property>
        <property name="minimum">

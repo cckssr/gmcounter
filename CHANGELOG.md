@@ -8,6 +8,10 @@ Add every user-visible change under `## [Unreleased]` in the pull request that m
 
 ## [Unreleased]
 
+### Changed
+
+- Compact layout for 1920x1080 screens with 125 % display scaling: the LCD readouts, the measurement buttons and the text of the experiment tabs are smaller, so the Messparameter dock fits without scrolling.
+
 ## [3.0.0] - 2026-11-15
 
 This is a major release: the user interface was rebuilt from the ground up. The measurement protocol, the exported file formats and the firmware command set are unchanged.
@@ -55,4 +59,3 @@ This is a major release: the user interface was rebuilt from the ground up. The 
 - Voltage and counting-time ranges in the firmware `HELP` output.
 - Corrupted `FETC:STAT?` answers caused by the continuous stream mode on `Serial1`; the device readout ignores incomplete reads instead of showing zeros.
 - The line plot uses a thin pen, and Auto-Scroll survives programmatic range changes.
-

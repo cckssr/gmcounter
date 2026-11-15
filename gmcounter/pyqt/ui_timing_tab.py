@@ -100,15 +100,13 @@ class Ui_TimingTab(object):
 
         self.labelPlotPoints = QLabel(self.pageTime)
         self.labelPlotPoints.setObjectName("labelPlotPoints")
-        font1 = QFont()
-        font1.setPointSize(14)
-        self.labelPlotPoints.setFont(font1)
+        self.labelPlotPoints.setFont(font)
 
         self.layoutPlotControls.addWidget(self.labelPlotPoints)
 
         self.spinPlotPoints = QSpinBox(self.pageTime)
         self.spinPlotPoints.setObjectName("spinPlotPoints")
-        self.spinPlotPoints.setFont(font1)
+        self.spinPlotPoints.setFont(font)
         self.spinPlotPoints.setMinimum(10)
         self.spinPlotPoints.setMaximum(100000)
         self.spinPlotPoints.setSingleStep(10)
@@ -259,7 +257,7 @@ class Ui_TimingTab(object):
         self.layoutBinning.setContentsMargins(-1, -1, -1, 0)
         self.labelBinSize = QLabel(self.pageHistogram)
         self.labelBinSize.setObjectName("labelBinSize")
-        self.labelBinSize.setFont(font1)
+        self.labelBinSize.setFont(font)
 
         self.layoutBinning.addWidget(self.labelBinSize)
 
@@ -281,7 +279,7 @@ class Ui_TimingTab(object):
         sizePolicy2.setHeightForWidth(self.spinBinSize.sizePolicy().hasHeightForWidth())
         self.spinBinSize.setSizePolicy(sizePolicy2)
         self.spinBinSize.setMinimumSize(QSize(80, 0))
-        self.spinBinSize.setFont(font1)
+        self.spinBinSize.setFont(font)
         self.spinBinSize.setFrame(False)
         self.spinBinSize.setReadOnly(True)
         self.spinBinSize.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
@@ -294,7 +292,7 @@ class Ui_TimingTab(object):
 
         self.labelCutoff = QLabel(self.pageHistogram)
         self.labelCutoff.setObjectName("labelCutoff")
-        self.labelCutoff.setFont(font1)
+        self.labelCutoff.setFont(font)
 
         self.layoutBinning.addWidget(self.labelCutoff)
 
@@ -314,7 +312,7 @@ class Ui_TimingTab(object):
         sizePolicy2.setHeightForWidth(self.spinCutoff.sizePolicy().hasHeightForWidth())
         self.spinCutoff.setSizePolicy(sizePolicy2)
         self.spinCutoff.setMinimumSize(QSize(80, 0))
-        self.spinCutoff.setFont(font1)
+        self.spinCutoff.setFont(font)
         self.spinCutoff.setFrame(False)
         self.spinCutoff.setReadOnly(True)
         self.spinCutoff.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
