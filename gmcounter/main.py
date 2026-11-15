@@ -1,18 +1,29 @@
-"""GMCounter - Hauptprogramm für die Geiger-Müller Counter GUI-Anwendung."""
+"""GMCounter - main program of the Geiger-Mueller counter GUI application.
 
+Flags:
+    --profile   UI profile of the main window: ``student`` (Praktikum, the default) or
+                ``expert`` (all controls). The default is ``application.profile`` of
+                config.json. The toolbar can switch the profile at run time.
+    --simulate  Run on a simulated GM counter (mock on a pseudo-terminal, no hardware needed).
+
+The window opens directly; the device is connected in its connection panel.
+"""
+
+import argparse
 import logging
 import sys
 import os
 
-from PySide6.QtCore import qInstallMessageHandler, QtMsgType  # pylint: disable=no-name-in-module
-from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
-    QApplication,
-    QMessageBox,
-)
+from PySide6.QtCore import (
+    qInstallMessageHandler,
+    QtMsgType,
+)  # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import QApplication  # pylint: disable=no-name-in-module
+
 from .infrastructure.logging import Debug
-from .ui.dialogs.connection import ConnectionWindow
-from .ui.windows.main_window import MainWindow
-from .infrastructure.config import import_config
+from .infrastructure.simulation import simulation_available
+from .ui.launcher import Launcher
+from .infrastructure.config import DEFAULT_PROFILE, import_config
 
 _qt_log = logging.getLogger("gmcounter.qt")
 
@@ -28,25 +39,62 @@ def _qt_message_handler(mode, _context, message: str) -> None:
 # from .ui.resources.stylesheet import apply_stylesheet
 
 # If executed as a script (package context missing), ensure the repo root is on
-# sys.path so the gmcounter package is importable.
+# sys.path and set __package__ so relative imports below work correctly.
 if __package__ is None:
+    # src/ is the package directory; parent is repository root
     package_dir = os.path.dirname(__file__)
     repo_root = os.path.dirname(package_dir)
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
+    # define package name to allow relative imports
+    __package__ = "src"
 
 
-# Konfigurationsdatei laden
+# Load the configuration file
 CONFIG = import_config()
 
 
-def main():
-    """Haupteinstiegspunkt der Anwendung.
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse the command line.
 
-    Initialisiert das Debug-System, startet die Verbindungsdialog
-    und erstellt das Hauptfenster.
+    ``--profile`` selects an entry of the ``profiles`` config section, ``--simulate`` runs
+    on the simulated counter.
     """
-    # Debug-System initialisieren
+    default_profile = CONFIG.get("application", {}).get("profile", DEFAULT_PROFILE)
+    parser = argparse.ArgumentParser(
+        prog="gmcounter",
+        description="GMCounter: Geiger-Mueller counter GUI. "
+        f"Without options it starts the '{default_profile}' profile.",
+    )
+    parser.add_argument(
+        "--profile",
+        choices=sorted(CONFIG.get("profiles", {}) or [default_profile]),
+        default=None,
+        help=f"UI profile; 'student' is the reduced Praktikum interface, 'expert' shows "
+        f"every control (default: {default_profile}, from application.profile in config.json)",
+    )
+    parser.add_argument(
+        "--simulate",
+        action="store_true",
+        help="run on a simulated GM counter (no hardware needed)",
+    )
+    args, _unknown = parser.parse_known_args(argv)  # Qt options pass through
+    if args.simulate and not simulation_available():
+        parser.error(
+            "--simulate needs the mock devices (not in the release wheel; use a source "
+            "checkout with pip install -e .) and pseudo-terminals (not on Windows)"
+        )
+    return args
+
+
+def main():
+    """Application entry point.
+
+    Initialises the debug system and opens the main window; the user connects the device in
+    the window's connection panel.
+    """
+    args = parse_args()
+    # Initialise the debug system
     match CONFIG["debug"]["level_default"]:
         case "verbose":
             debug_level = Debug.DEBUG_VERBOSE
@@ -62,49 +110,21 @@ def main():
     # Redirect Qt's own warning/error messages into our log file
     qInstallMessageHandler(_qt_message_handler)
 
-    # Globalen Exception-Handler registrieren
+    # Register the global exception handler
     sys.excepthook = Debug.exception_hook
 
-    Debug.info("Starte Anwendung...")
+    Debug.info(f"Starting application (simulate={args.simulate})...")
 
-    # QApplication erstellen
+    # Create the QApplication
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
 
-    # Stylesheet anwenden
-    # apply_stylesheet(app, CONFIG.get("ui", {}).get("theme", "dark"))
-    # Debug.debug("Stylesheet angewendet")
-    # Verbindungsdialog anzeigen
-    connection_dialog = ConnectionWindow(
-        demo_mode=CONFIG["gm_counter"]["demo_mode"],
-        default_device=CONFIG["gm_counter"]["default_arduino"],
-    )
-
-    # Wenn der Dialog bestätigt wurde, Verbindung herstellen
-    if connection_dialog.exec():
-        success = connection_dialog.connection_successful
-        device_manager = connection_dialog.device_manager
-
-        if success and device_manager is not None:
-            # Hauptfenster erstellen und anzeigen, wenn Verbindung erfolgreich
-            main_window = MainWindow(device_manager)
-            # MainWindow.__init__ already calls showMaximized(); no show() needed here.
-
-            # Anwendung ausführen
-            sys.exit(app.exec())
-        else:
-            # Fehlerfall: Verbindung fehlgeschlagen
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Icon.Critical)
-            msg_box.setText(CONFIG["messages"]["connection_failed"])
-            msg_box.setWindowTitle("Verbindungsfehler")
-            msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-            msg_box.exec()
-            sys.exit(1)
-    else:
-        # Benutzer hat den Dialog abgebrochen
-        Debug.info("Verbindung vom Benutzer abgebrochen")
-        sys.exit(0)
+    # The launcher builds the main window for the profile and can rebuild it on a profile
+    # switch, keeping the device manager (and its connection).
+    launcher = Launcher(profile=args.profile, simulate=args.simulate, parent=app)
+    app.aboutToQuit.connect(launcher.shutdown)
+    launcher.start()  # application.window_mode
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

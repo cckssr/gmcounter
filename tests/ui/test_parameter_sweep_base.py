@@ -8,6 +8,8 @@ pytest.importorskip("PySide6", reason="ParameterSweepTabBase requires PySide6")
 from unittest.mock import MagicMock
 from PySide6.QtWidgets import QApplication
 
+from gmcounter.infrastructure.config import default_config
+from gmcounter.ui.context import AppContext
 from gmcounter.ui.tabs.parameter_sweep_base import ParameterSweepTabBase
 from gmcounter.core.export import TabExport
 
@@ -16,17 +18,15 @@ _app = QApplication.instance() or QApplication(sys.argv)
 
 class ConcreteTab(ParameterSweepTabBase):
     tab_id = "test_sweep"
-    tab_title = "Test Sweep"
-    param_label = "Distance (cm)"
+    instance = "distance"  # texts come from ui.sweep_tab.*_distance
     param_unit = "cm"
     param_metadata_key = "distance_cm"
     summary_filename_hint = "test_sweep"
-    summary_title = "Test Sweep"
 
 
-def _make_tab():
-    tab = ConcreteTab()
-    return tab
+def _make_tab(**context_kwargs):
+    context = AppContext(config=default_config(), **context_kwargs)
+    return ConcreteTab(context)
 
 
 def test_initial_state_no_data():
@@ -88,12 +88,19 @@ def test_summary_export_returns_tab_export_with_data():
     assert export.rows[0][0] == "20.0"
 
 
-def test_current_param_from_provider():
-    tab = _make_tab()
-    tab._param_provider = lambda: 42.0
+def test_current_param_from_voltage_readback():
+    """A tab without its own input takes the parameter from the device read-back."""
+
+    class ReadbackTab(ConcreteTab):
+        uses_param_input = False
+
+    tab = ReadbackTab(
+        AppContext(config=default_config(), voltage_readback=lambda: 42.0)
+    )
     assert tab.current_param() == pytest.approx(42.0)
 
 
-def test_current_param_returns_zero_with_no_input():
+def test_current_param_from_input():
     tab = _make_tab()
-    assert tab.current_param() == 0.0
+    tab.ui.spinParam.setValue(12.5)
+    assert tab.current_param() == pytest.approx(12.5)

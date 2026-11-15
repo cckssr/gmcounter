@@ -1,10 +1,8 @@
 {
     "files": [
         "../main.py",
-        "alert.ui",
-        "control.ui",
         "connection.ui",
-        "mainwindow.ui",
+        "main_window.ui",
         "stylesheet.qrc"
     ]
 }

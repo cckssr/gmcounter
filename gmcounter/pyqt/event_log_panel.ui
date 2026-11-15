@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EventLogPanel</class>
+ <widget class="QWidget" name="EventLogPanel">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>480</width>
+    <height>140</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="layoutEventLogPanel">
+   <property name="spacing">
+    <number>4</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QPlainTextEdit" name="editLog">
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+     <property name="maximumBlockCount">
+      <number>500</number>
+     </property>
+     <property name="lineWrapMode">
+      <enum>QPlainTextEdit::LineWrapMode::WidgetWidth</enum>
+     </property>
+    </widget>
+   </item>
+   <item alignment="Qt::AlignRight">
+    <widget class="QPushButton" name="buttonClear">
+     <property name="autoDefault">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>Leeren</string>
+     </property>
+     <property name="toolTip">
+      <string>Ereignisprotokoll leeren</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

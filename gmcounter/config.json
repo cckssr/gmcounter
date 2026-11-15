@@ -1,15 +1,15 @@
 {
   "de": {
     "description": "Zentrale Konfigurationsdatei für die GMCounter-Anwendung. Stellt Konstanten und Standardwerte für die gesamte Anwendung bereit.",
-
     "application": {
       "name": "GM-Counter_GUI",
       "version": "2.1.2",
-      "author": "C. Kessler, H. Celik"
+      "author": "C. Kessler, H. Celik",
+      "window_mode": "maximized",
+      "profile": "student"
     },
-
     "debug": {
-      "level_default": "info"
+      "level_default": "verbose"
     },
     "connection": {
       "max_retry_attempts": 8,
@@ -19,6 +19,7 @@
     },
     "plot": {
       "max_points": 300,
+      "line_width": 1,
       "x_label": "Ereignis k",
       "y_label": "Zeit / µs"
     },
@@ -27,14 +28,12 @@
       "x_label": "Zeit / µs",
       "y_label": "Anzahl Ereignisse"
     },
-
     "timers": {
       "control_update_interval": 1000,
       "statistics_update_interval": 2000,
       "acquisition_timer_interval": 100,
       "gui_update_interval": 200
     },
-
     "acquisition": {
       "_comment": "ticks_per_us MUST equal the firmware's TICKS_PER_US (config.h). The firmware sends inter-event deltas as raw timer ticks; the host divides by this to get microseconds. RA4M1 core clock = 48 MHz -> 48 ticks/µs (~20.8 ns resolution).",
       "ticks_per_us": 48,
@@ -43,23 +42,23 @@
       "_comment2": "first_delta_is_from_start: if true, the firmware emits start->first-pulse as the first packet (no '+1' seeding needed). Default false: host assumes pure inter-event gaps and seeds event #1 at t=0.",
       "first_delta_is_from_start": false
     },
-
-    "gm_timing": {
+    "data_controller": {
       "max_history_size": 1000,
       "high_speed_mode": {
         "batch_threshold": 100,
         "batch_history": 5
       }
     },
-
     "save": {
       "tk_designation": "Radioaktivität",
       "base_folder": "GMCounter"
     },
-
     "gm_counter": {
-      "demo_mode": true,
       "default_arduino": "UNO",
+      "baud_rates": [
+        9600, 57600, 115200, 230400, 460800, 500000, 921600, 1000000, 2000000
+      ],
+      "default_baud": 1000000,
       "default_voltage": 500,
       "voltage_warning_threshold": 650,
       "count_time_map": {
@@ -78,7 +77,251 @@
       }
     },
     "ui": {
-      "theme": "dark"
+      "theme": "dark",
+      "main_window": {
+        "self@title": "GM-Counter",
+        "toolBar": "Werkzeugleiste",
+        "dockControls": "Messparameter",
+        "dockLive": "Gerät",
+        "dockLog": "Ereignisprotokoll",
+        "actionToggleControls": "Messparameter",
+        "actionToggleControls@tooltip": "Seitenleiste mit Proben- und Messungssteuerung ein- oder ausblenden",
+        "actionToggleLive": "Gerät",
+        "actionToggleLive@tooltip": "Seitenleiste mit Verbindung und Gerätesteuerung ein- oder ausblenden",
+        "actionToggleLog": "Protokoll",
+        "actionToggleLog@tooltip": "Ereignisprotokoll ein- oder ausblenden",
+        "actionSwitchProfile": "Profil wechseln",
+        "actionSwitchProfile@tooltip": "Zwischen Experten- und Praktikumsprofil wechseln",
+        "actionFullScreen": "Vollbild",
+        "actionFullScreen@tooltip": "Zwischen Vollbild und Fenster wechseln (F11)",
+        "text_switch_profile": "Zu Profil \"{profile}\" wechseln",
+        "text_title_simulation": "{title} – Simulation"
+      },
+      "connection_panel": {
+        "self": "Verbindung",
+        "labelPort": "Port",
+        "comboPort@tooltip": "Serieller Port des GM-Zählers (Arduino). Wird der Zähler nicht erkannt: abstecken, Liste aktualisieren, anstecken, erneut aktualisieren und den neuen Port wählen.",
+        "comboPort@placeholder": "Kein Port gefunden",
+        "buttonRefreshPorts": "↻",
+        "buttonRefreshPorts@tooltip": "Liste der seriellen Ports aktualisieren",
+        "labelDescription": "Gerät",
+        "labelBaud": "Baudrate",
+        "comboBaud@tooltip": "Baudrate der seriellen Verbindung (Standard: 1000000)",
+        "labelStatus": "Status",
+        "buttonConnect": "Verbinden",
+        "buttonConnect@tooltip": "GM-Zähler über den gewählten Port verbinden oder trennen",
+        "text_connect": "Verbinden",
+        "text_disconnect": "Trennen",
+        "text_disconnected": "Nicht verbunden",
+        "text_connecting": "Verbinde mit {port} …",
+        "text_connected": "Verbunden mit {port}",
+        "text_reconnecting": "Verbindung unterbrochen – neuer Versuch …",
+        "text_failed": "Verbindung zu {port} fehlgeschlagen",
+        "text_lost": "Verbindung verloren",
+        "text_simulation_description": "Simulierter GM-Zähler (kein Gerät)"
+      },
+      "tabs": {
+        "gm_timing": "Einzelmessung",
+        "distance_law": "Abstandsgesetz",
+        "voltage_response": "Spannungskurve",
+        "interval_repeat": "Intervalle"
+      },
+      "timing_tab": {
+        "pageTime@tab": "Zeitverlauf",
+        "pageHistogram@tab": "Histogramm",
+        "pageList@tab": "Liste",
+        "labelPlotPoints": "Max. Plotpunkte",
+        "checkAutoScroll": "Auto-Scroll",
+        "buttonAutoRange": "Achsen anpassen",
+        "labelStatCount": "Anzahl",
+        "labelStatMin": "Min / µs",
+        "labelStatMax": "Max / µs",
+        "labelStatMean": "Mittelwert / µs",
+        "labelStatStd": "Standardabw. / µs",
+        "labelBinSize": "Bin-Größe / µs",
+        "spinBinSize@suffix": " µs",
+        "labelCutoff": "Cut-Off / µs",
+        "sliderCutoff@tooltip": "Obere Grenze ab welcher Daten nicht mehr im Diagramm angezeigt werden sollen",
+        "spinCutoff@suffix": " µs",
+        "plot_x_label": "Ereignis k",
+        "plot_y_label": "Zeit / µs",
+        "histogram_x_label": "Zeit / µs",
+        "histogram_y_label": "Anzahl Ereignisse",
+        "table_events_headers": ["Index", "Wert (µs)", "Zeit"],
+        "text_high_speed": "⚡ High-Speed-Modus — Liniendiagramm pausiert"
+      },
+      "sweep_tab": {
+        "labelParam": "Probenabstand",
+        "spinParam@suffix": " cm",
+        "spinParam@tooltip": "Abstand der Probe vom Detektor in Zentimetern",
+        "labelHint": "Spannung wird in der Gerätesteuerung eingestellt.",
+        "plot_y_label": "Anzahl Ereignisse",
+        "table_summary_headers": [
+          "Anzahl",
+          "Rate (1/s)",
+          "Dauer (s)",
+          "Zeitstempel"
+        ],
+        "text_no_points": "Keine Messpunkte aufgezeichnet.",
+        "text_points_one": "{n} Messpunkt aufgezeichnet.",
+        "text_points_many": "{n} Messpunkte aufgezeichnet.",
+        "text_param_distance": "Probenabstand",
+        "text_param_suffix_distance": " cm",
+        "text_param_tooltip_distance": "Abstand der Probe vom Detektor in Zentimetern",
+        "text_param_header_distance": "Probenabstand (cm)",
+        "text_summary_title_distance": "Abstandsgesetz — Zusammenfassung",
+        "text_param_voltage": "Spannung",
+        "text_param_suffix_voltage": " V",
+        "text_param_tooltip_voltage": "GM-Spannung der Röhre",
+        "text_param_header_voltage": "Spannung (V)",
+        "text_hint_voltage": "Spannung wird in der Gerätesteuerung eingestellt.",
+        "text_summary_title_voltage": "Spannungskurve — Zusammenfassung"
+      },
+      "interval_tab": {
+        "labelWidth": "Intervallbreite",
+        "spinWidth@suffix": " s",
+        "labelRepeats": "Wiederholungen",
+        "plot_x_label": "Intervall",
+        "plot_y_label": "Anzahl Ereignisse",
+        "table_intervals_headers": [
+          "Index",
+          "Anzahl",
+          "cps",
+          "t_start (s)",
+          "t_end (s)"
+        ],
+        "export_intervals_columns": [
+          "Index",
+          "Anzahl",
+          "cps",
+          "t_start_s",
+          "t_end_s"
+        ],
+        "export_interval_columns": ["Index", "Delta (µs)"],
+        "text_no_data": "Keine Daten.",
+        "text_status": "{n} Ereignisse in {repeats} Intervallen · {t} s",
+        "text_summary_title": "Intervallmessung — Zusammenfassung"
+      },
+      "device_panel": {
+        "self": "Gerätesteuerung",
+        "labelCountMode": "Zählmodus",
+        "radioModeSingle": "Einzel",
+        "radioModeSingle@tooltip": "Stoppt die Messung nach Ablauf der Zähldauer",
+        "radioModeRepeat": "Wiederholung",
+        "radioModeRepeat@tooltip": "Wiederholt die Messung automatisch nach Ablauf der Zähldauer",
+        "labelQueryMode": "Abfragemodus",
+        "radioQueryManual": "Manuell",
+        "radioQueryManual@tooltip": "Zählergebnisse werden nur auf Anfrage gelesen",
+        "radioQueryAuto": "Automatik",
+        "radioQueryAuto@tooltip": "Das Gerät sendet die Zählergebnisse fortlaufend",
+        "labelDuration": "Zähldauer",
+        "comboDuration@tooltip": "Wie lange der Zähler misst; eine eigene Dauer in Sekunden kann eingetippt werden",
+        "labelVoltage": "GM-Spannung",
+        "spinVoltage@suffix": " V",
+        "spinVoltage@tooltip": "Betriebsspannung des Zählrohrs",
+        "dialVoltage@tooltip": "Betriebsspannung des Zählrohrs",
+        "buttonApply": "Einstellungen übernehmen",
+        "buttonApply@tooltip": "Spannung, Modus und Abfragemodus an das Gerät senden",
+        "combo_duration_items": [
+          "unendlich",
+          "1 Sekunde",
+          "10 Sekunden",
+          "60 Sekunden",
+          "100 Sekunden",
+          "300 Sekunden"
+        ],
+        "combo_duration_seconds": [0, 1, 10, 60, 100, 300]
+      },
+      "sample_panel": {
+        "self": "Probe && Speicherung",
+        "labelSample": "Radioaktive Probe*",
+        "comboSample@tooltip": "Auswahl der verwendeten radioaktiven Probe (Pflichtfeld)",
+        "labelGroup": "Gruppe*",
+        "comboGroup@tooltip": "Auswahl der GP-Praktikumsgruppe (Pflichtfeld)",
+        "labelDetector": "Detektor*",
+        "comboDetector@tooltip": "Auswahl des verwendeten Detektors (Geiger-Müller-Zählrohr, Pflichtfeld)",
+        "labelDistance": "Probenabstand",
+        "spinDistance@suffix": " cm",
+        "spinDistance@tooltip": "Abstand zwischen Detektoroberfläche und radioaktiver Probe in cm",
+        "checkAutoSave": "Automatische Speicherung",
+        "checkAutoSave@tooltip": "Bei Aktivierung werden die Messungen automatisch als JJJJ_MM_TT-Probe-Suffix.csv im Ordner Dokumente/Geiger-Mueller/ gespeichert",
+        "labelSuffix": "Eigenes Suffix",
+        "editSuffix@tooltip": "Ein benutzerdefiniertes Suffix mit maximal 20 Zeichen",
+        "combo_group_items": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "I",
+          "J",
+          "K",
+          "L",
+          "M",
+          "N",
+          "O",
+          "P",
+          "Q",
+          "R",
+          "S",
+          "T",
+          "U",
+          "V",
+          "W",
+          "Z"
+        ]
+      },
+      "measurement_panel": {
+        "self": "Messung",
+        "buttonStart": "Start",
+        "buttonStart@tooltip": "Messung starten (F5)",
+        "buttonStop": "Stop",
+        "buttonStop@tooltip": "Aktuelle Messung stoppen (F6)",
+        "buttonReset": "Reset",
+        "buttonReset@tooltip": "Messdaten verwerfen und zurücksetzen",
+        "buttonSave": "Speichern",
+        "buttonSave@tooltip": "Messung speichern (Dateidialog)",
+        "valueElapsed": "0 s",
+        "text_elapsed": "{elapsed} s"
+      },
+      "readout_panel": {
+        "self": "Live-Werte",
+        "labelCount": "Aktuelles Zählergebnis",
+        "labelRate": "Zählrate / Hz",
+        "labelLastCount": "Voriges Zählergebnis",
+        "labelHighSpeed": "High-Speed-Modus",
+        "ledHighSpeed@tooltip": "Leuchtet, solange nur das Histogramm aktualisiert wird (hohe Ereignisrate)",
+        "valueHighSpeed": "inaktiv",
+        "text_high_speed_on": "aktiv",
+        "text_high_speed_off": "inaktiv"
+      },
+      "device_status_panel": {
+        "self": "Gerätestatus",
+        "labelStatus": "Status",
+        "valueStatus": "Unbekannt",
+        "labelVoltageReadback": "GM-Spannung / V",
+        "lcdVoltage@tooltip": "Aktuelle GM-Spannung",
+        "labelDurationReadback": "Zähldauer / s",
+        "lcdDuration@tooltip": "Aktuell eingestellte Zähldauer; 999 für unendlich",
+        "labelQueryReadback": "Abfragemodus",
+        "valueQueryMode": "unbekannt",
+        "valueQueryMode@tooltip": "Aktuell eingestellter Abfragemodus der Zählergebnisse",
+        "labelModeReadback": "Zähl-Modus",
+        "valueMode": "unbekannt",
+        "valueMode@tooltip": "Aktuell eingestellter Zählmodus",
+        "labelFirmware": "Firmware-Version",
+        "valueFirmware": "unbekannt",
+        "valueFirmware@tooltip": "GM-Zähler-Firmware",
+        "labelOpenbis": "OpenBIS-Code",
+        "valueOpenbis": "unbekannt"
+      },
+      "event_log_panel": {
+        "buttonClear": "Leeren",
+        "buttonClear@tooltip": "Ereignisprotokoll leeren"
+      }
     },
     "colors": {
       "green": "green",
@@ -86,7 +329,6 @@
       "orange": "orange",
       "blue": "blue"
     },
-
     "radioactive_samples": [
       "BACKGROUND",
       "E87198",
@@ -130,7 +372,6 @@
       "E76673",
       "E66390"
     ],
-
     "messages": {
       "app_init": "Anwendung wird initialisiert...",
       "connected": "Verbunden mit {}. Bereit für Messungen.",
@@ -142,10 +383,105 @@
       "no_data": "Es sind keine Messdaten zum Speichern verfügbar.",
       "unsaved_data": "Sie haben ungespeicherte Messdaten. Möchten Sie diese verwerfen und eine neue Messung starten?",
       "unsaved_data_end": "Sie haben ungespeicherte Messdaten. Möchten Sie diese verwerfen, bevor Sie die Applikation beenden?",
-      "connection_failed": "Verbindung zum Gerät fehlgeschlagen. Anwendung wird beendet.",
       "auto_save_enabled": "Automatisches Speichern ist aktiviert. Messdaten werden automatisch gespeichert, wenn die Messung endet.",
       "auto_save_disabled": "Automatisches Speichern ist deaktiviert. Sie müssen die Messdaten manuell speichern.",
-      "voltage_warning": "Warnung: Die Betriebsspannung des GM-Zählers ist hoch ({} V). Nicht dauerhaft verwenden."
+      "voltage_warning": "Warnung: Die Betriebsspannung des GM-Zählers ist hoch ({} V). Nicht dauerhaft verwenden.",
+      "title_warning": "Warnung",
+      "title_info": "Information",
+      "title_error": "Fehler",
+      "title_connection_error": "Verbindungsfehler",
+      "title_sweep_infinite": "Hinweis: unbegrenzte Messzeit",
+      "sweep_infinite_time": "Die Messzeit ist auf 'unbegrenzt' eingestellt.\n\nFür Sweep-Messungen empfiehlt sich eine feste Messzeit, damit alle Messpunkte vergleichbar sind.\n\nTrotzdem fortfahren?",
+      "save_or_discard_first": "Bitte speichern oder löschen Sie die vorhandenen Messdaten.",
+      "measurement_running_warning": "Messung läuft.",
+      "no_interval_data": "Keine Intervalldaten vorhanden.",
+      "no_summary_data": "Keine Zusammenfassungsdaten vorhanden.",
+      "no_unsaved_data": "Keine ungespeicherten Daten.",
+      "no_export_data": "Keine Messdaten zum Speichern.",
+      "save_failed": "Fehler beim Speichern.",
+      "saved": "Gespeichert.",
+      "summary_saved_interval": "Zusammenfassung gespeichert. {ok}/{total} Intervall-CSV(s) exportiert.",
+      "summary_saved_sweep": "Zusammenfassung gespeichert. {ok}/{total} Einzelmessung(en) exportiert.",
+      "connection_lost_terminal": "Verbindung verloren.\n\nAlle Wiederverbindungsversuche fehlgeschlagen.",
+      "status_ready": "Bereit",
+      "status_measuring": "Messung",
+      "status_stopped": "Gestoppt",
+      "status_connected": "Verbunden",
+      "status_disconnected": "Getrennt",
+      "profile_switch_busy": "Profilwechsel nicht möglich: Es läuft noch eine Messung.",
+      "profile_switch_unsaved": "Profilwechsel nicht möglich: Es sind ungespeicherte Messdaten vorhanden. Bitte zuerst speichern oder verwerfen.",
+      "no_device": "Kein Gerät verbunden",
+      "settings_unconfirmed": "Einstellungen gesendet — warte auf Bestätigung ({names})…",
+      "settings_maybe_not_applied": "Achtung: Einstellungen möglicherweise nicht angewendet — {names}",
+      "connection_interrupted": "Verbindung unterbrochen — Wiederverbindung...",
+      "reconnected": "Wiederverbunden",
+      "connection_lost_journal": "Verbindung verloren. Journal gespeichert: {path}",
+      "connection_lost_retries": "Verbindung verloren. Alle Wiederverbindungsversuche fehlgeschlagen.",
+      "orphan_journal": "{count} ungespeichertes Journal gefunden. Daten unter ~/.gmcounter/sessions/",
+      "select_sample_group": "Bitte Probe und Gruppe auswählen.",
+      "select_sample_and_group": "Bitte wählen Sie eine radioaktive Probe und eine Gruppenzuordnung aus.",
+      "no_data_to_save": "Keine Messdaten zum Speichern vorhanden.",
+      "save_failed_detail": "Fehler beim Speichern: {error}",
+      "title_save_measurement": "Messung speichern",
+      "title_question": "Frage",
+      "title_save_file": "Datei speichern",
+      "title_open_file": "Datei öffnen",
+      "title_quit": "Beenden",
+      "confirm_quit": "Wollen Sie sicher das Programm schließen?",
+      "filter_csv": "CSV-Dateien (*.csv);;Alle Dateien (*)",
+      "please_connect": "Bitte den GM-Zähler rechts im Bereich „Verbindung“ verbinden.",
+      "simulation_active": "Simulationsmodus: Es wird ein simulierter GM-Zähler verwendet.",
+      "connect_failed": "Verbindung zu {port} fehlgeschlagen. Port und Kabel prüfen, ggf. einen anderen Port wählen.",
+      "disconnected": "Verbindung zum GM-Zähler getrennt."
+    },
+    "plot_colors": {
+      "series": [
+        "tab:blue",
+        "tab:orange",
+        "tab:green",
+        "tab:red",
+        "tab:purple",
+        "tab:brown",
+        "tab:pink",
+        "tab:gray",
+        "tab:olive",
+        "tab:cyan"
+      ],
+      "fit": "tab:red",
+      "reference": "tab:gray",
+      "marker": "tab:orange",
+      "band_alpha": 60,
+      "point_alpha": 200
+    },
+    "profiles": {
+      "expert": {
+        "name": "Experte",
+        "hidden_tabs": [],
+        "hidden_widgets": {},
+        "overrides": {}
+      },
+      "student": {
+        "name": "Praktikum",
+        "hidden_tabs": [],
+        "hidden_widgets": {
+          "connection_panel": ["labelBaud", "comboBaud"],
+          "device_panel": [
+            "labelQueryMode",
+            "radioQueryManual",
+            "radioQueryAuto"
+          ],
+          "device_status_panel": [
+            "labelQueryReadback",
+            "valueQueryMode",
+            "labelFirmware",
+            "valueFirmware",
+            "labelOpenbis",
+            "valueOpenbis"
+          ],
+          "main_window": []
+        },
+        "overrides": {}
+      }
     }
   }
 }

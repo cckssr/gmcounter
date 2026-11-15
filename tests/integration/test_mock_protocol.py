@@ -110,25 +110,12 @@ class TestScpiCommands:
         m = _make()
         m.handle_command("INIT")
         assert m._counting
-        assert not m._counting_only
         assert m._start_marker_pending
 
     def test_abor_stops_counting(self):
         m = _make()
         m.handle_command("INIT")
         m.handle_command("ABOR")
-        assert not m._counting
-
-    def test_meas_strt_sets_counting_only(self):
-        m = _make()
-        m.handle_command("MEAS:STRT")
-        assert m._counting
-        assert m._counting_only
-
-    def test_meas_stp_stops_counting_only(self):
-        m = _make()
-        m.handle_command("MEAS:STRT")
-        m.handle_command("MEAS:STP")
         assert not m._counting
 
     def test_conf_volt_set_and_query(self):
@@ -327,17 +314,6 @@ class TestWireProtocol:
             out += _collect_bytes(m, max_steps=2)
         assert b"\xee" * 6 not in out
         assert m._counting  # still running
-
-    def test_counting_only_emits_no_data_packets(self):
-        """MEAS:STRT counter-only mode: pulses are counted but no packets emitted."""
-        m = _make(pulse_interval_us=1000)
-        m.handle_command("MEAS:STRT")
-        for _ in range(20):
-            _force_pulse(m)
-            m.tick()
-        assert m._count >= 1
-        out = _collect_bytes(m, max_steps=5)
-        assert 0xAA not in out
 
     def test_ticks_per_us_matches_config(self):
         """TICKS_PER_US in mock must equal config.json acquisition.ticks_per_us."""

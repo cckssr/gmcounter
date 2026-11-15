@@ -1,6 +1,120 @@
 GM-Zähler Kommunikationsprotokoll
 =================================
 
+Es gibt zwei Protokollebenen:
+
+* **Host ↔ Arduino (USB-Seriell, SCPI):** Die GUI spricht ausschließlich SCPI mit der Arduino-Firmware (siehe unten). Das ist die Schnittstelle, die ``GMCounterAdapter`` verwendet.
+* **Arduino ↔ GM-Zähler-Platine (``Serial1``, 9600 Baud, Ein-Buchstaben-Befehle):** Die Firmware übersetzt die SCPI-Befehle in die Befehle der Platine. Diese Befehle sind ab dem Abschnitt „Kommunikationsprotokoll der GM-Platine" beschrieben und werden von der GUI nie direkt gesendet.
+
+SCPI-Schnittstelle (Host ↔ Arduino)
+-----------------------------------
+
+Verbindung: USB-Seriell, 1 000 000 Baud (Standard, ``gm_counter.default_baud``). Jeder Befehl endet mit ``\n``. Befehle sind groß-/kleinschreibungsunabhängig. Kurz- und Langform sind gleichwertig (``CONF:VOLT`` = ``CONFIGURE:VOLTAGE``). Fehler landen in der Fehlerwarteschlange (``SYST:ERR?``). Ein Befehl mit ``?`` ist eine Abfrage.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 72
+
+   * - Befehl
+     - Funktion
+   * - ``*IDN?``
+     - Identifikation: ``TU Berlin,GM-Counter,<Seriennummer>,<Firmware-Version>``
+   * - ``*RST``
+     - (nur Befehl) Zurücksetzen auf Standardwerte: 500 V, Zählzeit-Modus 2, Einzelmodus, Stream aus
+   * - ``*CLS``
+     - (nur Befehl) Fehlerwarteschlange leeren
+   * - ``*TST?, *OPC?``
+     - Selbsttest (liefert 0), Operation abgeschlossen (liefert 1)
+   * - ``SYST:ERR?``
+     - Nächsten Fehler aus der Warteschlange lesen
+   * - ``SYST:CLR``
+     - (nur Befehl) Zählregister der GM-Platine löschen
+   * - ``SYST:DEB [ON/OFF]``
+     - Debug-Modus abfragen/setzen
+   * - ``INIT``
+     - (nur Befehl) Messung starten: Start-Marker, dann Binärdatenstrom (siehe unten)
+   * - ``ABOR``
+     - (nur Befehl) Messung stoppen
+   * - ``CONF:VOLT [300..700]``
+     - GM-Spannung in V abfragen/setzen
+   * - ``CONF:TIME [0..5]``
+     - Zählzeit-Modus abfragen/setzen: 0 = unendlich, 1 = 1 s, 2 = 10 s, 3 = 60 s, 4 = 100 s, 5 = 300 s
+   * - ``CONF:REP [0/1]``
+     - Wiederholmodus abfragen/setzen
+   * - ``CONF:STR [0..4]``
+     - Stream-Modus abfragen/setzen: 0 = aus, 4 = kontinuierliche Statusausgabe
+   * - ``CONF:SPKR [0..3]``
+     - (nur Befehl) Lautsprecher: 0 = aus, 1 = GM-Ton, 2 = Bereitschaftston, 3 = beide
+   * - ``FETC:STAT?``
+     - Status als CSV mit 6 Feldern: Zählung, letztes Ergebnis, Zählzeit, Wiederholung, Fortschritt, Spannung
+   * - ``DIAG:STAT?``
+     - Statistik der letzten Messung: Dauer in ms, Punkte, entprellt, Überläufe, TX-Drops
+   * - ``DIAG:PASS``
+     - (nur Befehl) Durchleitung zu ``Serial1`` umschalten (nur Diagnose)
+   * - ``HELP?``
+     - Befehlsübersicht der Firmware
+
+**Binärer Datenstrom nach** ``INIT``: Start-Marker ``0xFF`` × 6, danach Datenpakete ``0xAA b0 b1 b2 b3 0x55`` (Zeit seit dem letzten Ereignis in Timer-Ticks, 32 Bit little-endian; Umrechnung in µs mit ``ticks_per_us``, Standard 48). Bei endlicher Zählzeit ohne Wiederholmodus sendet die Firmware am Ende ``0xEE`` × 6 und stoppt selbst. Während des Datenstroms dürfen keine weiteren Textbefehle gesendet werden; ``FETC:STAT?`` ist nur im Ruhezustand zulässig.
+
+Kommunikationsprotokoll der GM-Platine" beschrieben und werden von der GUI nie direkt gesendet.
+
+SCPI-Schnittstelle (Host ↔ Arduino)
+-----------------------------------
+
+Verbindung: USB-Seriell, 1 000 000 Baud (Standard, ``gm_counter.default_baud``). Jeder Befehl endet mit ``\n``. Befehle sind groß-/kleinschreibungsunabhängig. Kurz- und Langform sind gleichwertig (``CONF:VOLT`` = ``CONFIGURE:VOLTAGE``). Fehler landen in der Fehlerwarteschlange (``SYST:ERR?``). Ein Befehl mit ``?`` ist eine Abfrage.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 72
+
+   * - Befehl
+     - Funktion
+   * - ``*IDN?``
+     - Identifikation: ``TU Berlin,GM-Counter,<Seriennummer>,<Firmware-Version>``
+   * - ``*RST``
+     - (nur Befehl) Zurücksetzen auf Standardwerte: 500 V, Zählzeit-Modus 2, Einzelmodus, Stream aus
+   * - ``*CLS``
+     - (nur Befehl) Fehlerwarteschlange leeren
+   * - ``*TST?, *OPC?``
+     - Selbsttest (liefert 0), Operation abgeschlossen (liefert 1)
+   * - ``SYST:ERR?``
+     - Nächsten Fehler aus der Warteschlange lesen
+   * - ``SYST:CLR``
+     - (nur Befehl) Zählregister der GM-Platine löschen
+   * - ``SYST:DEB [ON/OFF]``
+     - Debug-Modus abfragen/setzen
+   * - ``INIT``
+     - (nur Befehl) Messung starten: Start-Marker, dann Binärdatenstrom (siehe unten)
+   * - ``ABOR``
+     - (nur Befehl) Messung stoppen
+   * - ``CONF:VOLT [300..700]``
+     - GM-Spannung in V abfragen/setzen
+   * - ``CONF:TIME [0..5]``
+     - Zählzeit-Modus abfragen/setzen: 0 = unendlich, 1 = 1 s, 2 = 10 s, 3 = 60 s, 4 = 100 s, 5 = 300 s
+   * - ``CONF:REP [0/1]``
+     - Wiederholmodus abfragen/setzen
+   * - ``CONF:STR [0..4]``
+     - Stream-Modus abfragen/setzen: 0 = aus, 4 = kontinuierliche Statusausgabe
+   * - ``CONF:SPKR [0..3]``
+     - (nur Befehl) Lautsprecher: 0 = aus, 1 = GM-Ton, 2 = Bereitschaftston, 3 = beide
+   * - ``FETC:STAT?``
+     - Status als CSV mit 6 Feldern: Zählung, letztes Ergebnis, Zählzeit, Wiederholung, Fortschritt, Spannung
+   * - ``DIAG:STAT?``
+     - Statistik der letzten Messung: Dauer in ms, Punkte, entprellt, Überläufe, TX-Drops
+   * - ``DIAG:PASS``
+     - (nur Befehl) Durchleitung zu ``Serial1`` umschalten (nur Diagnose)
+   * - ``HELP?``
+     - Befehlsübersicht der Firmware
+
+**Binärer Datenstrom nach** ``INIT``: Start-Marker ``0xFF`` × 6, danach Datenpakete ``0xAA b0 b1 b2 b3 0x55`` (Zeit seit dem letzten Ereignis in Timer-Ticks, 32 Bit little-endian; Umrechnung in µs mit ``ticks_per_us``, Standard 48). Bei endlicher Zählzeit ohne Wiederholmodus sendet die Firmware am Ende ``0xEE`` × 6 und stoppt selbst. Während des Datenstroms dürfen keine weiteren Textbefehle gesendet werden; ``FETC:STAT?`` ist nur im Ruhezustand zulässig.
+
+.. note::
+
+   ``MEAS:STRT`` / ``MEAS:STP`` kennen nur ``GMCounterAdapter`` und der Mock; die Firmware implementiert sie nicht, und die GUI verwendet sie nicht.
+
+Kommunikationsprotokoll der GM-Platine (``Serial1``)
+----------------------------------------------------
+
 Basierend auf der dänischen Anleitung für den GM-Zähler.
 
 Datenstrom

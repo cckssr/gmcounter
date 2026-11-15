@@ -8,59 +8,67 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QFileDialog,
 )
 
+from .messages import message
 
-def show_info(parent: QWidget, message: str, title: str = "Information") -> None:
+
+def show_info(parent: QWidget, text: str, title: Optional[str] = None) -> None:
     """Display an information message dialog.
 
     Args:
         parent: Parent widget for the dialog
-        message: Message to display
-        title: Dialog title
+        text: Message to display
+        title: Dialog title (default: the matching ``title_*`` message)
     """
-    QMessageBox.information(parent, title, message, QMessageBox.StandardButton.Ok)
+    QMessageBox.information(
+        parent, title or message("title_info"), text, QMessageBox.StandardButton.Ok
+    )
 
 
-def show_warning(parent: QWidget, message: str, title: str = "Warning") -> None:
+def show_warning(parent: QWidget, text: str, title: Optional[str] = None) -> None:
     """Display a warning message dialog.
 
     Args:
         parent: Parent widget for the dialog
-        message: Message to display
-        title: Dialog title
+        text: Message to display
+        title: Dialog title (default: the matching ``title_*`` message)
     """
-    QMessageBox.warning(parent, title, message, QMessageBox.StandardButton.Ok)
+    QMessageBox.warning(
+        parent, title or message("title_warning"), text, QMessageBox.StandardButton.Ok
+    )
 
 
-def show_error(parent: QWidget, message: str, title: str = "Error") -> None:
+def show_error(parent: QWidget, text: str, title: Optional[str] = None) -> None:
     """Display an error message dialog.
 
     Args:
         parent: Parent widget for the dialog
-        message: Message to display
-        title: Dialog title
+        text: Message to display
+        title: Dialog title (default: the matching ``title_*`` message)
     """
-    QMessageBox.critical(parent, title, message, QMessageBox.StandardButton.Ok)
+    QMessageBox.critical(
+        parent, title or message("title_error"), text, QMessageBox.StandardButton.Ok
+    )
 
 
 def ask_question(
     parent: QWidget,
-    message: str,
-    title: str = "Question",
+    text: str,
+    title: Optional[str] = None,
 ) -> bool:
     """Ask a yes/no question.
 
     Args:
         parent: Parent widget for the dialog
-        message: Question to ask
-        title: Dialog title
+        text: Question to ask
+        title: Dialog title (default: the matching ``title_*`` message)
 
     Returns:
         True if user clicked Yes, False otherwise
     """
     reply = QMessageBox.question(
         parent,
-        title,
-        message,
+        title or message("title_question"),
+        text,
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         QMessageBox.StandardButton.No,
     )
@@ -69,16 +77,16 @@ def ask_question(
 
 def ask_save_file(
     parent: QWidget,
-    title: str = "Save File",
+    title: Optional[str] = None,
     default_dir: Optional[Path] = None,
     default_name: str = "",
-    file_filter: str = "CSV Files (*.csv);;All Files (*.*)",
+    file_filter: Optional[str] = None,
 ) -> Optional[Path]:
     """Open a save file dialog.
 
     Args:
         parent: Parent widget for the dialog
-        title: Dialog title
+        title: Dialog title (default: the matching ``title_*`` message)
         default_dir: Default directory to open
         default_name: Default file name
         file_filter: File type filter
@@ -93,9 +101,9 @@ def ask_save_file(
 
     file_path, _ = QFileDialog.getSaveFileName(
         parent,
-        title,
+        title or message("title_save_file"),
         start_path,
-        file_filter,
+        file_filter or message("filter_csv"),
     )
 
     if file_path:
@@ -105,15 +113,15 @@ def ask_save_file(
 
 def ask_open_file(
     parent: QWidget,
-    title: str = "Open File",
+    title: Optional[str] = None,
     default_dir: Optional[Path] = None,
-    file_filter: str = "CSV Files (*.csv);;All Files (*.*)",
+    file_filter: Optional[str] = None,
 ) -> Optional[Path]:
     """Open a file selection dialog.
 
     Args:
         parent: Parent widget for the dialog
-        title: Dialog title
+        title: Dialog title (default: the matching ``title_*`` message)
         default_dir: Default directory to open
         file_filter: File type filter
 
@@ -125,9 +133,9 @@ def ask_open_file(
 
     file_path, _ = QFileDialog.getOpenFileName(
         parent,
-        title,
+        title or message("title_open_file"),
         str(default_dir),
-        file_filter,
+        file_filter or message("filter_csv"),
     )
 
     if file_path:
@@ -144,8 +152,8 @@ def confirm_close(parent: QWidget, event) -> None:
     """
     reply = QMessageBox.question(
         parent,
-        "Beenden",
-        "Wollen Sie sicher das Programm schließen?",
+        message("title_quit"),
+        message("confirm_quit"),
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         QMessageBox.StandardButton.No,
     )

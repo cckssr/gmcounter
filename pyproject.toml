@@ -22,7 +22,8 @@ classifiers = [
 ]
 
 dependencies = [
-    "PySide6>=6.5.0",
+    # 6.12.0 aborts with "none_dealloc: deallocating None" on Python 3.10/3.11 (Linux)
+    "PySide6>=6.5.0,<6.12",
     "numpy>=1.24.0",
     "matplotlib>=3.7.0",
     "pyqtgraph>=0.13.0",
@@ -45,6 +46,7 @@ dev = [
     "ruff>=0.15.15",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-qt>=4.2",
 ]
 
 [project.urls]
@@ -54,6 +56,8 @@ Repository = "https://github.com/cckssr/gmcounter"
 Issues = "https://github.com/cckssr/gmcounter/issues"
 
 [project.gui-scripts]
+# Starts the Praktikum (student) profile by default; `gmcounter --profile expert` shows every
+# control. The default is application.profile in gmcounter/config.json.
 gmcounter = "gmcounter.main:main"
 
 [tool.setuptools.packages.find]
@@ -84,4 +88,19 @@ addopts = "--tb=short"
 markers = [
     "hardware: requires physical GM counter hardware (pass --port /dev/tty... to enable)",
     "integration: end-to-end test using MockGMCounter PTY server or real hardware",
+]
+
+[tool.pyside6-project]
+files = [
+    "gmcounter/pyqt/connection_panel.ui",
+    "gmcounter/pyqt/interval_tab.ui",
+    "gmcounter/pyqt/sample_panel.ui",
+    "gmcounter/pyqt/device_panel.ui",
+    "gmcounter/pyqt/main_window.ui",
+    "gmcounter/pyqt/sweep_tab.ui",
+    "gmcounter/pyqt/device_status_panel.ui",
+    "gmcounter/pyqt/measurement_panel.ui",
+    "gmcounter/pyqt/timing_tab.ui",
+    "gmcounter/pyqt/event_log_panel.ui",
+    "gmcounter/pyqt/readout_panel.ui"
 ]

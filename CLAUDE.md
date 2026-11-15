@@ -13,6 +13,8 @@ GMCounter is a PySide6 desktop GUI for a Geiger-Müller counter device connected
 python -m gmcounter
 # or after pip install -e .
 gmcounter
+python -m gmcounter --profile expert    # UI profile: student (Praktikum, default) or expert (every control)
+python -m gmcounter --simulate          # simulated GM counter (MockGMCounter on a PTY), no hardware
 
 # Tests
 pytest                                # all tests
@@ -21,12 +23,16 @@ pytest tests/infrastructure/          # infrastructure layer (no Qt needed)
 QT_QPA_PLATFORM=offscreen pytest tests/ui/  # UI layer (offscreen)
 pytest --cov=gmcounter
 
-# Format / lint
-black gmcounter tests
-flake8 gmcounter tests
+# Format / lint (CI runs exactly these two; ruff only, no black / flake8)
+ruff format gmcounter tests
+ruff check gmcounter tests --ignore D100,D101,D102,D103,D104,D105,D106,D107
 
-# Recompile Qt UI files after editing .ui files in gmcounter/pyqt/
-bash gmcounter/pyqt/pyuic.sh
+# Designer forms (gmcounter/pyqt/*.ui)
+bash gmcounter/pyqt/pyuic.sh                  # sync texts from config.json, regenerate every ui_<form>.py
+bash gmcounter/pyqt/pyuic.sh sample_panel     # only the named forms (stems without .ui)
+python -m gmcounter.pyqt.sync_texts --check   # exit 1 if a .ui file is out of date
+python -m gmcounter.pyqt.preview               # list the forms
+python -m gmcounter.pyqt.preview sweep_tab    # show one form on its own (--watch reloads on save)
 ```
 
 Install for development: `pip install -e ".[dev]"`
@@ -60,128 +66,158 @@ Lower layers must never import from higher ones.
 ### `gmcounter/infrastructure/` — Adapters, Qt only in qt_threads.py
 
 - `serial_device.py`: `SerialDevice` — Qt-free pyserial base class
-- `devices/gm_counter.py`: `GMCounterAdapter` — GM counter command set (s/b/j/o/f/w/U)
+- `devices/gm_counter.py`: `GMCounterAdapter` — GM counter SCPI command set over USB serial (`*IDN?`, `INIT`/`ABOR`, `CONF:VOLT|TIME|REP|STR|SPKR`, `FETC:STAT?`, `SYST:CLR`, `SYST:ERR?`); the firmware translates these into the single-letter protocol of the GM board on `Serial1` (see `docs/hardware/gm-counter-protocol.rst`)
 - `mocks/mock_gm_counter.py`: `MockGMCounter` — wire-compatible PTY-based mock (**excluded from wheel**)
+- `simulation.py`: `SimulatedCounter` (runs `run_pty_server` with `MockGMCounter` in a daemon thread; `start()` returns the PTY path, `stop()`) + `simulation_available()` (mocks installed and `termios` present); imports the mocks lazily
+- `serial_ports.py`: `SerialPortInfo(device, description, usb)`, `list_serial_ports()`, `preferred_port(ports, last_port, hint)` (last port → hint match → first USB port → first), `with_port()`
 - `modules/registry.py`: `HostModule` Protocol + `ModuleRegistry` (§8)
 - `device_manager.py`: `DeviceManager` — **Qt-free**, plain callbacks, manages connection lifecycle
 - `packet_parser.py`: `PacketParser` — incremental binary decoder; extracted from `qt_threads.py` for testability; owned by `DataAcquisitionThread`
-- `qt_threads.py`: `DataAcquisitionThread(QThread)` + `ReconnectWorker(QThread)` — **only Qt file in infrastructure/**
+- `qt_threads.py`: `DataAcquisitionThread`, `StatePollerThread`, `ReconnectWorker`, `ConnectWorker` (all `QThread`) — **only Qt file in infrastructure/**
 - `session_journal.py`: `SessionJournal` — append-only crash-safe journal, `find_orphan_journals()`
 - `save_service.py`: `SaveService` — generic `TabExport` writer (no per-experiment code)
-- `config.py`: `import_config()` — loads `gmcounter/config.json` (language key `"de"`)
+- `config.py`: `AppConfig` (`get`, `section`, `text`, `message`, profile helpers) + `load_config(path, overrides, profile)` — loads `gmcounter/config.json` (language key `"de"`), merges the profile overrides; `default_config()` and `import_config()` for module-level use
 - `logging.py`: `Debug` singleton with `DEBUG_OFF / INFO / VERBOSE / ERROR` levels
 
-### `gmcounter/ui/` — PySide6 presentation, no business logic
+### `gmcounter/ui/` — PySide6 presentation, no device logic
 
-- `controllers/app_controller.py`: **`AppController(QObject)`** — owns all QTimers, DataAcquisitionThread, reconnect FSM (§5), frame fan-out to active tab
+Startup: `gmcounter/main.py` (`--profile`, `--simulate`) creates the `Launcher`, which builds the `MainWindow` for the profile directly — there is no connection dialog; the user connects in the connection panel of the window.
+
+- `launcher.py`: `Launcher(QObject)` — owns the `DeviceManager` (and with `simulate=True` the `SimulatedCounter`) for the whole run and builds the main window from `load_config(profile=...)`; a runtime profile switch closes the window and builds the other one on the same `DeviceManager` (a connection stays up), keeping the window mode; refused while measuring or with unsaved data; `shutdown()` (on `aboutToQuit`) stops the simulation
+- `profile.py`: `apply_profile(window)` hides the widgets of `hidden_widgets` (by Designer object name, below `main_window`, a panel or a tab id); `next_profile()` for the switch action
+- `i18n.py`: `apply_strings(root, strings)` — sets the configured German texts on the children of a Designer form (see "Strings & profiles")
+- `context.py`: `AppContext` dataclass — what the tabs may use: `config`, `device_manager`, `ctrl`, `save_service`, `file_dialogs`, `timing` (the timing tab, set when built), and the callables `voltage_readback`, `device_settings`, `sample_metadata` that hide the panels from the tabs
+- `controllers/app_controller.py`: **`AppController(QObject)`** — owns all QTimers, DataAcquisitionThread, reconnect FSM (§5), frame fan-out to the active tab (`frames_ready` → `on_frames`); `connect_device(port, baud)` connects in a `ConnectWorker` (`connecting_changed`, `connect_finished`), `disconnect_device()`; `connection_changed(bool)` on connect / reconnect / disconnect / final loss, `reconnecting` when the link drops; acquisition runs only while connected
+- `controllers/connection_controller.py`: `ConnectionController(QObject)` — drives the connection panel: port list (or only the simulated port), panel states `disconnected` / `connecting` / `connected` / `reconnecting` / `failed` / `lost`, remembers the last successful port and baud rate in `QSettings` (`connection/port`, `connection/baud`; not with `persist=False`); `connected_changed` enables Start (`SessionController.set_connected`) and Apply (`DevicePanel.set_connected`)
+- `controllers/session_controller.py`: **`SessionController(QObject)`** — what the shared Start / Stop / Save / Reset buttons mean for the selected tab; branches on `session_kind` ("single", "sweep", "interval"), guards unsaved data, writes summary and detail files; talks to the user through `common/prompt.py`
 - `tabs/base.py`: `PlotTabBase(QWidget)` — experiment tab contract (§6)
-- `tabs/registry.py`: `TabRegistry` — register/available(modules) filtering
-- `tabs/gm_timing_tab.py`: `GMTimingTab` — GM experiment, contributes 3 top-level views (Zeitverlauf/Histogramm/Liste); `set_high_speed_autoswitch(bool)` suppresses auto-tab-switch during sweep sessions
-- `tabs/parameter_sweep_base.py`: `ParameterSweepTabBase` — generic base for parameter-sweep experiments (distance law, voltage curve, …); all layout in `.ui`, injected via `inject_ui()`
-- `tabs/distance_law_tab.py`: `DistanceLawTab` — 1/r² distance-law sweep; pure class-attribute subclass of `ParameterSweepTabBase`
-- `tabs/voltage_response_tab.py`: `VoltageResponseTab` — Geiger plateau / voltage-response curve; pure class-attribute subclass of `ParameterSweepTabBase`; voltage parameter sourced from live `cVoltage` readback, setpoint auto-applied on each Start
-- `tabs/interval_repeat_tab.py`: `IntervalRepeatTab(PlotTabBase)` — MCS-style tab; bins a single continuous acquisition into R equal-width intervals using `IntervalBinner`; `inject_ui()` takes `plot_container`, `table_view`, `width_input` (QDoubleSpinBox), `repeat_input` (QSpinBox), `status_label`; `export()` returns summary + `interval_exports` returns per-interval `TabExport` list
-- `resources/stylesheet.py`: `get_stylesheet(mode)` / `apply_stylesheet(app, mode)` — dark/light Qt stylesheets applied at startup from `config.json → ui.theme`
-- `windows/main_window.py`: `MainWindow` — **thin**, setupUi + AppController signal subscriptions; routes shared Start/Stop/Speichern buttons via `_current_sweep_tab()` check; manages `_sweep_session` flag
-- `dialogs/connection.py`: `ConnectionWindow` — port enumeration, baud select, demo-mode mock port
-- `widgets/plot.py`: `GeneralPlot` (real-time line plot, `set_summary_points()` for scatter/line sweep summary), `HistogramWidget` — all pyqtgraph
-- `widgets/event_log_panel.py`: `EventLogPanel` — dockable timestamped status scrollback (§9)
-- `common/`: `dialogs.py`, `statusbar.py` (`StatusBarManager`), `file_dialogs.py`
+- `tabs/registry.py`: `TabRegistry` — `@TabRegistry.register`, `available(modules)` sorted by `order`
+- `tabs/tab_title.py`: `TabTitle` — tab title from `ui.tabs.<tab_id>`
+- `tabs/gm_timing_tab.py`: `GMTimingTab` (`tab_id="gm_timing"`, `order=0`, `provides_timing`) — GM timing experiment, form `timing_tab.ui`, inner views Zeitverlauf / Histogramm / Liste; high-speed mode (line plot and table paused, histogram and readouts every 2 s, automatic switch to the histogram unless `set_high_speed_autoswitch(False)`, which the session controller sets during sweep and interval sessions); export never drops frames
+- `tabs/parameter_sweep_base.py`: `ParameterSweepTabBase` — base of the sweep experiments; form `sweep_tab.ui` shared by all of them
+- `tabs/distance_law_tab.py`: `DistanceLawTab` (`order=10`) and `tabs/voltage_response_tab.py`: `VoltageResponseTab` (`order=20`) — class-attribute subclasses of `ParameterSweepTabBase`
+- `tabs/interval_repeat_tab.py`: `IntervalRepeatTab(PlotTabBase)` (`order=30`, form `interval_tab.ui`, `session_kind="interval"`, `receives_frames=True`) — bins one continuous acquisition into R equal-width intervals with `IntervalBinner`
+- `panels/`: dock panels `ConnectionPanel`, `DevicePanel`, `SamplePanel`, `MeasurementPanel`, `ReadoutPanel`, `DeviceStatusPanel`, `EventLogPanel` — each a `QGroupBox` (`EventLogPanel`: `QWidget`) with its own `.ui`; they expose intent signals and setters, never talk to devices; `panels/__init__.py` has the shared combo helpers
+- `windows/main_window.py`: `MainWindow(config, device_manager=None, persist=True, *, simulate=False, simulation=None)` — composes the three docks (`dockControls` ("Messparameter"): readout, device status, sample, measurement panel; `dockLive` ("Gerät"): connection and device panel; `dockLog`: event log, hidden by default) and the tab widget; builds the tabs from `TabRegistry` and never names a concrete tab; keeps no experiment logic; `simulate=True` starts (and on close stops) its own `SimulatedCounter`, `simulation=` uses the caller's
+- `widgets/plot.py`: `GeneralPlot` (real-time line plot, `reconfigure(...)`, `set_summary_points()`) and `HistogramWidget` — pyqtgraph, promoted in the `.ui` files
+- `widgets/plot_style.py`: palette-following plot chrome and the curve colours of `plot_colors` in config.json
+- `widgets/status_led.py` (`StatusLed`), `widgets/elided_label.py` (`ElidedLabel`, middle elision for paths), `widgets/vscroll.py` (`lock_vertical_scroll`) — small reusable widgets
+- `common/`: `dialogs.py`, `file_dialogs.py`, `statusbar.py` (`StatusBarManager`), `prompt.py` (`Prompt` protocol, `MessageBoxPrompt`), `messages.py` (`message(key)` for code without an `AppConfig`)
+- `resources/stylesheet.py`: `get_stylesheet(mode)` / `apply_stylesheet(app, mode)` — dark/light stylesheets; currently not applied (the import in `main.py` is commented out)
 
-### `gmcounter/pyqt/` — Generated Qt UI code
+### `gmcounter/pyqt/` — Designer forms and generated code
 
-`ui_mainwindow.py`, `ui_connection.py`, `ui_alert.py` are auto-generated by `pyside6-uic` from `.ui` files (`mainwindow.ui`, `connection.ui`, `alert.ui`). **Never hand-edit these files.** Regenerate with `bash gmcounter/pyqt/pyuic.sh` after any `.ui` edit.
+- `*.ui` forms are the only source of visual structure: `main_window.ui` (MainWindow), `connection_panel.ui`, `device_panel.ui`, `sample_panel.ui`, `measurement_panel.ui`, `readout_panel.ui`, `device_status_panel.ui`, `event_log_panel.ui` (panels), `timing_tab.ui`, `sweep_tab.ui`, `interval_tab.ui` (experiment tabs)
+- `ui_<form>.py`: generated by `pyside6-uic` from `<form>.ui` (`pyuic.sh`). **Never hand-edit these files.**
+- `sync_texts.py`: copies the configured German texts into the `.ui` properties, so Qt Designer shows them; run by `pyuic.sh`
+- `preview.py`: shows one form with its texts, without controllers or devices
 
 ## UI-first rule
 
-**Every static widget lives in a `.ui` file.** Buttons, labels, spinboxes, group boxes, table views, and empty plot containers all belong in Qt Designer, not in Python. Python code only:
+**Every static widget lives in a `.ui` file** — main window, dock panels, experiment tabs and dialogs alike. Python code only:
 
-- calls `setupUi()` / `inject_ui()` / `inject_ui_containers()`
-- connects signals to slots
-- injects pyqtgraph widgets into native `QWidget` containers declared in `.ui`
+- calls `setupUi()` and `apply_strings()`
+- connects signals to slots and sets values or states
+- holds behaviour (controllers, tabs, panels) on the widgets the form declares, found by object name
 
-The **only** justified exceptions (where Python creates widgets):
+Python creates widgets only where Designer cannot express them, and only for non-visual helpers:
 
-- pyqtgraph `PlotWidget` subclasses (`GeneralPlot`, `HistogramWidget`) — Designer cannot host third-party custom widgets
-- `QStandardItemModel` attached to a `.ui` `QTableView` — a non-visual logical helper
+- `QStandardItemModel` attached to a `.ui` `QTableView`
+- `QCompleter` attached to a `.ui` combo box
 
-After any `.ui` edit run `bash gmcounter/pyqt/pyuic.sh` to regenerate before testing.
+Custom widgets are promoted in the `.ui` files, not created in Python: the dock panels in `main_window.ui` (header `gmcounter.ui.panels.*`), `GeneralPlot` and `HistogramWidget` (header `gmcounter.ui.widgets.plot`), `StatusLed` (header `gmcounter.ui.widgets.status_led`).
+
+After any `.ui` edit run `bash gmcounter/pyqt/pyuic.sh [form]` to regenerate before testing.
+
+## Strings & profiles
+
+**Strings**: every user-visible German text lives in `gmcounter/config.json` under `"de"`, never in code or in a `.ui` file (the `.ui` texts are copies made by `sync_texts`).
+
+- `ui.<form>.<objectName>`: text of a Designer object; `name@kind` selects another property: `@tooltip`, `@suffix`, `@prefix`, `@placeholder`, `@title` (window title), `@tab` (page title of a `QTabWidget`). Object names come from the form.
+- `ui.<form>.<key_with_underscore>`: plain texts that the code reads by key (e.g. `plot_y_label`, `table_summary_headers`, `text_param_distance`)
+- `ui.tabs.<tab_id>`: tab titles; `messages.<key>`: message texts (`AppConfig.message` or `common.messages.message`)
+- Missing keys show the key itself (visible, not fatal). Run `pyuic.sh` after changing texts.
+
+**Profiles**: `profiles.<id>` in config.json with `name`, `hidden_tabs` (tab ids), `hidden_widgets` (root → object names) and `overrides` (merged over the defaults for this profile).
+
+- `student` (Praktikum) is the **default** (`application.profile` in config.json, and `DEFAULT_PROFILE` in `infrastructure/config.py` as the fallback) and hides the baud rate, the query mode and some readback rows; `expert` (Experte) hides nothing
+- the `config` fixture of `tests/ui/conftest.py` is the expert profile, so tests see every control; test the default with `load_config()`
+- select with `--profile <id>` (`gmcounter --help` names the default) or `application.profile`; the toolbar action (`actionSwitchProfile`) switches at run time through `Launcher`
+- a profile is config only: no code change; hidden controls keep their default values
+- tests: `tests/ui/test_profile.py`; `tests/ui/test_designer_forms.py` and `test_main_window_strings.py` check forms and texts
 
 ## Adding a frame-based experiment tab
 
-A frame-based tab receives every acquired data point in real time.
+A frame-based tab consumes the acquired data points itself while it is selected (`receives_frames = True`). `IntervalRepeatTab` is the reference.
 
-1. Declare a `QWidget` page in `mainwindow.ui`, add any static widgets (plot containers, table, labels, controls).
-2. Subclass `PlotTabBase`, implement `build()` (inject pyqtgraph into the `.ui` containers) and `on_frames()`:
+1. Create `gmcounter/pyqt/my_tab.ui`: a `QWidget` named `MyTab` with the static widgets (plots as promoted `GeneralPlot`, tables, spin boxes). Keep it free of texts.
+2. Add the texts to `config.json` under `ui.my_tab` (keys = object names, see "Strings & profiles") and `ui.tabs.my_exp`, then run `bash gmcounter/pyqt/pyuic.sh my_tab`.
+3. Create the tab module and import it in `gmcounter/ui/tabs/__init__.py`:
 
    ```python
+   @TabRegistry.register
    class MyTab(PlotTabBase):
-       tab_id = "my_exp"
-       tab_title = "My Experiment"
-       required_modules = set()   # or {"kdc101"} to gate on a host module
+       tab_id = "my_exp"                   # title: ui.tabs.my_exp
+       form_name = "my_tab"                # texts: ui.my_tab
+       order = 40
+       session_kind = "interval"           # "single" | "sweep" | "interval"
+       receives_frames = True
+       required_modules: set[str] = set()  # e.g. {"kdc101"}: shown only if that module is registered
 
-       def build(self): ...          # inject GeneralPlot into .ui container
-       def on_frames(self, frames): ...
-       def export(self) -> TabExport: ...
+       def __init__(self, context: "AppContext", parent: Optional[QWidget] = None) -> None:
+           super().__init__(context, parent)
+           self.ui = Ui_MyTab()
+           self.ui.setupUi(self)
+           apply_strings(self, self.config.section("ui").get(self.form_name, {}))
+
+       def build(self) -> None: ...                 # once, after construction
+       def on_frames(self, frames) -> None: ...     # batch of Frame objects
+       def on_reset(self) -> None: ...              # before a new measurement
+       def export(self) -> Optional[TabExport]: ... # data for the save service
    ```
 
-3. Call `TabRegistry.register(MyTab)` at module level.
-4. In `MainWindow.__init__`: inject `.ui` widgets, call `build()`. The page already exists in `.ui`; do NOT call `addTab()` programmatically.
+   Imports: `Ui_MyTab` from `gmcounter.pyqt.ui_my_tab`, `apply_strings` from `..i18n`, `PlotTabBase` from `.base`, `TabRegistry` from `.registry`, `TabExport` from `...core.export`.
 
-`required_modules` gating: if `{"kdc101"}` is declared, the tab is hidden until a `HostModule` with `id="kdc101"` is registered in `ModuleRegistry`.
+4. `MainWindow` needs no change: it creates every registered tab as `Tab(context)`, calls `build()` and adds the page with its title. Profiles can hide it via `hidden_tabs`.
+
+Hooks for sessions (`session_kind` "interval" or "sweep"): `has_data()`, `has_unsaved_data()`, `mark_saved()`, `summary_export()`, `session_exports()`, `session_file_name(export, index)`, `reset_session()`.
 
 ## Adding a parameter-sweep experiment tab
 
-A sweep tab accumulates (parameter, count, rate) points across multiple measurements without requiring an intermediate save. Use this pattern for distance law, voltage response curve, etc.
+A sweep tab accumulates (parameter, count, rate) points across several measurements; the session is saved once at the end. All sweep tabs share `sweep_tab.ui` (`SweepTab`: `labelParam`, `spinParam`, `labelHint`, `valueStatus`, `sweepPlot`, `tableSummary`), so no new form is needed.
 
-1. Declare a `QWidget` page in `mainwindow.ui` with exactly this widget set (names matter — MainWindow injects by name):
-   - `QDoubleSpinBox name="<prefix>Input"` — parameter input
-   - `QWidget name="<prefix>Plot" native="true"` — empty container for GeneralPlot
-   - `QTableView name="<prefix>Table"` — summary table
-   - `QLabel name="<prefix>Status"` — status text
-
-2. Subclass `ParameterSweepTabBase` and set class attributes only — no method bodies needed. **Do NOT call `TabRegistry.register()`** — sweep tabs are explicitly wired in `MainWindow` and do not go through the auto-discovery path:
+1. Add the instance texts to `config.json` under `ui.sweep_tab`, with `<instance>` as the suffix: `text_param_<instance>`, `text_param_suffix_<instance>`, `text_param_tooltip_<instance>`, `text_param_header_<instance>`, `text_summary_title_<instance>`, optional `text_hint_<instance>`; and the title `ui.tabs.<tab_id>`.
+2. Subclass `ParameterSweepTabBase` with class attributes only and register it. This is `DistanceLawTab` in `gmcounter/ui/tabs/distance_law_tab.py`:
 
    ```python
-   class VoltageResponseTab(ParameterSweepTabBase):
-       tab_id = "voltage_response"
-       tab_title = "Spannungskurve"
-       required_modules: set[str] = set()
+   @TabRegistry.register
+   class DistanceLawTab(ParameterSweepTabBase):
+       tab_id = "distance_law"
+       order = 10
+       instance = "distance"
+       hides_global_distance = True  # the tab has its own distance input
 
-       param_label          = "Spannung (V)"
-       param_unit           = "V"
-       param_metadata_key   = "gm_voltage_v"
-       summary_filename_hint = "spannungskurve"
-       summary_title        = "Spannungskurve — Zusammenfassung"
+       param_unit = "cm"
+       param_metadata_key = "sample_distance_cm"
+       summary_filename_hint = "abstandsgesetz"
+       clear_param_input_after_stop = True
    ```
 
-3. In `MainWindow.__init__`, inject and build (after `_ctrl.set_active_tab(self._gm_tab)`):
+3. Optional class attributes: `param_format` (table format), `uses_param_input = False` (the parameter comes from the device read-back, the input row is hidden), `applies_device_voltage_on_start = True` (device settings are sent before each Start). `VoltageResponseTab` uses the last two.
+4. Import the module in `gmcounter/ui/tabs/__init__.py`. The shared Start / Stop / Save / Reset buttons drive the tab through `session_kind = "sweep"` (set by the base); no per-tab button wiring.
 
-   ```python
-   self._voltage_tab = VoltageResponseTab(parent=self)
-   self._voltage_tab.set_gm_tab(self._gm_tab)
-   self._voltage_tab.inject_ui(
-       plot_container=self.ui.voltagePlot,
-       table_view=self.ui.voltageTable,
-       param_input=self.ui.voltageInput,
-       status_label=self.ui.voltageStatus,
-   )
-   self._voltage_tab.build()
-   self._ctrl.measurement_stopped.connect(self._voltage_tab.on_measurement_stopped)
-   ```
+**Sweep session lifecycle** (`SessionController`):
 
-The shared **Start / Stop / Speichern / Reset** buttons route automatically: `MainWindow._current_sweep_tab()` returns the active sweep tab (if any), and `_handle_start/save/reset` branch on that. No per-tab button wiring is needed.
-
-**Sweep session lifecycle** (handled by MainWindow):
-
-- Start on a sweep tab → disables the three GM view tabs (Zeitverlauf/Histogramm/Liste), suppresses GMTimingTab's high-speed auto-switch, sets `_sweep_session = True`
-- Stop → Start re-enabled immediately for the next distance/voltage point
-- Speichern → saves summary CSV + auto-named individual timing CSVs → resets GMTimingTab, re-enables view tabs, clears `_sweep_session`
-- Reset → discards summary, re-enables view tabs
+- Start on a sweep tab: the first point of a session warns on infinite time, then `tabs_locked` locks the other tabs and `set_high_speed_autoswitch(False)` keeps the timing view; each point starts a measurement without a save in between
+- Stop → Start is enabled again immediately for the next point
+- Save (button "Speichern") → summary CSV plus one automatically named detail CSV per point, then the session is reset, the other tabs are unlocked and the auto-switch is restored
+- Reset → discards the session after a confirmation if it holds data
 
 ## Key Conventions
 
-**Config**: All tuneable constants live in `gmcounter/config.json` under the `"de"` key. Access with `import_config()` from `gmcounter.infrastructure.config`. `demo_mode: true` by default (no real hardware needed).
+**Config**: All tuneable constants live in `gmcounter/config.json` under the `"de"` key. Access with `load_config()` / `default_config()` from `gmcounter.infrastructure.config`. Connection defaults: `gm_counter.baud_rates`, `gm_counter.default_baud` (1000000), `gm_counter.default_arduino` (port hint).
+
+**Connection & simulation**: the window opens unconnected; the user connects in `ConnectionPanel` (top of `dockLive`). Start and Apply stay disabled until the link is up. `--simulate` (or `MainWindow(config, simulate=True)` in tests) runs a `MockGMCounter` on a PTY in-process; the panel offers only that port and disables the baud rate. Tests: `tests/ui/test_connection.py`.
 
 **Binary protocol**: Three marker types, all decoded by `PacketParser`:
 
@@ -195,10 +231,20 @@ The shared **Start / Stop / Speichern / Reset** buttons route automatically: `Ma
 
 **Crash-safe journaling**: `SessionJournal` appends every data point to `~/.gmcounter/sessions/<ts>/journal.csv` with fsync every ~1 s. On startup `find_orphan_journals()` reports sessions without a `finalized` marker.
 
-**Save / export flow**: Unsaved-state (dirty flag + base directory) is tracked by `core.services.SaveState`. Actual I/O goes through `infrastructure.save_service.write_export()` (standalone function) or the auto-index helper `infrastructure.save_service.SaveService`. The `core.export` module provides `TabExport` (§7) and `compose_save_path()` — pure composition, no I/O.
+**Save / export flow**: unsaved state (dirty flag and base directory) is tracked by `core.services.SaveState`; `AppContext.save_service` holds it. Actual I/O goes through `infrastructure.save_service.write_export()` (standalone function) or the auto-index helper `infrastructure.save_service.SaveService`. `core.export` provides `TabExport` (§7) and `compose_save_path()` — pure composition, no I/O.
 
 **Mocks excluded from wheel**: `infrastructure/mocks/` is in `pyproject.toml`'s exclude list.
 
 **Logging**: Use `logging.getLogger(__name__)` (stdlib) for module loggers. `infrastructure.logging.Debug` configures the `gmcounter` root logger (levels `DEBUG_OFF / INFO / VERBOSE / ERROR`), so stdlib `getLogger` output propagates through it automatically. `Debug.info/error/verbose` is also available for direct use where already imported.
 
 **§ references** (e.g. `§5 B5`, `§6`, `§7`): these cross-reference numbered sections in `ARCHITECTURE.md`, which documents the design contracts and extension points in detail.
+
+## CI, changelog and releases
+
+Workflows live in `.github/workflows/` and are described in `.github/WORKFLOWS.md` (not `.github/README.md`: GitHub would show that file instead of the root README).
+
+- `ci.yml`: ruff format + lint, then pytest on Python 3.10 – 3.12. Runs on pull requests and on manual dispatch, and is reusable (`workflow_call`). There is no push trigger, so a change is tested once per PR update, not again on the branch push, the merge or the release.
+- `auto-release.yml`: runs when a PR is merged into `main` and carries a release label (`major`, `minor` or `patch`; `semver:*` also works), or by manual dispatch (which runs `ci.yml` first, because no PR tested that commit). It bumps the version in `pyproject.toml`, `gmcounter/__init__.py` and `gmcounter/config.json`, stamps `CHANGELOG.md`, builds the wheel and sdist, commits, tags `vX.Y.Z` and creates the GitHub release with the changelog section as its notes. It does not run the tests again.
+- Never edit the version by hand; the release workflow owns it.
+- `CHANGELOG.md` follows Keep a Changelog. Add every user-visible change under `## [Unreleased]` in the PR that makes it (Added / Changed / Fixed / Removed). The release workflow turns that section into the new version.
+- Keep the PR's branch protection on "require branches to be up to date": the release does not re-test the merge result.

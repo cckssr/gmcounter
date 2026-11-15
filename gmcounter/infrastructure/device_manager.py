@@ -68,12 +68,20 @@ class DeviceManager:
             self.device = device_class(port=port, baudrate=baudrate)
             self.connected = True
             self._connection_lost_handled = False
-            _log.info("Connected to %s", port)
 
+            # A port that opens is not yet a GM counter: require a valid *IDN? reply.
+            if not self._fetch_device_info():
+                _log.error("No valid *IDN? reply from %s", port)
+                self.disconnect_device()
+                if self.on_status:
+                    self.on_status(
+                        f"Verbindung fehlgeschlagen: keine Antwort von {port}", "red"
+                    )
+                return False
+
+            _log.info("Connected to %s", port)
             if self.on_status:
                 self.on_status(f"Verbunden mit {port}", "green")
-
-            self._fetch_device_info()
             return True
 
         except serial.SerialException as exc:
@@ -114,7 +122,7 @@ class DeviceManager:
         return success
 
     def apply_device_settings(self, settings: DeviceSettings) -> dict:
-        """Public API: push *settings* to hardware. See ``_apply_device_settings``."""
+        """Push *settings* to the hardware (public API of ``_apply_device_settings``)."""
         return self._apply_device_settings(settings)
 
     def _apply_device_settings(self, settings: DeviceSettings) -> dict:
@@ -154,7 +162,7 @@ class DeviceManager:
             lambda: self.device.set_repeat(settings.repeat, confirm=True),
             settings.repeat,
         )
-        stream_val = 4 if settings.auto_query else 1
+        stream_val = 4 if settings.auto_query else 0
         _try(
             "stream",
             lambda: self.device.set_stream(stream_val, confirm=True),
@@ -187,20 +195,28 @@ class DeviceManager:
         self.measurement_state.stop_measurement()
         self._connection_lost_handled = False
 
-    def fetch_device_info(self) -> None:
-        """Public API: fetch device info and fire on_device_info callback."""
-        self._fetch_device_info()
+    def fetch_device_info(self) -> bool:
+        """Public API: fetch the device info and fire ``on_device_info``."""
+        return self._fetch_device_info()
 
-    def _fetch_device_info(self) -> None:
+    def _fetch_device_info(self) -> bool:
+        """Query ``*IDN?`` (one retry); ``True`` if the device identified itself."""
         if not self.device:
-            return
+            return False
         try:
             info = self.device.get_information()
+            if not (info.get("version") or info.get("openbis")):
+                time.sleep(0.2)
+                info = self.device.get_information(use_cache=False)
             _log.info("Device info: %s", info)
+            if not (info.get("version") or info.get("openbis")):
+                return False
             if self.on_device_info:
                 self.on_device_info(info)
+            return True
         except Exception as exc:
             _log.error("Failed to fetch device info: %s", exc)
+            return False
 
     # ------------------------------------------------------------------
     # Measurement control

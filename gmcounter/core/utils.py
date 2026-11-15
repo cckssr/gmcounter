@@ -43,7 +43,10 @@ def create_dropbox_foldername(
     """
     day = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][datetime.now().weekday()]
 
-    if not group_letter or not re.match(r"^[A-Z]$", group_letter):
+    if not group_letter:
+        _log.debug("No group letter selected yet")
+        return ""
+    if not re.match(r"^[A-Z]$", group_letter):
         _log.error("Invalid group letter: %s", group_letter)
         return ""
     if not tk_designation or not re.match(r"^TK\d{1,2}$", tk_designation):
@@ -66,7 +69,10 @@ def create_group_name(letter: str) -> str:
     day = datetime.now().strftime("%a")[:2]
     year = datetime.now().year
 
-    if not letter or not re.match(r"^[A-Z]$", letter):
+    if not letter:
+        _log.debug("No group letter selected yet")
+        return "Ungültige Gruppe"
+    if not re.match(r"^[A-Z]$", letter):
         _log.error("Invalid group letter: %s", letter)
         return "Ungültige Gruppe"
 

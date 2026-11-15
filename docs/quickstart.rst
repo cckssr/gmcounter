@@ -15,21 +15,21 @@ Installation
 Erste Schritte
 ---------------
 
-**1. Demo-Modus (ohne Hardware):**
+**1. Simulation (ohne Hardware):**
 
 .. code-block:: bash
 
-   python main.py --demo
+   python -m gmcounter --simulate
 
 **2. Mit GM-Zähler:**
 
 .. code-block:: bash
 
-   python main.py
+   python -m gmcounter
 
 - Hardware über USB anschließen
-- COM-Port wird automatisch erkannt
-- Bei Problemen: Einstellungen → Geräteverbindung
+- Das Hauptfenster öffnet sich direkt; im Bereich "Verbindung" (rechte Seitenleiste) Port wählen und "Verbinden" klicken
+- Der zuletzt erfolgreich genutzte Port ist beim nächsten Start vorausgewählt
 
 Grundfunktionen
 ---------------
@@ -85,29 +85,28 @@ Typische Workflows
 Bei Problemen
 -------------
 
-- **Keine Verbindung:** COM-Port manuell setzen
-- **Fehlerhafte Daten:** Baudrate prüfen (115200)
-- **Abstürze:** Debug-Modus aktivieren: ``python main.py --debug``
+- **Keine Verbindung:** im Bereich "Verbindung" die Portliste aktualisieren und einen anderen Port wählen
+- **Fehlerhafte Daten:** Baudrate prüfen (Standard 1000000)
+- **Abstürze:** ``debug.level_default`` in ``config.json`` auf ``"verbose"`` setzen
 
 Weitere Dokumentation: :doc:`troubleshooting` | :doc:`hardware/gm-counter-protocol`
 
-   - Klicken Sie auf "Gerät" → "Verbinden"
-   - Wählen Sie den korrekten Port aus
+   - Wählen Sie im Bereich "Verbindung" (rechte Seitenleiste) den korrekten Port aus
    - Klicken Sie auf "Verbinden"
 
 3. **Verbindung testen**
    - Der Status sollte "Verbunden" anzeigen
    - Geräteinformationen werden angezeigt
 
-Demo-Modus
+Simulation
 ~~~~~~~~~~
 
 Wenn Sie keinen GM-Zähler haben:
 
-1. **Demo-Modus starten**
+1. **Simulation starten**
 
-   - Starten Sie mit ``python main.py --demo``
-   - Oder wählen Sie im Menü "Demo-Modus"
+   - Starten Sie mit ``python -m gmcounter --simulate``
+   - Im Bereich "Verbindung" ist nur der simulierte Zähler wählbar; "Verbinden" klicken
 
 2. **Simulierte Daten**
    - Die Anwendung generiert realistische Testdaten
@@ -233,7 +232,7 @@ Erste Messungen
 
 1. **Kurze Zählzeiten** verwenden (1-10 Sekunden)
 2. **Einzelmessungen** für erste Tests
-3. **Demo-Modus** zum Kennenlernen der Oberfläche
+3. **Simulation** (``--simulate``) zum Kennenlernen der Oberfläche
 
 Gute Messpraxis
 ~~~~~~~~~~~~~~~
@@ -274,7 +273,7 @@ Unrealistische Messwerte
 
 * Spannung kontrollieren
 * Verkabelung prüfen
-* Demo-Modus zum Vergleich
+* Simulation (``--simulate``) zum Vergleich
 
 Langsame Performance
 ~~~~~~~~~~~~~~~~~~~~
@@ -322,7 +321,7 @@ Hier ist ein typischer Arbeitsablauf:
 1. **Vorbereitung**
 
    ````bash
-   python main.py --demo
+   python -m gmcounter --simulate
    ````
 
 2. **Konfiguration**

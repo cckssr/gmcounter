@@ -1,11 +1,22 @@
 name: CI
 
+# Triggers: every PR update runs the checks exactly once. There is deliberately no
+# `push` trigger: a push to a PR branch would run the same checks a second time, and
+# the merge to main and the release must not repeat them (the PR already passed).
+# `workflow_call` lets auto-release.yml reuse this workflow for manual releases,
+# where no PR has tested the commit.
 on:
-  push:
-    branches: ["**"]
   pull_request:
-    branches: ["**"]
   workflow_dispatch:
+  workflow_call:
+
+# A newer push to the same PR cancels the run it makes obsolete.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
   INSTALL_EXTRAS: dev
@@ -70,16 +81,10 @@ jobs:
       - name: Install project + dev dependencies
         run: python -m pip install -e ".[${INSTALL_EXTRAS}]"
 
-      - name: Run tests (core + infrastructure, no Qt needed)
-        run: pytest tests/core tests/infrastructure -v --tb=short
-
-      - name: Run tests (integration — MockGMCounter PTY)
-        run: pytest tests/integration -v --tb=short -m integration
-
-      - name: Run tests (hardware — MockGMCounter PTY fallback)
-        run: pytest tests/hardware -v --tb=short -m integration
-
-      - name: Run all tests with coverage
+      # One pytest run covers core, infrastructure, integration (MockGMCounter PTY),
+      # hardware (PTY fallback) and UI tests; running the groups separately first
+      # would execute every test two or three times.
+      - name: Run tests with coverage
         run: |
           pytest \
             --cov=$TEST_COV \
