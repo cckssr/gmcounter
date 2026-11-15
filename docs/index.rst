@@ -18,13 +18,11 @@ Inhalt
    user-interface
    data-analysis
    hardware/gm-counter-protocol
-   hardware/arduino-integration
 
 .. toctree::
    :maxdepth: 1
-   :caption: Entwicklernotizen
+   :caption: Entwicklerreferenz
 
-   dev_journal/index
    api
    faq
    troubleshooting
@@ -35,5 +33,4 @@ Project info
 * **Author:** Cedric Kessler
 * **License:** MIT
 * **Source:** https://github.com/cckssr/GMCounter
-
-*** End of file
+* **Version:** 2.1.0

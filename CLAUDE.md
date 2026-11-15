@@ -23,9 +23,9 @@ pytest tests/infrastructure/          # infrastructure layer (no Qt needed)
 QT_QPA_PLATFORM=offscreen pytest tests/ui/  # UI layer (offscreen)
 pytest --cov=gmcounter
 
-# Format / lint
-black gmcounter tests
-flake8 gmcounter tests
+# Format / lint (CI runs exactly these two; ruff only, no black / flake8)
+ruff format gmcounter tests
+ruff check gmcounter tests --ignore D100,D101,D102,D103,D104,D105,D106,D107
 
 # Designer forms (gmcounter/pyqt/*.ui)
 bash gmcounter/pyqt/pyuic.sh                  # sync texts from config.json, regenerate every ui_<form>.py
@@ -55,12 +55,11 @@ Lower layers must never import from higher ones.
 
 - `models.py`: `MeasurementPoint`, `MeasurementSession`, `DeviceSettings`, `DeviceInfo`, `Frame` (frozen cross-thread bundle), `DesiredState` (reconnect replay snapshot)
 - `export.py`: `TabExport` dataclass (§7) + `build_gm_tab_export()` + `compose_save_path()` — pure composition, no I/O
-- `services.py`: `MeasurementService`, `SaveService` (CSV/JSON), `DeviceControlService`, `MeasurementStateService`
+- `services.py`: `SaveState` (base-dir + unsaved-flag tracking, no I/O), `MeasurementStateService`
 - `reconnect_service.py`: `ReconnectStrategy` + `ConnectionRetryService` (exponential backoff)
 - `duration.py`: `accumulate_and_trim()` — trims a batch of `(index, value_us)` points to stay within a `target_us` device-time budget; returns `(kept_points, new_accum_us, reached)`
 - `interval_binning.py`: `IntervalBinner` + `IntervalBins` — MCS-style binning of a continuous acquisition into R equal-width intervals; `feed()` returns touched bin indices for incremental plot refresh
 - `utils.py`: filename sanitization, statistics helpers
-- `formatting.py`: display format helpers
 - `exceptions.py`: `GMCounterError` hierarchy
 - `ports.py`: `Logger` Protocol (so core never imports infrastructure.logging)
 
@@ -91,7 +90,6 @@ Startup: `gmcounter/main.py` (`--profile`, `--simulate`) creates the `Launcher`,
 - `controllers/app_controller.py`: **`AppController(QObject)`** — owns all QTimers, DataAcquisitionThread, reconnect FSM (§5), frame fan-out to the active tab (`frames_ready` → `on_frames`); `connect_device(port, baud)` connects in a `ConnectWorker` (`connecting_changed`, `connect_finished`), `disconnect_device()`; `connection_changed(bool)` on connect / reconnect / disconnect / final loss, `reconnecting` when the link drops; acquisition runs only while connected
 - `controllers/connection_controller.py`: `ConnectionController(QObject)` — drives the connection panel: port list (or only the simulated port), panel states `disconnected` / `connecting` / `connected` / `reconnecting` / `failed` / `lost`, remembers the last successful port and baud rate in `QSettings` (`connection/port`, `connection/baud`; not with `persist=False`); `connected_changed` enables Start (`SessionController.set_connected`) and Apply (`DevicePanel.set_connected`)
 - `controllers/session_controller.py`: **`SessionController(QObject)`** — what the shared Start / Stop / Save / Reset buttons mean for the selected tab; branches on `session_kind` ("single", "sweep", "interval"), guards unsaved data, writes summary and detail files; talks to the user through `common/prompt.py`
-- `controllers/data_controller.py`: `DataController` — legacy, no longer wired into the window; do not extend
 - `tabs/base.py`: `PlotTabBase(QWidget)` — experiment tab contract (§6)
 - `tabs/registry.py`: `TabRegistry` — `@TabRegistry.register`, `available(modules)` sorted by `order`
 - `tabs/tab_title.py`: `TabTitle` — tab title from `ui.tabs.<tab_id>`
@@ -232,8 +230,20 @@ A sweep tab accumulates (parameter, count, rate) points across several measureme
 
 **Crash-safe journaling**: `SessionJournal` appends every data point to `~/.gmcounter/sessions/<ts>/journal.csv` with fsync every ~1 s. On startup `find_orphan_journals()` reports sessions without a `finalized` marker.
 
-**Deprecated files**: `ui/controllers/data_controller.py` (`DataController`) is legacy — new code should not use it.
+**Save / export flow**: unsaved state (dirty flag and base directory) is tracked by `core.services.SaveState`; `AppContext.save_service` holds it. Actual I/O goes through `infrastructure.save_service.write_export()` (standalone function) or the auto-index helper `infrastructure.save_service.SaveService`. `core.export` provides `TabExport` (§7) and `compose_save_path()` — pure composition, no I/O.
 
 **Mocks excluded from wheel**: `infrastructure/mocks/` is in `pyproject.toml`'s exclude list.
 
-**Logging**: Use `infrastructure.logging.Debug` for all logging. It has four levels: `DEBUG_OFF`, `INFO`, `VERBOSE`, and `ERROR`. Logs are printed to the console with timestamps and exception handler.
+**Logging**: Use `logging.getLogger(__name__)` (stdlib) for module loggers. `infrastructure.logging.Debug` configures the `gmcounter` root logger (levels `DEBUG_OFF / INFO / VERBOSE / ERROR`), so stdlib `getLogger` output propagates through it automatically. `Debug.info/error/verbose` is also available for direct use where already imported.
+
+**§ references** (e.g. `§5 B5`, `§6`, `§7`): these cross-reference numbered sections in `ARCHITECTURE.md`, which documents the design contracts and extension points in detail.
+
+## CI, changelog and releases
+
+Workflows live in `.github/workflows/` and are described in `.github/WORKFLOWS.md` (not `.github/README.md`: GitHub would show that file instead of the root README).
+
+- `ci.yml`: ruff format + lint, then pytest on Python 3.10 – 3.12. Runs on pull requests and on manual dispatch, and is reusable (`workflow_call`). There is no push trigger, so a change is tested once per PR update, not again on the branch push, the merge or the release.
+- `auto-release.yml`: runs when a PR is merged into `main` and carries a release label (`major`, `minor` or `patch`; `semver:*` also works), or by manual dispatch (which runs `ci.yml` first, because no PR tested that commit). It bumps the version in `pyproject.toml`, `gmcounter/__init__.py` and `gmcounter/config.json`, stamps `CHANGELOG.md`, builds the wheel and sdist, commits, tags `vX.Y.Z` and creates the GitHub release with the changelog section as its notes. It does not run the tests again.
+- Never edit the version by hand; the release workflow owns it.
+- `CHANGELOG.md` follows Keep a Changelog. Add every user-visible change under `## [Unreleased]` in the PR that makes it (Added / Changed / Fixed / Removed). The release workflow turns that section into the new version.
+- Keep the PR's branch protection on "require branches to be up to date": the release does not re-test the merge result.

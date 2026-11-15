@@ -1,5 +1,5 @@
-"""UI Controllers - Bridge between UI and Core/Infrastructure layers."""
+"""UI Controllers — presentation layer controllers."""
 
-from .data_controller import DataController
+from .app_controller import AppController
 
-__all__ = ["DataController"]
+__all__ = ["AppController"]

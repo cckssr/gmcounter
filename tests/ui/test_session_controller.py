@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from gmcounter.core.export import TabExport
-from gmcounter.core.services import SaveService
+from gmcounter.core.services import SaveState
 from gmcounter.ui.controllers.session_controller import SessionController
 
 META = {
@@ -164,7 +164,7 @@ class Harness:
         self.config = config
         self.ctrl = FakeCtrl()
         self.timing = FakeTiming()
-        self.save_service = SaveService(base_dir=tmp_path / "base")
+        self.save_service = SaveState(base_dir=tmp_path / "base")
         self.dialogs = FakeFileDialogs(tmp_path)
         self.prompt = FakePrompt()
         self.current = FakeTab("single")

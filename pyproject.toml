@@ -3,7 +3,7 @@
 
 [project]
 name = "GMCounter"
-version = "2.1.0"
+version = "2.1.2"
 description = "Geiger-Müller Counter GUI"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -79,10 +79,10 @@ select = ["D"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
+python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "--tb=short"
 markers = [
     "hardware: requires physical GM counter hardware (pass --port /dev/tty... to enable)",
     "integration: end-to-end test using MockGMCounter PTY server or real hardware",

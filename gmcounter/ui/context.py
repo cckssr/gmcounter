@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from gmcounter.infrastructure.config import AppConfig
 
 if TYPE_CHECKING:
-    from gmcounter.core.services import SaveService
+    from gmcounter.core.services import SaveState
     from gmcounter.infrastructure.device_manager import DeviceManager
     from gmcounter.ui.common.file_dialogs import FileDialogManager
     from gmcounter.ui.controllers.app_controller import AppController
@@ -36,7 +36,7 @@ class AppContext:
     config: AppConfig
     device_manager: DeviceManager | None = None
     ctrl: AppController | Any | None = None
-    save_service: SaveService | None = None
+    save_service: SaveState | None = None
     file_dialogs: FileDialogManager | None = None
     timing: GMTimingTab | Any | None = None
     voltage_readback: Callable[[], float] = field(default=_no_voltage)

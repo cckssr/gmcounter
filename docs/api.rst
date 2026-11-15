@@ -1,192 +1,103 @@
 API-Dokumentation
 =================
 
-Die automatisch generierte API-Dokumentation basiert auf den Docstrings im Python-Code.
+Automatisch generierte Referenz aus den Docstrings des Python-Codes.
 
-Hauptmodule
------------
+Core — reine Domänenlogik
+--------------------------
 
-.. automodule:: main
+.. automodule:: gmcounter.core.models
    :members:
    :undoc-members:
    :show-inheritance:
 
-Device Management
------------------
-
-.. automodule:: src.device_manager
+.. automodule:: gmcounter.core.export
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: src.arduino
+.. automodule:: gmcounter.core.services
    :members:
    :undoc-members:
    :show-inheritance:
 
-Data Controller
----------------
-
-.. automodule:: src.data_controller
+.. automodule:: gmcounter.core.reconnect_service
    :members:
    :undoc-members:
    :show-inheritance:
 
-Helper Classes
---------------
-
-.. automodule:: src.helper_classes
+.. automodule:: gmcounter.core.duration
    :members:
    :undoc-members:
    :show-inheritance:
 
-Debug Utilities
----------------
-
-.. automodule:: src.debug_utils
+.. automodule:: gmcounter.core.interval_binning
    :members:
    :undoc-members:
    :show-inheritance:
 
-Automatisch generierte Dokumentation
-------------------------------------
-
-MainWindow
-~~~~~~~~~~
-
-.. automodule:: src.main_window
+.. automodule:: gmcounter.core.utils
    :members:
    :undoc-members:
    :show-inheritance:
 
-DataController
-~~~~~~~~~~~~~~
-
-.. automodule:: src.data_controller
+.. automodule:: gmcounter.core.exceptions
    :members:
    :undoc-members:
    :show-inheritance:
 
-DeviceManager
-~~~~~~~~~~~~~
+Infrastructure — Adapter
+------------------------
 
-.. automodule:: src.device_manager
+.. automodule:: gmcounter.infrastructure.device_manager
    :members:
    :undoc-members:
    :show-inheritance:
 
-Plot
-~~~~
-
-.. automodule:: src.plot
+.. automodule:: gmcounter.infrastructure.packet_parser
    :members:
    :undoc-members:
    :show-inheritance:
 
-Helper Classes
-~~~~~~~~~~~~~~
-
-.. automodule:: src.helper_classes
+.. automodule:: gmcounter.infrastructure.session_journal
    :members:
    :undoc-members:
    :show-inheritance:
 
-Debug Utils
-~~~~~~~~~~~
-
-.. automodule:: src.debug_utils
+.. automodule:: gmcounter.infrastructure.save_service
    :members:
    :undoc-members:
    :show-inheritance:
 
-Arduino
-~~~~~~~
-
-.. automodule:: src.arduino
+.. automodule:: gmcounter.infrastructure.devices.gm_counter
    :members:
    :undoc-members:
    :show-inheritance:
 
-Connection
-~~~~~~~~~~
-
-.. automodule:: src.connection
+.. automodule:: gmcounter.infrastructure.modules.registry
    :members:
    :undoc-members:
    :show-inheritance:
 
-Verwendung
-----------
+UI — Präsentationsschicht
+--------------------------
 
-Die API-Dokumentation wird automatisch aus den Docstrings im Code generiert. Stellen Sie sicher, dass Ihre Funktionen und Klassen ordnungsgemäß dokumentiert sind:
+.. automodule:: gmcounter.ui.controllers.app_controller
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-.. code-block:: python
+.. automodule:: gmcounter.ui.tabs.base
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-    class MainWindow(QMainWindow):
-        """Main window of the GMCounter application.
+.. automodule:: gmcounter.ui.tabs.gm_timing_tab
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-        It handles the user interface, the device connection and the
-        processing of the recorded data.  The implementation is split
-        into several functional sections:
-
-        1. Initialization and setup
-        2. Data processing and statistics
-        3. Measurement management
-        4. UI event handlers
-        5. Device control
-        6. Helper functions
-        """
-
-        def __init__(self, device_manager: DeviceManager, parent=None):
-            """
-            Initialisiert das Hauptfenster und alle Komponenten der Anwendung.
-
-            Args:
-                device_manager (DeviceManager): Der verbundene Geräte-Manager
-                parent: Das übergeordnete Widget (optional)
-            """
-            # Implementation...
-
-Docstring-Stile
----------------
-
-Die Dokumentation unterstützt sowohl Google- als auch NumPy-Style Docstrings:
-
-Google Style
-~~~~~~~~~~~~
-
-.. code-block:: python
-
-    def function_with_types_in_docstring(param1, param2):
-        """Example function with types documented in the docstring.
-
-        Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
-
-        Returns:
-            bool: The return value. True for success, False otherwise.
-        """
-        return True
-
-NumPy Style
-~~~~~~~~~~~
-
-.. code-block:: python
-
-    def function_with_numpy_docstring(param1, param2):
-        """Example function with NumPy style docstring.
-
-        Parameters
-        ----------
-        param1 : int
-            The first parameter.
-        param2 : str
-            The second parameter.
-
-        Returns
-        -------
-        bool
-            The return value. True for success, False otherwise.
-        """
-        return True
+.. automodule:: gmcounter.ui.tabs.parameter_sweep_base
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QMainWindow, QWidget
 
 from gmcounter.pyqt.ui_main_window import Ui_MainWindow
 
-from ...core.services import SaveService
+from ...core.services import SaveState
 from ...infrastructure.config import AppConfig
 from ...infrastructure.device_manager import DeviceManager
 from ...infrastructure.modules.registry import ModuleRegistry
@@ -100,7 +100,7 @@ class MainWindow(QMainWindow):
             if persist
             else tempfile.mkdtemp(prefix="gmcounter-test-")
         )
-        save_service = SaveService(
+        save_service = SaveState(
             base_dir=base_dir,
             tk_designation=config.get("save.tk_designation", "TK47"),
         )
@@ -139,7 +139,7 @@ class MainWindow(QMainWindow):
         device_manager.on_device_info = self._device_info_received.emit
         self._device_info_received.connect(self._on_device_info)
         if device_manager.device and device_manager.connected:
-            device_manager._fetch_device_info()  # pylint: disable=protected-access
+            device_manager.fetch_device_info()
 
         self.session.initial_state()
         self._setup_connection()
@@ -181,7 +181,7 @@ class MainWindow(QMainWindow):
                 tab.setParent(self)
                 tab.hide()
 
-    def _build_session(self, save_service: SaveService) -> SessionController:
+    def _build_session(self, save_service: SaveState) -> SessionController:
         ui = self.ui
         session = SessionController(
             self.config,

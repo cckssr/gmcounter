@@ -121,6 +121,10 @@ class DeviceManager:
 
         return success
 
+    def apply_device_settings(self, settings: DeviceSettings) -> dict:
+        """Push *settings* to the hardware (public API of ``_apply_device_settings``)."""
+        return self._apply_device_settings(settings)
+
     def _apply_device_settings(self, settings: DeviceSettings) -> dict:
         """Push settings to the hardware with read-back confirmation.
 
@@ -190,6 +194,10 @@ class DeviceManager:
         self.connected = False
         self.measurement_state.stop_measurement()
         self._connection_lost_handled = False
+
+    def fetch_device_info(self) -> bool:
+        """Public API: fetch the device info and fire ``on_device_info``."""
+        return self._fetch_device_info()
 
     def _fetch_device_info(self) -> bool:
         """Query ``*IDN?`` (one retry); ``True`` if the device identified itself."""
