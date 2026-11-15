@@ -8,6 +8,8 @@ Add every user-visible change under `## [Unreleased]` in the pull request that m
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-11-15
+
 This is a major release: the user interface was rebuilt from the ground up. The measurement protocol, the exported file formats and the firmware command set are unchanged.
 
 ### Added
@@ -53,3 +55,4 @@ This is a major release: the user interface was rebuilt from the ground up. The 
 - Voltage and counting-time ranges in the firmware `HELP` output.
 - Corrupted `FETC:STAT?` answers caused by the continuous stream mode on `Serial1`; the device readout ignores incomplete reads instead of showing zeros.
 - The line plot uses a thin pen, and Auto-Scroll survives programmatic range changes.
+
