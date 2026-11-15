@@ -29,7 +29,6 @@ class DataAcquisitionThread(QThread):
     cost — see docs.
     """
 
-    CONNECTION_TIMEOUT = 3.0
     START_MARKER_TIMEOUT = 2.0
     # Public signals
     data_batch = Signal(object)  # list[tuple[int index, float value_us]]
@@ -45,7 +44,6 @@ class DataAcquisitionThread(QThread):
         super().__init__()
         self.manager = manager
         self._running = False
-        self._last_data_time = time.time()
         self._connection_lost_emitted = False
         self._first_data_received = False
         self._measurement_start_time: Optional[float] = None
@@ -71,7 +69,6 @@ class DataAcquisitionThread(QThread):
     def run(self) -> None:
         _log.info("DataAcquisitionThread started")
         self._running = True
-        self._last_data_time = time.time()
         self._connection_lost_emitted = False
         self._first_data_received = False
         self._measurement_start_time = None
@@ -115,7 +112,6 @@ class DataAcquisitionThread(QThread):
                 )
 
                 if raw:
-                    self._last_data_time = time.time()
                     self._connection_lost_emitted = False
                     points = self._parser.feed(raw)
                     if not self._first_data_received and self._parser.synced:
@@ -131,16 +127,12 @@ class DataAcquisitionThread(QThread):
                         self.measurement_complete.emit()
 
                 else:
-                    if not self.manager.measurement_state.measurement_active:
-                        if (
-                            time.time() - self._last_data_time
-                        ) > self.CONNECTION_TIMEOUT:
-                            if not self._connection_lost_emitted:
-                                _log.error("Connection timeout — no data")
-                                self.connection_lost.emit()
-                                self._connection_lost_emitted = True
-                    # read_fast already blocked up to read_timeout_ms; only idle
-                    # between measurements needs an explicit sleep.
+                    # No bytes is not a lost link: a weak source legitimately leaves
+                    # gaps of many seconds, and a stopped measurement sends nothing. A
+                    # dead port shows up as a serial error (read_fast clears
+                    # ``device.connected``), which the check at the top of the loop
+                    # reports. read_fast already blocked up to read_timeout_ms; only
+                    # idle between measurements needs an explicit sleep.
                     if not self.manager.measurement_state.measurement_active:
                         time.sleep(0.01)
 

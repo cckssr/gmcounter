@@ -48,6 +48,7 @@ This is a major release: the user interface was rebuilt from the ground up. The 
 
 ### Fixed
 
+- Stopping a measurement no longer triggers a reconnect. The acquisition thread treated "no packet for 3 s" as a lost link, so stopping after a quiet stretch (a weak source, or a stop shortly after the start) reported "Connection lost" and reopened the port. A silent line is no longer a loss signal; a real loss still shows as a serial error.
 - The group letter is no longer logged as an error while no group is selected.
 - Voltage and counting-time ranges in the firmware `HELP` output.
 - Corrupted `FETC:STAT?` answers caused by the continuous stream mode on `Serial1`; the device readout ignores incomplete reads instead of showing zeros.
