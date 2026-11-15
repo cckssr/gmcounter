@@ -17,7 +17,13 @@ from PySide6.QtWidgets import QHeaderView, QWidget  # pylint: disable=no-name-in
 
 from gmcounter.pyqt.ui_interval_tab import Ui_IntervalTab
 
-from ...core.export import TabExport
+from ...core.export import (
+    METADATA_SCHEMA_VERSION,
+    RAW_COLUMNS,
+    TabExport,
+    format_duration,
+    raw_rows,
+)
 from ...core.interval_binning import IntervalBinner
 from ..i18n import apply_strings
 from .base import PlotTabBase
@@ -52,6 +58,7 @@ class IntervalRepeatTab(PlotTabBase):
         apply_strings(self, self.config.section("ui").get(self.form_name, {}))
 
         self._binner: Optional[IntervalBinner] = None
+        self._stamps: dict[int, str] = {}  # event index -> wall-clock time of arrival
         self._has_unsaved: bool = False
         self._session_start: Optional[datetime] = None
         self._plot = self.ui.intervalPlot
@@ -77,6 +84,7 @@ class IntervalRepeatTab(PlotTabBase):
 
     def on_reset(self) -> None:
         self._binner = IntervalBinner(self.width_s * 1e6, self.repeat_count)
+        self._stamps = {}
         self._has_unsaved = False
         if self._table_model:
             self._table_model.removeRows(0, self._table_model.rowCount())
@@ -95,6 +103,7 @@ class IntervalRepeatTab(PlotTabBase):
         if not frames or self._binner is None:
             return
         points = [(f.index, f.value) for f in frames]
+        self._stamps.update((f.index, f.timestamp) for f in frames)
         touched = self._binner.feed(points)
         if touched:
             self._refresh_plot()
@@ -141,21 +150,35 @@ class IntervalRepeatTab(PlotTabBase):
         bins = self._binner.bins
         cols = self.config.get(f"ui.{self.form_name}.export_intervals_columns", [])
         rows = []
+        total_s = self._device_time_s(bins.cum_us / 1e6)
         for i in range(bins.repeats):
             t_start = i * bins.width_us / 1e6
             t_end = (i + 1) * bins.width_us / 1e6
+            covered_s = max(0.0, min(bins.width_us / 1e6, total_s - t_start))
             count = bins.counts[i]
             cps = round(count / (bins.width_us / 1e6), 4) if bins.width_us > 0 else 0.0
             rows.append(
-                [str(i), str(count), str(cps), f"{t_start:.6f}", f"{t_end:.6f}"]
+                [
+                    str(i),
+                    str(count),
+                    str(cps),
+                    f"{t_start:.6f}",
+                    f"{t_end:.6f}",
+                    format_duration(covered_s),
+                ]
             )
         metadata = {
+            "schema_version": METADATA_SCHEMA_VERSION,
             "dc:date": datetime.now().strftime("%Y-%m-%d"),
             "dc:title": self.text("text_summary_title"),
+            "experiment": self.tab_id,
+            "start_time": self._session_start.isoformat()
+            if self._session_start
+            else "",
             "interval_width_s": bins.width_us / 1e6,
             "repeats": bins.repeats,
             "true_total_count": self._binner.total_count(),
-            "total_device_time_s": round(bins.cum_us / 1e6, 6),
+            "total_device_time_s": round(total_s, 6),
         }
         return TabExport(
             filename_hint="intervalle",
@@ -173,13 +196,24 @@ class IntervalRepeatTab(PlotTabBase):
             return []
         bins = self._binner.bins
         result = []
+        width_s = bins.width_us / 1e6
+        total_s = self._device_time_s(bins.cum_us / 1e6)
         for i in range(bins.repeats):
-            deltas = bins.deltas[i]
-            cols = self.config.get(f"ui.{self.form_name}.export_interval_columns", [])
-            rows = [[str(j), str(d)] for j, d in enumerate(deltas)]
-            t_start = i * bins.width_us / 1e6
-            t_end = (i + 1) * bins.width_us / 1e6
+            t_start = i * width_s
+            t_end = (i + 1) * width_s
+            # Device time this file covers: a whole interval, or less where the run ended.
+            covered_s = max(0.0, min(width_s, total_s - t_start))
+            rows = raw_rows(
+                (
+                    (index, delta, self._stamps.get(index, ""))
+                    for index, delta in zip(bins.indices[i], bins.deltas[i])
+                ),
+                covered_s,
+            )
             metadata = {
+                "schema_version": METADATA_SCHEMA_VERSION,
+                "experiment": self.tab_id,
+                "total_count": len(rows),
                 "interval_index": i,
                 "interval_count": bins.counts[i],
                 "interval_width_s": bins.width_us / 1e6,
@@ -189,7 +223,7 @@ class IntervalRepeatTab(PlotTabBase):
             result.append(
                 TabExport(
                     filename_hint=f"interval_{i:03d}",
-                    columns=cols,
+                    columns=list(RAW_COLUMNS),
                     rows=rows,
                     metadata=metadata,
                 )
@@ -198,6 +232,13 @@ class IntervalRepeatTab(PlotTabBase):
 
     # ------------------------------------------------------------------
     # Private helpers
+
+    def _device_time_s(self, fallback_s: float) -> float:
+        """Device time of the finished run (what it was cut by), else the binned time."""
+        last_run = getattr(self.context.ctrl, "last_run", None)
+        if isinstance(last_run, dict) and last_run.get("device_time_s"):
+            return float(last_run["device_time_s"])
+        return fallback_s
 
     def _refresh_plot(self) -> None:
         if not self._binner:

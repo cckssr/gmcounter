@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import queue
 import threading
@@ -112,6 +113,8 @@ class GMTimingTab(PlotTabBase):
         # Measurement session tracking for export
         self._session_start: Optional[datetime] = None
         self._session_end: Optional[datetime] = None
+        self._run_info: dict = {}
+        self._run_result: dict = {}
         self._rad_sample: str = ""
         self._group: str = ""
         self._subterm: str = ""
@@ -278,6 +281,15 @@ class GMTimingTab(PlotTabBase):
         self._group = group
         self._subterm = subterm
 
+    def set_run_info(self, info: dict) -> None:
+        """Settings snapshot of the run about to start; it goes into the export metadata."""
+        self._run_info = dict(info)
+        self._run_result = {}
+
+    def set_run_result(self, result: dict) -> None:
+        """Timing result of the finished run (target, device and wall time, stop reason)."""
+        self._run_result = dict(result)
+
     def set_high_speed_autoswitch(self, enabled: bool) -> None:
         """Enable or disable the automatic switch to the Histogramm view on high-speed.
 
@@ -382,6 +394,10 @@ class GMTimingTab(PlotTabBase):
         return build_gm_tab_export(
             session,
             tk_designation=self.config.get("save.tk_designation", "TK00"),
+            extra_metadata={
+                **copy.deepcopy(self._run_info),
+                **({"timing": dict(self._run_result)} if self._run_result else {}),
+            },
         )
 
     def get_statistics(self) -> dict:

@@ -148,8 +148,18 @@ class ParameterSweepTabBase(PlotTabBase):
 
         # Snapshot the individual timing export before the timing tab is reset next run.
         indiv_export = gm_tab.export()
+        run_settings: dict = {}
+        run_timing: dict = {}
         if indiv_export:
             indiv_export.metadata[self.param_metadata_key] = self.current_param()
+            indiv_export.metadata["sweep_parameter"] = self._sweep_parameter()
+            indiv_export.metadata["measurement_index"] = len(self._measurements) + 1
+            run_settings = dict(indiv_export.metadata.get("settings", {}))
+            # The device time is what the run was cut by; the clock only as a fallback.
+            device_time = indiv_export.metadata.get("timing", {}).get("device_time_s")
+            if device_time:
+                duration_s = device_time
+            run_timing = dict(indiv_export.metadata.get("timing", {}))
             self._individual_exports.append(indiv_export)
 
         count = int(gm_tab.get_statistics().get("count", 0))
@@ -159,6 +169,9 @@ class ParameterSweepTabBase(PlotTabBase):
             "duration_s": round(duration_s, 2),
             "rate_hz": round(count / duration_s, 3),
             "start": self._session_start.isoformat(),
+            "end": end.isoformat(),
+            "settings": run_settings,
+            "timing": run_timing,
         }
         self._measurements.append(entry)
         self._session_start = None
@@ -235,7 +248,13 @@ class ParameterSweepTabBase(PlotTabBase):
         metadata = {
             "dc:date": datetime.now().strftime("%Y-%m-%d"),
             "dc:title": self.summary_title,
+            "experiment": self.tab_id,
             "n_measurements": len(self._measurements),
+            "sweep_parameter": self._sweep_parameter(),
+            # One entry per point, in file order: the settings of every single run.
+            "measurements": [
+                {"index": i, **m} for i, m in enumerate(self._measurements, start=1)
+            ],
         }
         return TabExport(
             filename_hint=self.summary_filename_hint,
@@ -249,6 +268,14 @@ class ParameterSweepTabBase(PlotTabBase):
 
     # ------------------------------------------------------------------
     # Private helpers
+
+    def _sweep_parameter(self) -> dict:
+        """Which quantity is swept, for the metadata."""
+        return {
+            "name": self.param_metadata_key,
+            "label": self.param_label,
+            "unit": self.param_unit,
+        }
 
     def _focus_param_input(self) -> None:
         """Select all text in the param input and give it keyboard focus."""

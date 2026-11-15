@@ -8,8 +8,21 @@ Add every user-visible change under `## [Unreleased]` in the pull request that m
 
 ## [Unreleased]
 
+### Added
+
+- The metadata sidecar (`_MD.json`) of every file now records a settings snapshot taken when the run starts (GM voltage set and read back, target duration, count and query mode, sample distance), the device (firmware version, OpenBIS code, serial port, baud rate), the GUI version, the duration, the event count, the interval statistics, and the name, row count, columns and SHA-256 checksum of the CSV. `schema_version` is 2.
+- Sweep summaries list every measurement point with its own settings (`measurements`, with the swept quantity in `sweep_parameter`) and the file that holds it (`detail_files`), so changes of distance or voltage between runs are traceable.
+- The stop is verified: after `ABOR` the input buffer is cleared and the line must stay silent; otherwise `ABOR` is sent again (up to three times). If the device still streams, the status bar and the event log say so in red.
+- The `_MD.json` has a `timing` block (target, device time, wall-clock time, stop reason, stop confirmed). Sweep summaries list it per measurement point.
+- A measurement series (distance or voltage sweep, interval run) is saved into its own folder named after the chosen file, with the summary and every point inside. An existing folder that holds files is never reused (`_2`, `_3`, ...).
+
 ### Changed
 
+- The status bar turns orange when the GM voltage is above the warning threshold, and its text is white on green, red and blue and black on orange, so it stays readable.
+- The measurement panel shows the device time (the sum of the event intervals, which decides when a measurement ends) as "9.8 / 10 s"; the wall-clock time since the start is in the tooltip. The status bar names the stop reason (by hand, target reached, device end, clock timeout) with both times.
+- `duration_s` and `rate_hz` of exports and sweep summaries are based on the device time instead of the wall clock.
+- Every raw measurement file has the same columns (`Index`, `Value (µs)`, `Time`, `Duration (s)`; the duration is the device time the file covers), including the per-interval files of the interval tab, which used to hold only `Index` and `Delta (µs)`.
+- Interval and sweep exports now carry the same device, sample and detector metadata as a single measurement; the interval summary also records the sample distance.
 - Compact layout for 1920x1080 screens with 125 % display scaling: the LCD readouts, the measurement buttons and the text of the experiment tabs are smaller, so the Messparameter dock fits without scrolling.
 
 ## [3.0.0] - 2026-11-15

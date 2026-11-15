@@ -131,7 +131,7 @@
       </sizepolicy>
      </property>
      <property name="toolTip">
-      <string>Wie lange der Zähler misst; eine eigene Dauer in Sekunden kann eingetippt werden</string>
+      <string>Wie lange der Zähler misst; die Software beendet die Messung nach dieser Gerätezeit</string>
      </property>
      <property name="editable">
       <bool>false</bool>

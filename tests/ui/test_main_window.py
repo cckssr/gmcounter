@@ -175,3 +175,29 @@ def test_the_voltage_warning_reaches_the_status_bar(window, config):
     assert window.ui.statusBar.currentMessage() == config.message(
         "voltage_warning"
     ).format(690)
+    style = window.ui.statusBar.styleSheet()
+    assert "background-color: orange;" in style
+    assert "color: black;" in style  # dark text on the bright orange
+
+
+def test_status_colours_get_a_readable_text_colour(qtbot):
+    from PySide6.QtWidgets import QStatusBar
+
+    from gmcounter.ui.common.statusbar import StatusBarManager, text_color_for
+
+    assert text_color_for("green") == "white"
+    assert text_color_for("red") == "white"
+    assert text_color_for("blue") == "white"
+    assert text_color_for("orange") == "black"
+    assert text_color_for("not-a-colour") == ""
+
+    bar = QStatusBar()
+    qtbot.addWidget(bar)
+    manager = StatusBarManager(bar)
+    manager.show_message("ok", backcolor="green")
+    manager.show_message("careful", backcolor="orange")
+    style = bar.styleSheet()
+    # The second colour replaces the first instead of piling up.
+    assert style.count("background-color") == 1 and "orange" in style
+    assert style.count("color: ") == 2  # background-color and color
+    assert "color: black;" in style and "white" not in style

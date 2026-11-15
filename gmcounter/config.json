@@ -195,9 +195,9 @@
           "Anzahl",
           "cps",
           "t_start_s",
-          "t_end_s"
+          "t_end_s",
+          "Duration (s)"
         ],
-        "export_interval_columns": ["Index", "Delta (µs)"],
         "text_no_data": "Keine Daten.",
         "text_status": "{n} Ereignisse in {repeats} Intervallen · {t} s",
         "text_summary_title": "Intervallmessung — Zusammenfassung"
@@ -215,7 +215,7 @@
         "radioQueryAuto": "Automatik",
         "radioQueryAuto@tooltip": "Das Gerät sendet die Zählergebnisse fortlaufend",
         "labelDuration": "Zähldauer",
-        "comboDuration@tooltip": "Wie lange der Zähler misst; eine eigene Dauer in Sekunden kann eingetippt werden",
+        "comboDuration@tooltip": "Wie lange der Zähler misst; die Software beendet die Messung nach dieser Gerätezeit",
         "labelVoltage": "GM-Spannung",
         "spinVoltage@suffix": " V",
         "spinVoltage@tooltip": "Betriebsspannung des Zählrohrs",
@@ -285,7 +285,10 @@
         "buttonSave": "Speichern",
         "buttonSave@tooltip": "Messung speichern (Dateidialog)",
         "valueElapsed": "0 s",
-        "text_elapsed": "{elapsed} s"
+        "text_elapsed": "{elapsed} s",
+        "text_timing": "{device:.1f} s",
+        "text_timing_target": "{device:.1f} / {target:.0f} s",
+        "text_timing_tooltip": "Messzeit nach dem Gerätetakt (Summe der Ereignisabstände); sie entscheidet, wann die Messung endet. Uhrzeit seit dem Start: {wall:.1f} s."
       },
       "readout_panel": {
         "self": "Live-Werte",
@@ -377,6 +380,12 @@
       "connected": "Verbunden mit {}. Bereit für Messungen.",
       "measurement_running": "Messung läuft...",
       "measurement_stopped": "Messung gestoppt.",
+      "measurement_stopped_detail": "Messung gestoppt ({reason}): Gerätezeit {device:.2f} s, Uhrzeit {wall:.2f} s.",
+      "stop_reason_manual": "von Hand",
+      "stop_reason_target_reached": "Zielzeit erreicht",
+      "stop_reason_device_end": "Gerät meldet Ende",
+      "stop_reason_wall_clock": "Zeitüberschreitung der Uhr",
+      "stop_unconfirmed": "Das Gerät hat das Stop-Signal nicht bestätigt: es sendet weiter Daten. Bitte Verbindung prüfen oder das Gerät neu verbinden.",
       "measurement_ended": "Messung beendet. Bereit zum Speichern oder für eine neue Messung.",
       "settings_applied": "Einstellungen erfolgreich angewendet.",
       "data_saved": "Daten gespeichert in {}",

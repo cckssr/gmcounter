@@ -28,7 +28,7 @@ Each experiment is a tab in the central area. All tabs share the Start, Stop, Sa
 
 ![The Spannungskurve tab with its plot and table](docs/20261115-Gmcounter-Spannung.png)
 
-Data is saved as CSV with a sidecar `*_MD.json` file that holds the metadata (sample, detector, group, distance, settings). While a measurement runs, every data point is also appended to a crash-safe journal in `~/.gmcounter/sessions/`, so an interrupted session can be found again on the next start. If the USB link drops, the application reconnects on its own and restores the voltage, counting time and mode.
+Data is saved as CSV with a sidecar `*_MD.json` file that holds the metadata (sample, detector, group, device, the settings of the run, timing and a checksum). Every raw measurement file has the columns `Index`, `Value (µs)`, `Time` and `Duration (s)`. A measurement series (distance or voltage sweep, interval run) is saved into its own folder with a summary and one file per point. While a measurement runs, every data point is also appended to a crash-safe journal in `~/.gmcounter/sessions/`, so an interrupted session can be found again on the next start. If the USB link drops, the application reconnects on its own and restores the voltage, counting time and mode.
 
 ## Profiles
 

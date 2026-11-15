@@ -93,3 +93,11 @@ def test_bins_snapshot_is_copy():
     _feed(b, [100_000.0])
     snap2 = b.bins
     assert snap1.counts[0] != snap2.counts[0] or snap1.cum_us != snap2.cum_us
+
+
+def test_bins_keep_the_event_index_of_every_delta():
+    binner = IntervalBinner(width_us=1_000_000, repeats=2)
+    binner.feed([(7, 300_000.0), (8, 400_000.0), (9, 600_000.0)])
+    bins = binner.bins
+    assert bins.indices[0] == [7, 8]
+    assert bins.indices[1] == [9]

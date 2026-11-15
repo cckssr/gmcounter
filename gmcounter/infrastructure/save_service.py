@@ -2,6 +2,7 @@
 # No per-experiment code lives here; experiments speak TabExport.
 
 import csv
+import hashlib
 import json
 import logging
 from pathlib import Path
@@ -25,12 +26,54 @@ def write_export(export: TabExport, csv_path: Path) -> Path:
         writer.writerow(export.columns)
         writer.writerows(export.rows)
 
-    meta_path = csv_path.parent / (csv_path.stem + "_MD.json")
-    with open(meta_path, "w", encoding="utf-8") as fh:
-        json.dump(export.metadata, fh, indent=2)
+    metadata = dict(export.metadata)
+    metadata["file"] = {
+        "name": csv_path.name,
+        "rows": len(export.rows),
+        "columns": list(export.columns),
+        "sha256": hashlib.sha256(csv_path.read_bytes()).hexdigest(),
+    }
+    _write_metadata(metadata_path(csv_path), metadata)
 
     _log.info("Saved export to %s", csv_path)
     return csv_path
+
+
+def session_folder_path(csv_path: Path) -> Path:
+    """Path for *csv_path* inside a new folder named after the file.
+
+    A measurement series (distance or voltage sweep, interval run) writes a summary and one
+    file per point; they belong together in ``<chosen dir>/<chosen stem>/``. A folder that
+    already holds files is never reused (``<stem>_2``, ``<stem>_3``, ...), so an earlier
+    series is not mixed with or overwritten by a new one. Nothing is created here.
+    """
+    csv_path = Path(csv_path)
+    folder = csv_path.parent / csv_path.stem
+    counter = 2
+    while folder.exists() and any(folder.iterdir()):
+        folder = csv_path.parent / f"{csv_path.stem}_{counter}"
+        counter += 1
+    return folder / csv_path.name
+
+
+def metadata_path(csv_path: Path) -> Path:
+    """Path of the ``_MD.json`` sidecar that belongs to *csv_path*."""
+    csv_path = Path(csv_path)
+    return csv_path.parent / (csv_path.stem + "_MD.json")
+
+
+def update_metadata(csv_path: Path, fields: dict) -> None:
+    """Add or replace top-level *fields* in the sidecar of an already written CSV."""
+    path = metadata_path(csv_path)
+    with open(path, encoding="utf-8") as fh:
+        metadata = json.load(fh)
+    metadata.update(fields)
+    _write_metadata(path, metadata)
+
+
+def _write_metadata(path: Path, metadata: dict) -> None:
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(metadata, fh, indent=2, ensure_ascii=False)
 
 
 class SaveService:

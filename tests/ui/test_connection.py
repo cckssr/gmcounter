@@ -309,7 +309,13 @@ def test_the_simulated_window_connects_and_measures(
         win.ui.measurementPanel.ui.buttonStart.click()
     with qtbot.waitSignal(win.ctrl.measurement_stopped, timeout=40_000):
         pass
-    assert len(win.tabs["gm_timing"].export().rows) > 0
+    export = win.tabs["gm_timing"].export()
+    assert len(export.rows) > 0
+    timing = export.metadata["timing"]  # what the run was really cut by
+    assert timing["target_s"] == 1.0 and timing["device_time_s"] <= 1.0
+    assert timing["stop_reason"] in ("target_reached", "wall_clock", "device_end")
+    assert timing["stop_confirmed"] is True  # the mock stopped streaming after ABOR
+    assert export.metadata["duration_s"] == round(timing["device_time_s"], 3)
     win.context.save_service.mark_saved()
     simulation = win.simulation
     win.close()

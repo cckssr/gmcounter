@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
 from gmcounter.core.export import TabExport
+from gmcounter.infrastructure.save_service import write_export
 from gmcounter.core.services import SaveState
 from gmcounter.ui.controllers.session_controller import SessionController
 
@@ -47,6 +49,9 @@ class FakeTiming:
     def set_measurement_metadata(self, rad_sample, group, subterm) -> None:
         self.calls.append(("metadata", rad_sample, group, subterm))
 
+    def set_run_info(self, info: dict) -> None:
+        self.run_info = info
+
     def set_high_speed_autoswitch(self, enabled: bool) -> None:
         self.calls.append(("autoswitch", enabled))
 
@@ -65,6 +70,7 @@ class FakeTab:
 
     def __init__(self, kind: str) -> None:
         self.session_kind = kind
+        self.tab_id = f"fake_{kind}"
         self.calls: list[str] = []
         self.data = False
         self.width_s = 2.0
@@ -147,7 +153,10 @@ class FakeFileDialogs:
         self.calls: list[tuple] = []
         self.exports: list[TabExport] = []
 
-    def manual_save_export(self, parent, export, sample, group, suffix):
+    def manual_save_export(
+        self, parent, export, sample, group, suffix, *, into_folder=False
+    ):
+        self.into_folder = into_folder
         self.calls.append((export.filename_hint, sample, group, suffix))
         self.exports.append(export)
         if self.cancel:
@@ -222,6 +231,14 @@ def test_the_initial_state_offers_only_start(h):
     h.session.initial_state()
     assert h.buttons[-1] == (True, False, False, False)
     assert h.status[-1] == (_m(h, "status_ready"), "green")
+
+
+def test_start_hands_the_settings_snapshot_to_the_timing_tab(h):
+    h.session.start()
+    info = h.timing.run_info
+    assert info["experiment"] == h.current.tab_id or info["experiment"] == "gm_timing"
+    assert info["settings"]["target_duration_s"] == 10
+    assert info["detector_code"] == "E47438"
 
 
 def test_start_passes_the_duration_and_the_sample_metadata(h):
@@ -387,6 +404,39 @@ def test_saving_a_sweep_writes_the_summary_and_named_detail_files(h, tmp_path):
     assert h.buttons[-1][0] is True and h.buttons[-1][3] is False
 
 
+def test_the_summary_sidecar_links_every_measurement_to_its_file(tmp_path):
+    summary = TabExport(
+        "summary", ["a"], [["1"]], {"measurements": [{"index": 1}, {"index": 2}]}
+    )
+    saved = write_export(summary, tmp_path / "summary.csv")
+
+    SessionController._link_detail_files(saved, summary, ["m01.csv", None])
+
+    meta = json.loads((tmp_path / "summary_MD.json").read_text(encoding="utf-8"))
+    assert meta["detail_files"] == ["m01.csv", None]
+    assert [m["file"] for m in meta["measurements"]] == ["m01.csv", None]
+
+
+def test_the_sweep_summary_carries_no_session_wide_settings(h):
+    h.current = SweepTab()
+    h.measure()
+    h.session.save()
+    assert "settings" not in h.dialogs.exports[0].metadata
+
+
+def test_a_series_is_saved_into_a_folder_but_a_single_run_is_not(h):
+    h.current = SweepTab()
+    h.measure()
+    h.session.save()
+    assert h.dialogs.into_folder is True
+
+    h.session.reset()
+    h.current = FakeTab("single")
+    h.measure()
+    h.session.save()
+    assert h.dialogs.into_folder is False
+
+
 def test_a_cancelled_sweep_save_keeps_the_session(h):
     sweep = h.current = SweepTab()
     h.measure()
@@ -455,7 +505,7 @@ def test_saving_an_interval_session_names_the_files_after_the_intervals(h, tmp_p
         "summary_interval_000.csv",
         "summary_interval_001.csv",
     ]
-    assert "sample_distance_cm" not in h.dialogs.exports[0].metadata
+    assert h.dialogs.exports[0].metadata["sample_distance_cm"] == 12.5
     assert interval.calls[-2:] == ["saved", "reset"]
     assert ("reset",) not in h.timing.calls  # the timing tab was not used
     assert h.messages[-1] == (_m(h, "summary_saved_interval", ok=2, total=2), 5000)

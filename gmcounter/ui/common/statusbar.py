@@ -6,9 +6,27 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QLabel,
 )
 from PySide6.QtCore import QTimer  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QColor  # pylint: disable=no-name-in-module
 from shiboken6 import isValid
 
 from ...infrastructure.logging import Debug
+
+
+_BACKGROUND_RE = re.compile(r"background-color:\s*[^;]+;")
+_TEXT_COLOR_RE = re.compile(r"(?<![-\w])color:\s*[^;]+;")
+_DARK_TEXT_FROM_LUMA = 150  # brighter backgrounds (orange, yellow) get dark text
+
+
+def text_color_for(backcolor: str) -> str:
+    """Readable text colour for *backcolor*: black on bright, white on dark backgrounds.
+
+    Returns ``""`` for a colour Qt cannot parse, so the default text colour stays.
+    """
+    colour = QColor(backcolor)
+    if not colour.isValid():
+        return ""
+    luma = (299 * colour.red() + 587 * colour.green() + 114 * colour.blue()) / 1000
+    return "black" if luma >= _DARK_TEXT_FROM_LUMA else "white"
 
 
 class StatusBarManager:
@@ -87,28 +105,17 @@ class StatusBarManager:
             str: New style sheet for the status bar as string
         """
         self._save_state()
-
-        if backcolor:
-            if "background-color:" in self.old_state[1]:
-                # if old style had backcolor, replace it with the new one
-                match = re.search(r"background-color:\s*[^;]+;", self.old_state[1])
-                if match:
-                    new_style = self.old_state[1].replace(
-                        match.group(0),
-                        f"background-color: {backcolor};",
-                    )
-                    Debug.debug(
-                        f"Statusbar background color updated: {self.old_state[1]} -> {new_style}"
-                    )
-                else:
-                    new_style = self.old_state[1]
-            else:
-                # otherwise append the new backcolor
-                new_style = self.old_state[1] + f"background-color: {backcolor};"
-                Debug.info(f"Statusbar background color set: {new_style}")
-        else:
-            new_style = self.old_state[1]
+        if not backcolor:
             Debug.info("No background color change")
+            return self.old_state[1]
+
+        # Replace an earlier background and text colour, then set the pair that fits.
+        base = _TEXT_COLOR_RE.sub("", _BACKGROUND_RE.sub("", self.old_state[1]))
+        new_style = base + f"background-color: {backcolor};"
+        text_color = text_color_for(backcolor)
+        if text_color:
+            new_style += f"color: {text_color};"
+        Debug.debug(f"Statusbar style: {self.old_state[1]!r} -> {new_style!r}")
         return new_style
 
     def _save_state(self):
