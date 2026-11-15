@@ -92,8 +92,9 @@ def test_raw_columns_are_shared_by_every_export():
 def test_gm_export_metadata_has_duration_count_and_statistics():
     meta = build_gm_tab_export(_make_session()).metadata
     assert meta["duration_s"] == 5.0
-    assert meta["total_count"] == 2
-    assert meta["rate_hz"] == 0.4
+    # Two rows are three events: the first event only sets the time reference.
+    assert meta["total_count"] == 3
+    assert meta["rate_hz"] == 0.6
     assert meta["statistics_us"]["mean"] == 289.5
     assert meta["columns"] == ["Index", "Value (µs)", "Time", "Duration (s)"]
 
@@ -148,3 +149,23 @@ def test_the_device_time_replaces_the_clock_in_the_duration_column():
     )
     assert {row[3] for row in export.rows} == {"4.250"}
     assert export.metadata["duration_s"] == 4.25
+
+
+def test_apply_sample_metadata_replaces_and_removes_the_panel_values():
+    from gmcounter.core.export import apply_sample_metadata
+
+    meta = {
+        "detector_code": "E1",
+        "sample_distance_cm": 2.0,
+        "settings": {"sample_distance_cm": 2.0, "gm_voltage_set_v": 500},
+    }
+    apply_sample_metadata(meta, {"detector": "E2", "distance_cm": 5.5})
+    assert meta["detector_code"] == "E2"
+    assert meta["sample_distance_cm"] == 5.5
+    assert meta["settings"]["sample_distance_cm"] == 5.5
+
+    # An empty panel (background run) removes what was there, other settings stay.
+    apply_sample_metadata(meta, {"detector": "", "distance_cm": 0.0})
+    assert "detector_code" not in meta
+    assert "sample_distance_cm" not in meta
+    assert meta["settings"] == {"gm_voltage_set_v": 500}

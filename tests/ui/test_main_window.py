@@ -6,7 +6,7 @@ import pytest
 from gmcounter.ui.common import dialogs
 from gmcounter.ui.windows.main_window import MainWindow
 
-from .conftest import make_device_manager
+from .conftest import fill_required_sample_fields, make_device_manager
 
 
 def test_the_dock_toggle_actions_follow_the_docks_both_ways(window):
@@ -87,6 +87,7 @@ def test_a_session_locks_the_other_tabs_and_unlocks_them_again(window, monkeypat
     sweep = window.tabs["distance_law"]
     tabs.setCurrentWidget(sweep)
     window.ui.devicePanel.ui.comboDuration.setCurrentIndex(2)
+    fill_required_sample_fields(window)
     monkeypatch.setattr(window.ctrl, "start_measurement", lambda total_seconds=0: True)
     window.session.start()
     assert [tabs.isTabEnabled(i) for i in range(tabs.count())] == [

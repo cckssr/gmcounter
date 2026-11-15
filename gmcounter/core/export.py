@@ -70,6 +70,32 @@ def merge_missing(target: dict, extra: dict) -> dict:
     return target
 
 
+def apply_sample_metadata(metadata: dict, sample: dict) -> dict:
+    """Write the detector and sample distance of the sample panel into *metadata*.
+
+    Existing values are replaced, and a value the panel leaves empty (no detector, distance 0)
+    is removed, so the sidecar always shows what was entered. Returns *metadata*.
+    """
+    distance = float(sample.get("distance_cm", 0.0))
+    settings = metadata.get("settings")
+    if not isinstance(settings, dict):
+        settings = metadata["settings"] = {}
+
+    detector = sample.get("detector")
+    if detector:
+        metadata["detector_code"] = detector
+    else:
+        metadata.pop("detector_code", None)
+
+    if distance > 0.0:
+        settings["sample_distance_cm"] = distance
+        metadata["sample_distance_cm"] = distance
+    else:
+        settings.pop("sample_distance_cm", None)
+        metadata.pop("sample_distance_cm", None)
+    return metadata
+
+
 def build_run_info(
     *,
     experiment: str,
@@ -94,10 +120,6 @@ def build_run_info(
         "count_mode": "repeat" if device_settings.get("repeat") else "single",
         "query_mode": "auto" if device_settings.get("auto_query") else "manual",
     }
-    distance = float(sample.get("distance_cm", 0.0))
-    if distance > 0.0:
-        settings["sample_distance_cm"] = distance
-
     device: dict = {}
     for source, target in (
         ("version", "firmware_version"),
@@ -119,10 +141,7 @@ def build_run_info(
         "settings": settings,
         "device": device,
     }
-    if sample.get("detector"):
-        info["detector_code"] = sample["detector"]
-    if distance > 0.0:
-        info["sample_distance_cm"] = distance
+    apply_sample_metadata(info, sample)
     # Legacy flat keys, kept so existing readers of the sidecar keep working.
     if device.get("openbis_code"):
         info["counter_openbis_code"] = device["openbis_code"]
@@ -162,12 +181,16 @@ def build_gm_tab_export(
     values = [p.value for p in session.points]
     stats = calculate_statistics(values)
     duration_s = session.duration_seconds
+    # The first event after INIT only sets the time reference and has no row of its own
+    # (firmware: gmProcessAcquisition), so n rows mean n + 1 events. The live display and
+    # the sweep summaries count the same way.
+    events = session.count + 1 if session.count else 0
     metadata.update(
         {
             "schema_version": METADATA_SCHEMA_VERSION,
             "duration_s": round(duration_s, 3),
-            "total_count": session.count,
-            "rate_hz": round(session.count / duration_s, 3) if duration_s > 0 else 0.0,
+            "total_count": events,
+            "rate_hz": round(events / duration_s, 3) if duration_s > 0 else 0.0,
             "statistics_us": {
                 "min": stats["min"],
                 "max": stats["max"],
@@ -183,7 +206,7 @@ def build_gm_tab_export(
     device_time_s = (metadata.get("timing") or {}).get("device_time_s")
     if device_time_s:
         metadata["duration_s"] = round(device_time_s, 3)
-        metadata["rate_hz"] = round(session.count / device_time_s, 3)
+        metadata["rate_hz"] = round(events / device_time_s, 3)
 
     columns = list(RAW_COLUMNS)
     rows = raw_rows(

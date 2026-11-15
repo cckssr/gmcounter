@@ -132,6 +132,9 @@ class GMTimingTab(PlotTabBase):
         self._plot.reconfigure("ylabel", self.text("plot_y_label"))
         self._histogram.reconfigure("xlabel", self.text("histogram_x_label"))
         self._histogram.reconfigure("ylabel", self.text("histogram_y_label"))
+        # Intervals are stored in µs; the axes show them with SI prefixes (µs, ms, s).
+        self._plot.set_axis_si("left", "s", 1e-6)
+        self._histogram.set_axis_si("bottom", "s", 1e-6)
 
         headers = self.config.get(f"ui.{self.form_name}.table_events_headers", [])
         self._table_model = QStandardItemModel(0, len(headers), ui.tableEvents)
@@ -423,7 +426,7 @@ class GMTimingTab(PlotTabBase):
     def _rate_hz(self) -> float:
         if self._cum_us <= 0 or not self._data_points:
             return 0.0
-        return round(self._event_count() / (self._cum_us / 1e6), 1)
+        return round(self._event_count() / (self._cum_us / 1e6), 3)
 
     def _publish_readout(self, count: Optional[int] = None) -> None:
         self.readout_changed.emit(

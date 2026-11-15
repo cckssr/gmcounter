@@ -66,3 +66,46 @@ def test_a_manual_pan_or_zoom_disables_auto_scroll(plot):
     plot.getViewBox().sigRangeChangedManually.emit([True, True])
     assert not plot._auto_scroll_enabled and not plot._auto_range_enabled
     assert interactions == [1]
+
+
+# ---------------------------------------------------------------- SI axes
+
+
+def test_an_si_axis_picks_the_prefix_from_the_visible_range(qtbot, plot):
+    """Data stays in µs; the axis reads µs, ms or s, and keeps its unit after a relabel."""
+    plot.reconfigure("ylabel", "Zeit")
+    plot.set_axis_si("left", "s", 1e-6)
+    plot.reconfigure("ylabel", "Zeit")  # relabelling must not drop the unit
+    axis = plot.getAxis("left")
+    for rng, prefixed in (((0, 800), "µs"), ((0, 250_000), "ms"), ((0, 20e6), "s")):
+        plot.getViewBox().setRange(yRange=rng, padding=0)
+        assert f"Zeit ({prefixed})" in axis.labelString()
+
+
+# ---------------------------------------------------------------- summary plot
+
+
+def test_the_summary_shows_symbols_and_error_bars(plot):
+    plot.set_summary_points([(3.0, 10.0), (2.0, 30.0)], errors=[1.0, 2.0])
+    curve = plot._summary_curve
+    assert curve.opts["symbol"] == "o"
+    xs, ys = curve.getData()
+    assert list(xs) == [2.0, 3.0]  # sorted by x, errors follow their points
+    assert list(ys) == [30.0, 10.0]
+    assert list(plot._summary_errors.opts["top"]) == [2.0, 1.0]
+
+
+def test_the_log_summary_drops_non_positive_points_and_switches_the_axes(plot):
+    plot.set_summary_points([(2.0, 100.0), (4.0, 25.0), (5.0, 0.0)], log=True)
+    xs, ys = plot._summary_curve.getData()
+    assert list(xs) == pytest.approx([0.30103, 0.60206], abs=1e-4)  # log10(2), log10(4)
+    assert plot.getAxis("left").logMode and plot.getAxis("bottom").logMode
+
+    plot.set_summary_points([(2.0, 100.0)], log=False)
+    assert not plot.getAxis("left").logMode
+
+
+def test_clearing_removes_the_summary(plot):
+    plot.set_summary_points([(1.0, 1.0)], errors=[0.1])
+    plot.clear_measurement_data()
+    assert plot._summary_curve is None and plot._summary_errors is None

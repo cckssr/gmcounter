@@ -19,7 +19,7 @@ Performance Features:
 
 from __future__ import annotations
 
-from typing import Iterable, Optional, Tuple, List, Any
+from typing import Iterable, Optional, Sequence, Tuple, List, Any
 import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import Signal, Slot, QTimer  # pylint: disable=no-name-in-module
@@ -66,6 +66,18 @@ def _marker_color():
 def _bar_color(color: str):
     """Histogram bar colour: an explicit ``color``, else the configured curve colour."""
     return color if color and color != "w" else _line_color()
+
+
+def apply_si_axis(plot: pg.PlotWidget, axis: str, unit: str, scale: float) -> None:
+    """Show *axis* with an SI prefix of *unit* while the data stays in its own unit.
+
+    *scale* converts one data unit into *unit* (``1e-6`` for data in µs shown in s).
+    pyqtgraph then picks the prefix from the visible range, so the axis reads
+    "Zeit (µs)", "Zeit (ms)" or "Zeit (s)" instead of an "x1e+06" factor.
+    """
+    item = plot.getAxis(axis)
+    item.setScale(scale)
+    plot.setLabel(axis, item.labelText, units=unit)
 
 
 class PlotConfig:
@@ -237,6 +249,8 @@ class GeneralPlot(pg.PlotWidget):
 
         # Data management
         self._plot_curve: Optional[FastPlotCurveItem] = None
+        self._summary_curve: Optional[pg.PlotDataItem] = None
+        self._summary_errors: Optional[pg.ErrorBarItem] = None
         self._scroll_counter = 0
         self._last_data_points: List[Tuple[float, float]] = []
         self._is_clearing = False
@@ -365,6 +379,7 @@ class GeneralPlot(pg.PlotWidget):
             if self._plot_curve is not None:
                 self.removeItem(self._plot_curve)
                 self._plot_curve = None
+            self._clear_summary_items()
 
             self._last_data_points.clear()
             self._deferred_data.clear()
@@ -632,23 +647,84 @@ class GeneralPlot(pg.PlotWidget):
 
         return [x_min_p, x_max_p], [y_min_p, y_max_p]
 
-    def set_summary_points(self, points: List[Tuple[float, float]]) -> None:
-        """Replace the plot with an XY summary (sorted by x, symbols + line).
+    def set_summary_points(
+        self,
+        points: List[Tuple[float, float]],
+        errors: Optional[Sequence[float]] = None,
+        log: bool = False,
+    ) -> None:
+        """Replace the plot with an XY summary: symbols, line and optional error bars.
 
-        Designed for parameter-sweep tabs (distance law, voltage curve).
-        Sorts *points* by the x-coordinate so the connecting line follows the
-        parameter axis regardless of insertion order, then delegates to the
-        existing update_plot_data with use_symbols=True.
+        Designed for parameter-sweep tabs (distance law, voltage curve). The points are
+        sorted by x so the connecting line follows the parameter axis.
 
         Args:
-            points: List of (x, y) tuples — e.g. (distance_cm, count).
+            points: (x, y) tuples, e.g. (distance_cm, rate).
+            errors: One symmetric y uncertainty per point, in the order of *points*.
+            log: Logarithmic x and y axes. Points with x <= 0 or y <= 0 are left out.
         """
         if not points:
             self.clear_measurement_data()
             return
-        sorted_pts = sorted(points, key=lambda p: p[0])
+
+        err = list(errors) if errors is not None else [0.0] * len(points)
+        rows = sorted(zip(points, err), key=lambda row: row[0][0])
+        xs = np.array([p[0] for p, _ in rows], dtype=float)
+        ys = np.array([p[1] for p, _ in rows], dtype=float)
+        es = np.abs(np.array([e for _, e in rows], dtype=float))
+
+        if log:
+            keep = (xs > 0) & (ys > 0)
+            xs, ys, es = xs[keep], ys[keep], es[keep]
+            if xs.size == 0:
+                self.clear_measurement_data()
+                return
+            # Error bars are drawn in log space, so they are asymmetric; the lower end
+            # is clipped where the uncertainty reaches zero.
+            lx, ly = np.log10(xs), np.log10(ys)
+            top = np.log10(ys + es) - ly
+            bottom = ly - np.log10(np.maximum(ys - es, ys * 1e-3))
+        else:
+            lx, ly, top, bottom = xs, ys, es, es
+
+        self._ensure_summary_items()
+        self.getAxis("bottom").setLogMode(log)
+        self.getAxis("left").setLogMode(log)
+        assert self._summary_curve is not None and self._summary_errors is not None
+        self._summary_curve.setData(lx, ly)
+        self._summary_errors.setData(x=lx, y=ly, top=top, bottom=bottom)
         self.enable_auto_range(True)
-        self.update_plot_data(sorted_pts, use_symbols=True)
+        self.plot_updated.emit(len(xs))
+
+    def _ensure_summary_items(self) -> None:
+        """Create the summary curve (with symbols) and its error bars once."""
+        if self._summary_curve is None:
+            self._summary_curve = pg.PlotDataItem(
+                pen=pg.mkPen(width=self.config.pen_width, color=_line_color()),
+                symbol="o",
+                symbolSize=self.config.symbol_size,
+                symbolBrush=pg.mkBrush(_marker_color()),
+                symbolPen=pg.mkPen(_marker_color(), width=1),
+            )
+            self.addItem(self._summary_curve)
+        if self._summary_errors is None:
+            self._summary_errors = pg.ErrorBarItem(
+                pen=pg.mkPen(_marker_color(), width=1), beam=0.0
+            )
+            self.addItem(self._summary_errors)
+
+    def _clear_summary_items(self) -> None:
+        for item in (self._summary_curve, self._summary_errors):
+            if item is not None:
+                self.removeItem(item)
+        self._summary_curve = None
+        self._summary_errors = None
+        self.getAxis("bottom").setLogMode(False)
+        self.getAxis("left").setLogMode(False)
+
+    def set_axis_si(self, axis: str, unit: str, scale: float) -> None:
+        """Show *axis* (``"bottom"`` / ``"left"``) with SI prefixes; see :func:`apply_si_axis`."""
+        apply_si_axis(self, axis, unit, scale)
 
     def append_data(self, x: float, y: float) -> None:
         """Append a single data point (streaming mode).
@@ -696,9 +772,9 @@ class GeneralPlot(pg.PlotWidget):
         if key == "title":
             self.setTitle(value)
         elif key == "xlabel":
-            self.setLabel("bottom", value)
+            self.setLabel("bottom", value, units=self.getAxis("bottom").labelUnits)
         elif key == "ylabel":
-            self.setLabel("left", value)
+            self.setLabel("left", value, units=self.getAxis("left").labelUnits)
         elif key == "background_color":
             self.setBackground(value)
         elif key == "grid_alpha":
@@ -833,6 +909,10 @@ class HistogramWidget(pg.PlotWidget):
             f"Histogram appearance configured: title={self.config.title}, "
             f"alpha={self.config.grid_alpha}"
         )
+
+    def set_axis_si(self, axis: str, unit: str, scale: float) -> None:
+        """Show *axis* with SI prefixes; see :func:`apply_si_axis`."""
+        apply_si_axis(self, axis, unit, scale)
 
     @Slot()
     def clear_measurement_data(self) -> None:
@@ -1079,9 +1159,9 @@ class HistogramWidget(pg.PlotWidget):
         if key == "title":
             self.setTitle(value)
         elif key == "xlabel":
-            self.setLabel("bottom", value)
+            self.setLabel("bottom", value, units=self.getAxis("bottom").labelUnits)
         elif key == "ylabel":
-            self.setLabel("left", value)
+            self.setLabel("left", value, units=self.getAxis("left").labelUnits)
         elif key == "background_color":
             self.setBackground(value)
         elif key == "grid_alpha":

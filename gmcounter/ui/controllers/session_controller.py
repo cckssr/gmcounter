@@ -16,7 +16,7 @@ from PySide6.QtCore import QObject, Signal
 
 import gmcounter
 
-from ...core.export import build_run_info, merge_missing
+from ...core.export import apply_sample_metadata, build_run_info, merge_missing
 from ...infrastructure.config import AppConfig
 from ...infrastructure.save_service import update_metadata, write_export
 
@@ -141,7 +141,10 @@ class SessionController(QObject):
         """``True`` if the window may close (no unsaved data, or the user discards it)."""
         if not self.has_unsaved():
             return True
-        return self._prompt.ask(self._m("unsaved_data_end"), self._m("title_warning"))
+        if self._prompt.ask(self._m("unsaved_data_end"), self._m("title_warning")):
+            self._ctrl.discard_journals()  # a deliberate discard is no crash to report
+            return True
+        return False
 
     # ------------------------------------------------------------------
     # Frame routing
@@ -163,6 +166,9 @@ class SessionController(QObject):
     # Button intents
 
     def start(self) -> None:
+        if not self._sample_info_complete():
+            self._warn("missing_sample_info")
+            return
         tab = self._current_tab()
         kind = tab.session_kind
         if kind == "interval":
@@ -174,6 +180,13 @@ class SessionController(QObject):
 
     def stop(self) -> None:
         self._ctrl.stop_measurement()
+
+    def _sample_info_complete(self) -> bool:
+        """Sample, group and detector are marked as required in the sample panel."""
+        meta = self._sample_metadata()
+        return all(
+            str(meta.get(key, "")).strip() for key in ("sample", "group", "detector")
+        )
 
     def save(self) -> None:
         tab = self._tab
@@ -199,6 +212,7 @@ class SessionController(QObject):
         if tab is None or not tab.receives_frames:
             self._timing.on_reset()
         self._save_service.mark_saved()
+        self._ctrl.discard_journals()
         self._set_buttons(start=True, save=False)
         self._set_status("status_ready", "green")
 
@@ -377,16 +391,23 @@ class SessionController(QObject):
         if not self._save_service.has_unsaved():
             self._info("no_unsaved_data")
             return
+        # The sample panel as it is now decides: no new run can start while this one is
+        # unsaved, so an edit between Stop and Save belongs to this run. The file name
+        # already follows the panel; this keeps the sidecar consistent with it.
+        meta = self._sample_metadata()
+        self._timing.set_measurement_metadata(
+            rad_sample=meta.get("sample", ""),
+            group=meta.get("group", ""),
+            subterm=meta.get("suffix", ""),
+        )
         export = self._timing.export()
         if not export:
             self._error("no_export_data")
             return
 
-        meta = self._sample_metadata()
         extra = self._run_info("gm_timing")
-        if export.rows:
-            extra["total_count"] = len(export.rows)
         merge_missing(export.metadata, extra)
+        apply_sample_metadata(export.metadata, meta)
 
         saved = self._save_dialog(export, meta)
         if saved and saved.exists():

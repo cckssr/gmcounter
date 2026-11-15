@@ -13,7 +13,7 @@ from gmcounter.ui.controllers.connection_controller import ConnectionController
 from gmcounter.ui.panels.connection_panel import ConnectionPanel
 from gmcounter.ui.windows.main_window import MainWindow
 
-from .conftest import IdleDevice
+from .conftest import IdleDevice, fill_required_sample_fields
 
 PORTS = [
     SerialPortInfo("/dev/cu.usbmodem1101", "Arduino UNO"),
@@ -305,6 +305,7 @@ def test_the_simulated_window_connects_and_measures(
     assert blocker.args == [True] and panel.state == "connected"
 
     win.ui.devicePanel.ui.comboDuration.setCurrentIndex(1)  # 1 s of device time
+    fill_required_sample_fields(win)
     with qtbot.waitSignal(win.ctrl.measurement_started, timeout=5000):
         win.ui.measurementPanel.ui.buttonStart.click()
     with qtbot.waitSignal(win.ctrl.measurement_stopped, timeout=40_000):

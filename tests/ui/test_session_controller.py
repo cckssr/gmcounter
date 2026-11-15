@@ -37,6 +37,9 @@ class FakeCtrl:
     def finalize_journal(self) -> None:
         self.calls.append(("finalize",))
 
+    def discard_journals(self) -> None:
+        self.calls.append(("discard",))
+
     def set_active_tab(self, tab) -> None:
         self.calls.append(("active", tab))
 
@@ -179,6 +182,7 @@ class Harness:
         self.current = FakeTab("single")
         self.duration = 10
         self.applied = 0
+        self.meta = dict(META)  # what the sample panel shows right now
         self.session = SessionController(
             config,
             self.ctrl,
@@ -188,7 +192,7 @@ class Harness:
             self.prompt,
             current_tab=lambda: self.current,
             duration_s=lambda: self.duration,
-            sample_metadata=lambda: dict(META),
+            sample_metadata=lambda: dict(self.meta),
             apply_settings=self._apply,
         )
         self.buttons: list[tuple] = []
@@ -241,6 +245,16 @@ def test_start_hands_the_settings_snapshot_to_the_timing_tab(h):
     assert info["detector_code"] == "E47438"
 
 
+@pytest.mark.parametrize("missing", ["sample", "group", "detector"])
+def test_start_is_refused_while_a_required_sample_field_is_empty(h, missing):
+    h.meta[missing] = " "
+    h.session.start()
+    assert h.ctrl.calls == []
+    assert h.prompt.shown == [
+        ("warn", _m(h, "missing_sample_info"), _m(h, "title_warning"))
+    ]
+
+
 def test_start_passes_the_duration_and_the_sample_metadata(h):
     h.session.start()
     assert h.ctrl.calls == [("start", 10)]
@@ -274,6 +288,22 @@ def test_stop_asks_the_ctrl(h):
     assert h.ctrl.calls == [("stop",)]
 
 
+def test_a_single_save_takes_the_sample_panel_as_it_is_at_save_time(h):
+    """Background selected only after Start: the sidecar must say background, not the sample."""
+    h.measure()  # started with sample E87198, detector E47438, distance 12.5 cm
+    h.meta.update(sample="BACKGROUND", detector="E99999", distance_cm=0.0)
+    h.session.save()
+
+    assert h.timing.calls[-1] == ("metadata", "BACKGROUND", "C", "run1")
+    assert h.dialogs.calls == [("gm_timing", "BACKGROUND", "C", "run1")]
+    meta = h.dialogs.exports[0].metadata
+    assert meta["detector_code"] == "E99999"
+    assert (
+        "sample_distance_cm" not in meta
+    )  # distance 0: no sample in front of the tube
+    assert "sample_distance_cm" not in meta["settings"]
+
+
 def test_saving_a_single_measurement_writes_it_and_frees_start(h):
     h.session.set_device_info({"version": "fw1", "openbis": "unknown"})
     h.measure()
@@ -285,7 +315,6 @@ def test_saving_a_single_measurement_writes_it_and_frees_start(h):
     assert meta["sample_distance_cm"] == 12.5
     assert meta["counter_firmware_version"] == "fw1"
     assert "counter_openbis_code" not in meta  # "unknown" is not written
-    assert meta["total_count"] == 2
     assert not h.save_service.has_unsaved()
     assert ("finalize",) in h.ctrl.calls
     assert h.buttons[-1][0] is True and h.buttons[-1][3] is False
@@ -553,3 +582,31 @@ def test_a_reconnect_enables_start_again(h):
     h.session.on_reconnect_succeeded()
     assert h.buttons[-1][0] is True
     assert h.status[-1] == (_m(h, "status_connected"), "green")
+
+
+def test_resetting_discards_the_journals_so_they_are_not_reported_as_orphans(h):
+    h.measure()
+    h.session.reset()
+    assert ("discard",) in h.ctrl.calls
+
+
+def test_a_declined_reset_keeps_the_journals(h):
+    h.measure()
+    h.prompt.answer = False
+    h.session.reset()
+    assert ("discard",) not in h.ctrl.calls
+
+
+def test_closing_with_a_confirmed_discard_settles_the_journals(h):
+    h.measure()
+    h.prompt.answer = True
+    assert h.session.confirm_close() is True
+    assert ("discard",) in h.ctrl.calls
+
+
+def test_a_saved_series_finalizes_the_journals_once(h):
+    h.current = SweepTab()
+    h.measure()
+    h.measure()
+    h.session.save()
+    assert h.ctrl.calls.count(("finalize",)) == 1

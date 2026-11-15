@@ -124,6 +124,9 @@ class AppController(QObject):
 
         # Journal
         self._journal: Optional[SessionJournal] = None
+        # Every journal since the last save / discard: a sweep opens one per point and all
+        # of them are settled together, otherwise the earlier ones stay behind as orphans.
+        self._pending_journals: list[SessionJournal] = []
 
         # Acquisition thread
         self._acquire_thread: Optional[DataAcquisitionThread] = None
@@ -212,6 +215,7 @@ class AppController(QObject):
 
             # Open journal
             self._journal = SessionJournal()
+            self._pending_journals.append(self._journal)
 
             self._progress_timer.start(1000)
             self.measurement_started.emit()
@@ -233,6 +237,8 @@ class AppController(QObject):
         self._progress_timer.stop()
         confirmed = self.device_manager.stop_measurement()
         self._state_poller.resume()
+        if self._journal:
+            self._journal.close()  # the run is over; saving or discarding settles it later
         if was_measuring:
             result["stop_confirmed"] = bool(confirmed)
             self.last_run = result
@@ -275,9 +281,16 @@ class AppController(QObject):
         }
 
     def finalize_journal(self) -> None:
-        """Mark the current session journal as cleanly saved."""
-        if self._journal:
-            self._journal.finalize()
+        """The data was saved: settle every journal since the last save as finalized."""
+        for journal in self._pending_journals:
+            journal.finalize()
+        self._pending_journals.clear()
+
+    def discard_journals(self) -> None:
+        """The data was thrown away on purpose: its journals are no orphans to report."""
+        for journal in self._pending_journals:
+            journal.discard()
+        self._pending_journals.clear()
 
     @property
     def is_measuring(self) -> bool:

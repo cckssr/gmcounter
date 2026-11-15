@@ -92,3 +92,10 @@ def window(qtbot, config, device_manager):
     win.show()
     yield win
     win.close()
+
+
+def fill_required_sample_fields(window) -> None:
+    """Pick the first real entry of the required sample fields, as a user must before Start."""
+    panel = window.ui.samplePanel.ui
+    for combo in (panel.comboSample, panel.comboGroup, panel.comboDetector):
+        combo.setCurrentIndex(1)  # index 0 is the empty entry

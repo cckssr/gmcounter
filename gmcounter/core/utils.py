@@ -91,3 +91,15 @@ def calculate_statistics(values: list[float]) -> dict:
         "max": max(values),
         "count": len(values),
     }
+
+
+def format_rate(hz: float) -> str:
+    """Count rate for the live display with about three significant digits.
+
+    A background run (about 0.25 Hz) needs two decimals, a source at 40 Hz one.
+    """
+    if hz < 10:
+        return f"{hz:.2f}"
+    if hz < 100:
+        return f"{hz:.1f}"
+    return f"{hz:.0f}"

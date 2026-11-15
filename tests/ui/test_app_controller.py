@@ -136,3 +136,46 @@ def test_timing_is_published_every_tick():
     assert (device_s, target_s) == (2.5, 10.0)
     assert wall_s >= 0.0
     ctrl.cleanup()
+
+
+def _orphans() -> list:
+    from gmcounter.infrastructure.session_journal import find_orphan_journals
+
+    return find_orphan_journals()
+
+
+def _run_points(ctrl, points: int) -> None:
+    """``points`` start / data / stop cycles, as a sweep session does."""
+    for _ in range(points):
+        assert ctrl.start_measurement(total_seconds=0)
+        ctrl._on_data_batch([(0, 1000.0)])
+        ctrl.stop_measurement()
+
+
+def test_saving_a_sweep_leaves_no_orphan_journal_for_any_point():
+    ctrl = _measuring_controller(target_s=0)
+    ctrl.stop_measurement()
+    _run_points(ctrl, 3)
+    assert len(_orphans()) == 3  # unsaved: every point with data would be recovered
+
+    ctrl.finalize_journal()  # the series was saved
+    assert _orphans() == []
+    ctrl.cleanup()
+
+
+def test_a_deliberate_discard_is_no_orphan():
+    ctrl = _measuring_controller(target_s=0)
+    ctrl._on_data_batch([(0, 1000.0)])
+    ctrl.stop_measurement()
+    assert len(_orphans()) == 1
+
+    ctrl.discard_journals()
+    assert _orphans() == []
+    ctrl.cleanup()
+
+
+def test_an_unsaved_run_stays_reportable_after_closing():
+    ctrl = _measuring_controller(target_s=0)
+    ctrl._on_data_batch([(0, 1000.0)])
+    ctrl.cleanup()  # closing without saving or discarding
+    assert len(_orphans()) == 1

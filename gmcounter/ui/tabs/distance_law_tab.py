@@ -22,3 +22,4 @@ class DistanceLawTab(ParameterSweepTabBase):
     param_metadata_key = "sample_distance_cm"
     summary_filename_hint = "abstandsgesetz"
     clear_param_input_after_stop = True
+    supports_log_axes = True  # 1/r^2 is a straight line in a log-log plot

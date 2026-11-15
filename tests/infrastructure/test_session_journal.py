@@ -95,3 +95,49 @@ def test_find_orphan_journals_ignores_finalized(tmp_path, monkeypatch):
 
     orphans = find_orphan_journals()
     assert orphans == []
+
+
+def test_a_closed_journal_can_still_be_finalized(tmp_path):
+    from gmcounter.infrastructure.session_journal import SessionJournal
+
+    journal = SessionJournal(session_dir=tmp_path / "sess")
+    journal.record(1, 10.0)
+    journal.close()
+    journal.close()  # closing twice is harmless
+    journal.finalize()
+    kinds = [line.split(",")[1] for line in journal.path.read_text().splitlines()[1:]]
+    assert kinds == ["data", "finalized"]
+
+
+def test_discarded_and_finalized_journals_are_no_orphans(tmp_path, monkeypatch):
+    from gmcounter.infrastructure import session_journal as sj
+
+    monkeypatch.setattr(sj, "JOURNAL_DIR", tmp_path)
+    kept, saved, discarded = (sj.SessionJournal() for _ in range(3))
+    for journal in (kept, saved, discarded):
+        journal.record(1, 10.0)
+        journal.close()
+    saved.finalize()
+    discarded.discard()
+
+    assert sj.find_orphan_journals() == [kept.path]
+
+
+def test_journals_started_in_the_same_second_get_their_own_folder(
+    tmp_path, monkeypatch
+):
+    from gmcounter.infrastructure import session_journal as sj
+
+    monkeypatch.setattr(sj, "JOURNAL_DIR", tmp_path)
+    first, second = sj.SessionJournal(), sj.SessionJournal()
+    first.close()
+    second.close()
+    assert first.path != second.path
+
+
+def test_a_journal_can_be_marked_a_gap_only_while_open(tmp_path):
+    from gmcounter.infrastructure.session_journal import SessionJournal
+
+    journal = SessionJournal(session_dir=tmp_path / "sess")
+    journal.close()
+    journal.mark_gap()  # no error on a closed journal
