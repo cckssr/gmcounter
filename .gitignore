@@ -203,3 +203,5 @@ dist/
 build/
 scripts/*.csv
 notebooks/results/
+gmcounter/pyqt/HRNGGUI.pyproject.user
+.qtcreator/pyproject.toml.user

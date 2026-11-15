@@ -2,7 +2,7 @@
 
 Desktop application for a Geiger-Müller counter on USB serial. GMCounter records the time between two detector events in microseconds, shows the data live, and saves it for analysis. It is built for random-number research and for lab courses on radioactivity and detector characterization.
 
-![GMCounter main window: controls on the left, the experiment tabs in the middle, connection and live readout on the right](docs/20261115-Gmcounter-Haupt.png)
+![GMCounter main window: parameters and live readouts on the left, the experiment tabs in the middle, connection and device control on the right](docs/20261115-Gmcounter-Haupt.png)
 
 The screenshots show the `student` profile (Praktikum), which is the default. The interface language is German.
 
@@ -19,12 +19,12 @@ gmcounter --simulate     # simulated counter, no hardware needed
 
 Each experiment is a tab in the central area. All tabs share the Start, Stop, Save and Reset buttons.
 
-| Tab | What it measures |
-| --- | --- |
-| **Einzelmessung** | One measurement of inter-event times, shown as time series, histogram or list. At high count rates the line plot and table pause while the histogram and readouts keep updating, and no event is dropped from the export. |
-| **Abstandsgesetz** | Distance law: count rate over the source distance. The points of several measurements form one session, saved together at the end. |
-| **Spannungskurve** | Voltage response (Geiger plateau): count rate over the counter voltage, one point per measurement. |
-| **Intervalle** | One continuous acquisition, binned into R equal-width time intervals with live plots. |
+| Tab                | What it measures                                                                                                                                                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Einzelmessung**  | One measurement of inter-event times, shown as time series, histogram or list. At high count rates the line plot and table pause while the histogram and readouts keep updating, and no event is dropped from the export. |
+| **Abstandsgesetz** | Distance law: count rate over the source distance. The points of several measurements form one session, saved together at the end.                                                                                        |
+| **Spannungskurve** | Voltage response (Geiger plateau): count rate over the counter voltage, one point per measurement.                                                                                                                        |
+| **Intervalle**     | One continuous acquisition, binned into R equal-width time intervals with live plots.                                                                                                                                     |
 
 ![The Spannungskurve tab with its plot and table](docs/20261115-Gmcounter-Spannung.png)
 
@@ -32,10 +32,10 @@ Data is saved as CSV with a sidecar `*_MD.json` file that holds the metadata (sa
 
 ## Profiles
 
-| Profile | For | Interface |
-| --- | --- | --- |
-| `student` (default) | Lab courses (Praktikum) | Reduced controls, with the same experiments. The baud rate, the query mode and some readback rows are hidden. |
-| `expert` | Research and development | Every control. |
+| Profile             | For                      | Interface                                                                                                     |
+| ------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `student` (default) | Lab courses (Praktikum)  | Reduced controls, with the same experiments. The baud rate, the query mode and some readback rows are hidden. |
+| `expert`            | Research and development | Every control.                                                                                                |
 
 `gmcounter` starts the `student` profile. Ask for every control with:
 
@@ -84,12 +84,12 @@ bash gmcounter/pyqt/pyuic.sh            # regenerate the ui_<form>.py modules
 python -m gmcounter.pyqt.preview        # list the forms; add a name to show one
 ```
 
-| Where | What |
-| --- | --- |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Layers, threads, reconnect and data flow |
-| [`CLAUDE.md`](CLAUDE.md) | Module map, conventions, how to add a tab, CI and release rules |
-| [`CHANGELOG.md`](CHANGELOG.md) | What changed in each release |
-| [`.github/WORKFLOWS.md`](.github/WORKFLOWS.md) | CI and release workflows |
+| Where                                          | What                                                            |
+| ---------------------------------------------- | --------------------------------------------------------------- |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md)           | Layers, threads, reconnect and data flow                        |
+| [`CLAUDE.md`](CLAUDE.md)                       | Module map, conventions, how to add a tab, CI and release rules |
+| [`CHANGELOG.md`](CHANGELOG.md)                 | What changed in each release                                    |
+| [`.github/WORKFLOWS.md`](.github/WORKFLOWS.md) | CI and release workflows                                        |
 
 ## Contributing and releases
 

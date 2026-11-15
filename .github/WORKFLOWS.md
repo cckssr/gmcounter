@@ -4,11 +4,11 @@ This file describes the CI and release automation. It is not named `README.md` o
 
 ## Overview
 
-| Workflow | Runs when | Does |
-| --- | --- | --- |
-| `ci.yml` | A pull request is opened or updated; manual dispatch; called by the release workflow | `ruff format --check`, `ruff check`, then one pytest run with coverage on Python 3.10, 3.11 and 3.12 |
-| `auto-release.yml` | A pull request with a release label is merged into `main`; manual dispatch | Bumps the version, stamps `CHANGELOG.md`, builds and checks the wheel, tags, publishes the GitHub release |
-| `sphinx-docs.yml` | A push to `main`; manual dispatch | Builds the Sphinx documentation and deploys it to GitHub Pages |
+| Workflow           | Runs when                                                                            | Does                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `ci.yml`           | A pull request is opened or updated; manual dispatch; called by the release workflow | `ruff format --check`, `ruff check`, then one pytest run with coverage on Python 3.10, 3.11 and 3.12      |
+| `auto-release.yml` | A pull request with a release label is merged into `main`; manual dispatch           | Bumps the version, stamps `CHANGELOG.md`, builds and checks the wheel, tags, publishes the GitHub release |
+| `sphinx-docs.yml`  | A push to `main`; manual dispatch                                                    | Builds the Sphinx documentation and deploys it to GitHub Pages                                            |
 
 ## Where the tests run
 
