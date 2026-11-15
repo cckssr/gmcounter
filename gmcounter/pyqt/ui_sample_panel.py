@@ -58,7 +58,7 @@ class Ui_SamplePanel(object):
     def setupUi(self, SamplePanel):
         if not SamplePanel.objectName():
             SamplePanel.setObjectName("SamplePanel")
-        SamplePanel.resize(260, 200)
+        SamplePanel.resize(275, 212)
         self.layoutSamplePanel = QGridLayout(SamplePanel)
         self.layoutSamplePanel.setSpacing(6)
         self.layoutSamplePanel.setObjectName("layoutSamplePanel")
@@ -314,9 +314,6 @@ class Ui_SamplePanel(object):
         self.labelDistance.setText(
             QCoreApplication.translate("SamplePanel", "Probenabstand", None)
         )
-        self.spinDistance.setSuffix(
-            QCoreApplication.translate("SamplePanel", " cm", None)
-        )
         # if QT_CONFIG(tooltip)
         self.spinDistance.setToolTip(
             QCoreApplication.translate(
@@ -326,8 +323,8 @@ class Ui_SamplePanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
-        self.checkAutoSave.setText(
-            QCoreApplication.translate("SamplePanel", "Automatische Speicherung", None)
+        self.spinDistance.setSuffix(
+            QCoreApplication.translate("SamplePanel", " cm", None)
         )
         # if QT_CONFIG(tooltip)
         self.checkAutoSave.setToolTip(
@@ -338,6 +335,9 @@ class Ui_SamplePanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
+        self.checkAutoSave.setText(
+            QCoreApplication.translate("SamplePanel", "Automatische Speicherung", None)
+        )
         self.labelSuffix.setText(
             QCoreApplication.translate("SamplePanel", "Eigenes Suffix", None)
         )

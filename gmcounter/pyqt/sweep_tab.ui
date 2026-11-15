@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>900</width>
-    <height>600</height>
+    <width>790</width>
+    <height>510</height>
    </rect>
   </property>
   <property name="font">
@@ -32,6 +32,11 @@
     <layout class="QHBoxLayout" name="layoutSweepControls">
      <item>
       <widget class="QLabel" name="labelParam">
+       <property name="font">
+        <font>
+         <pointsize>14</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string>Probenabstand</string>
        </property>
@@ -39,6 +44,17 @@
      </item>
      <item>
       <widget class="QDoubleSpinBox" name="spinParam">
+       <property name="font">
+        <font>
+         <pointsize>14</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Abstand der Probe vom Detektor in Zentimetern</string>
+       </property>
+       <property name="suffix">
+        <string> cm</string>
+       </property>
        <property name="decimals">
         <number>1</number>
        </property>
@@ -48,16 +64,15 @@
        <property name="singleStep">
         <double>0.500000000000000</double>
        </property>
-       <property name="suffix">
-        <string> cm</string>
-       </property>
-       <property name="toolTip">
-        <string>Abstand der Probe vom Detektor in Zentimetern</string>
-       </property>
       </widget>
      </item>
      <item>
       <widget class="QLabel" name="labelHint">
+       <property name="font">
+        <font>
+         <pointsize>14</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string>Spannung wird in der Gerätesteuerung eingestellt.</string>
        </property>
@@ -77,16 +92,12 @@
       </spacer>
      </item>
      <item>
-      <widget class="QLabel" name="valueStatus">
-       <property name="alignment">
-        <enum>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</enum>
-       </property>
-      </widget>
+      <widget class="QLabel" name="valueStatus"/>
      </item>
     </layout>
    </item>
    <item row="1" column="0">
-    <widget class="GeneralPlot" name="sweepPlot">
+    <widget class="GeneralPlot" name="sweepPlot" native="true">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
        <horstretch>0</horstretch>
@@ -110,7 +121,7 @@
       </size>
      </property>
      <property name="editTriggers">
-      <enum>QAbstractItemView::EditTrigger::NoEditTriggers</enum>
+      <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
      </property>
      <property name="alternatingRowColors">
       <bool>true</bool>
@@ -127,7 +138,6 @@
    <class>GeneralPlot</class>
    <extends>QWidget</extends>
    <header>gmcounter.ui.widgets.plot</header>
-   <container>0</container>
   </customwidget>
  </customwidgets>
  <resources/>

@@ -58,7 +58,7 @@ class Ui_DeviceStatusPanel(object):
     def setupUi(self, DeviceStatusPanel):
         if not DeviceStatusPanel.objectName():
             DeviceStatusPanel.setObjectName("DeviceStatusPanel")
-        DeviceStatusPanel.resize(260, 200)
+        DeviceStatusPanel.resize(221, 239)
         self.layoutDeviceStatusPanel = QGridLayout(DeviceStatusPanel)
         self.layoutDeviceStatusPanel.setSpacing(6)
         self.layoutDeviceStatusPanel.setObjectName("layoutDeviceStatusPanel")
@@ -247,9 +247,6 @@ class Ui_DeviceStatusPanel(object):
         self.labelQueryReadback.setText(
             QCoreApplication.translate("DeviceStatusPanel", "Abfragemodus", None)
         )
-        self.valueQueryMode.setText(
-            QCoreApplication.translate("DeviceStatusPanel", "unbekannt", None)
-        )
         # if QT_CONFIG(tooltip)
         self.valueQueryMode.setToolTip(
             QCoreApplication.translate(
@@ -259,11 +256,11 @@ class Ui_DeviceStatusPanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
+        self.valueQueryMode.setText(
+            QCoreApplication.translate("DeviceStatusPanel", "unbekannt", None)
+        )
         self.labelModeReadback.setText(
             QCoreApplication.translate("DeviceStatusPanel", "Z\u00e4hl-Modus", None)
-        )
-        self.valueMode.setText(
-            QCoreApplication.translate("DeviceStatusPanel", "unbekannt", None)
         )
         # if QT_CONFIG(tooltip)
         self.valueMode.setToolTip(
@@ -272,11 +269,11 @@ class Ui_DeviceStatusPanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
+        self.valueMode.setText(
+            QCoreApplication.translate("DeviceStatusPanel", "unbekannt", None)
+        )
         self.labelFirmware.setText(
             QCoreApplication.translate("DeviceStatusPanel", "Firmware-Version", None)
-        )
-        self.valueFirmware.setText(
-            QCoreApplication.translate("DeviceStatusPanel", "unbekannt", None)
         )
         # if QT_CONFIG(tooltip)
         self.valueFirmware.setToolTip(
@@ -285,6 +282,9 @@ class Ui_DeviceStatusPanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
+        self.valueFirmware.setText(
+            QCoreApplication.translate("DeviceStatusPanel", "unbekannt", None)
+        )
         self.labelOpenbis.setText(
             QCoreApplication.translate("DeviceStatusPanel", "OpenBIS-Code", None)
         )

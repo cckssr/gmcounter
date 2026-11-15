@@ -62,7 +62,7 @@ class Ui_DevicePanel(object):
     def setupUi(self, DevicePanel):
         if not DevicePanel.objectName():
             DevicePanel.setObjectName("DevicePanel")
-        DevicePanel.resize(260, 200)
+        DevicePanel.resize(305, 283)
         self.layoutDevicePanel = QGridLayout(DevicePanel)
         self.layoutDevicePanel.setSpacing(6)
         self.layoutDevicePanel.setObjectName("layoutDevicePanel")
@@ -195,7 +195,9 @@ class Ui_DevicePanel(object):
         self.dialVoltage.setWrapping(False)
         self.dialVoltage.setNotchesVisible(True)
 
-        self.layoutDevicePanel.addWidget(self.dialVoltage, 4, 0, 1, 2, Qt.AlignHCenter)
+        self.layoutDevicePanel.addWidget(
+            self.dialVoltage, 4, 0, 1, 2, Qt.AlignmentFlag.AlignHCenter
+        )
 
         self.buttonApply = QPushButton(DevicePanel)
         self.buttonApply.setObjectName("buttonApply")
@@ -219,9 +221,6 @@ class Ui_DevicePanel(object):
         self.labelCountMode.setText(
             QCoreApplication.translate("DevicePanel", "Z\u00e4hlmodus", None)
         )
-        self.radioModeSingle.setText(
-            QCoreApplication.translate("DevicePanel", "Einzel", None)
-        )
         # if QT_CONFIG(tooltip)
         self.radioModeSingle.setToolTip(
             QCoreApplication.translate(
@@ -229,8 +228,8 @@ class Ui_DevicePanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
-        self.radioModeRepeat.setText(
-            QCoreApplication.translate("DevicePanel", "Wiederholung", None)
+        self.radioModeSingle.setText(
+            QCoreApplication.translate("DevicePanel", "Einzel", None)
         )
         # if QT_CONFIG(tooltip)
         self.radioModeRepeat.setToolTip(
@@ -241,11 +240,11 @@ class Ui_DevicePanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
+        self.radioModeRepeat.setText(
+            QCoreApplication.translate("DevicePanel", "Wiederholung", None)
+        )
         self.labelQueryMode.setText(
             QCoreApplication.translate("DevicePanel", "Abfragemodus", None)
-        )
-        self.radioQueryManual.setText(
-            QCoreApplication.translate("DevicePanel", "Manuell", None)
         )
         # if QT_CONFIG(tooltip)
         self.radioQueryManual.setToolTip(
@@ -256,8 +255,8 @@ class Ui_DevicePanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
-        self.radioQueryAuto.setText(
-            QCoreApplication.translate("DevicePanel", "Automatik", None)
+        self.radioQueryManual.setText(
+            QCoreApplication.translate("DevicePanel", "Manuell", None)
         )
         # if QT_CONFIG(tooltip)
         self.radioQueryAuto.setToolTip(
@@ -268,6 +267,9 @@ class Ui_DevicePanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
+        self.radioQueryAuto.setText(
+            QCoreApplication.translate("DevicePanel", "Automatik", None)
+        )
         self.labelDuration.setText(
             QCoreApplication.translate("DevicePanel", "Z\u00e4hldauer", None)
         )
@@ -302,9 +304,6 @@ class Ui_DevicePanel(object):
         self.labelVoltage.setText(
             QCoreApplication.translate("DevicePanel", "GM-Spannung", None)
         )
-        self.spinVoltage.setSuffix(
-            QCoreApplication.translate("DevicePanel", " V", None)
-        )
         # if QT_CONFIG(tooltip)
         self.spinVoltage.setToolTip(
             QCoreApplication.translate(
@@ -312,6 +311,9 @@ class Ui_DevicePanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
+        self.spinVoltage.setSuffix(
+            QCoreApplication.translate("DevicePanel", " V", None)
+        )
         # if QT_CONFIG(tooltip)
         self.dialVoltage.setToolTip(
             QCoreApplication.translate(
@@ -319,11 +321,6 @@ class Ui_DevicePanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
-        self.buttonApply.setText(
-            QCoreApplication.translate(
-                "DevicePanel", "Einstellungen \u00fcbernehmen", None
-            )
-        )
         # if QT_CONFIG(tooltip)
         self.buttonApply.setToolTip(
             QCoreApplication.translate(
@@ -332,7 +329,11 @@ class Ui_DevicePanel(object):
                 None,
             )
         )
+        # endif // QT_CONFIG(tooltip)
+        self.buttonApply.setText(
+            QCoreApplication.translate(
+                "DevicePanel", "Einstellungen \u00fcbernehmen", None
+            )
+        )
 
-
-# endif // QT_CONFIG(tooltip)
-# retranslateUi
+    # retranslateUi

@@ -58,7 +58,7 @@ class Ui_ReadoutPanel(object):
     def setupUi(self, ReadoutPanel):
         if not ReadoutPanel.objectName():
             ReadoutPanel.setObjectName("ReadoutPanel")
-        ReadoutPanel.resize(260, 200)
+        ReadoutPanel.resize(210, 247)
         self.layoutReadoutPanel = QGridLayout(ReadoutPanel)
         self.layoutReadoutPanel.setSpacing(4)
         self.layoutReadoutPanel.setObjectName("layoutReadoutPanel")
@@ -83,7 +83,7 @@ class Ui_ReadoutPanel(object):
         sizePolicy1.setVerticalStretch(0)
         sizePolicy1.setHeightForWidth(self.lcdCount.sizePolicy().hasHeightForWidth())
         self.lcdCount.setSizePolicy(sizePolicy1)
-        self.lcdCount.setMinimumSize(QSize(120, 52))
+        self.lcdCount.setMinimumSize(QSize(120, 36))
         self.lcdCount.setDigitCount(8)
         self.lcdCount.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
 
@@ -100,7 +100,7 @@ class Ui_ReadoutPanel(object):
         self.lcdRate.setObjectName("lcdRate")
         sizePolicy1.setHeightForWidth(self.lcdRate.sizePolicy().hasHeightForWidth())
         self.lcdRate.setSizePolicy(sizePolicy1)
-        self.lcdRate.setMinimumSize(QSize(120, 52))
+        self.lcdRate.setMinimumSize(QSize(120, 36))
         self.lcdRate.setDigitCount(8)
         self.lcdRate.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
 
@@ -121,7 +121,7 @@ class Ui_ReadoutPanel(object):
             self.lcdLastCount.sizePolicy().hasHeightForWidth()
         )
         self.lcdLastCount.setSizePolicy(sizePolicy1)
-        self.lcdLastCount.setMinimumSize(QSize(120, 52))
+        self.lcdLastCount.setMinimumSize(QSize(120, 36))
         self.lcdLastCount.setDigitCount(8)
         self.lcdLastCount.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
 

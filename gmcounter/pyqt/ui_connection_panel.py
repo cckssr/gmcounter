@@ -61,7 +61,7 @@ class Ui_ConnectionPanel(object):
     def setupUi(self, ConnectionPanel):
         if not ConnectionPanel.objectName():
             ConnectionPanel.setObjectName("ConnectionPanel")
-        ConnectionPanel.resize(260, 160)
+        ConnectionPanel.resize(316, 179)
         self.layoutConnectionPanel = QGridLayout(ConnectionPanel)
         self.layoutConnectionPanel.setSpacing(6)
         self.layoutConnectionPanel.setObjectName("layoutConnectionPanel")
@@ -72,11 +72,12 @@ class Ui_ConnectionPanel(object):
 
         self.comboPort = QComboBox(ConnectionPanel)
         self.comboPort.setObjectName("comboPort")
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.comboPort.sizePolicy().hasHeightForWidth())
         self.comboPort.setSizePolicy(sizePolicy)
+        self.comboPort.setMinimumSize(QSize(200, 0))
         self.comboPort.setSizeAdjustPolicy(
             QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
         )
@@ -117,8 +118,13 @@ class Ui_ConnectionPanel(object):
 
         self.comboBaud = QComboBox(ConnectionPanel)
         self.comboBaud.setObjectName("comboBaud")
-        sizePolicy.setHeightForWidth(self.comboBaud.sizePolicy().hasHeightForWidth())
-        self.comboBaud.setSizePolicy(sizePolicy)
+        sizePolicy2 = QSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.comboBaud.sizePolicy().hasHeightForWidth())
+        self.comboBaud.setSizePolicy(sizePolicy2)
 
         self.layoutConnectionPanel.addWidget(self.comboBaud, 2, 1, 1, 2)
 

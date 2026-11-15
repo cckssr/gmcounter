@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QAbstractButton, QGroupBox, QLabel
 def test_window_constructs_with_german_strings(window):
     ui = window.ui
     assert window.windowTitle() == "GM-Counter"
-    assert ui.actionToggleControls.text() == "Steuerung"
+    assert ui.actionToggleControls.text() == "Messparameter"
     assert ui.actionFullScreen.text() == "Vollbild"
     assert ui.devicePanel.title() == "Gerätesteuerung"
     assert ui.measurementPanel.ui.buttonStart.text() == "Start"

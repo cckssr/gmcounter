@@ -123,20 +123,26 @@ class Ui_MainWindow(object):
         self.scrollControls = QScrollArea(self.dockControlsContents)
         self.scrollControls.setObjectName("scrollControls")
         self.scrollControls.setFrameShape(QFrame.Shape.NoFrame)
-        self.scrollControls.setWidgetResizable(True)
         self.scrollControls.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
+        self.scrollControls.setWidgetResizable(True)
         self.contentControls = QWidget()
         self.contentControls.setObjectName("contentControls")
+        self.contentControls.setGeometry(QRect(0, 0, 75, 688))
         self.contentControlsLayout = QVBoxLayout(self.contentControls)
         self.contentControlsLayout.setSpacing(6)
         self.contentControlsLayout.setObjectName("contentControlsLayout")
         self.contentControlsLayout.setContentsMargins(4, 4, 4, 4)
-        self.devicePanel = DevicePanel(self.contentControls)
-        self.devicePanel.setObjectName("devicePanel")
+        self.readoutPanel = ReadoutPanel(self.contentControls)
+        self.readoutPanel.setObjectName("readoutPanel")
 
-        self.contentControlsLayout.addWidget(self.devicePanel)
+        self.contentControlsLayout.addWidget(self.readoutPanel)
+
+        self.deviceStatusPanel = DeviceStatusPanel(self.contentControls)
+        self.deviceStatusPanel.setObjectName("deviceStatusPanel")
+
+        self.contentControlsLayout.addWidget(self.deviceStatusPanel)
 
         self.samplePanel = SamplePanel(self.contentControls)
         self.samplePanel.setObjectName("samplePanel")
@@ -180,12 +186,13 @@ class Ui_MainWindow(object):
         self.scrollLive = QScrollArea(self.dockLiveContents)
         self.scrollLive.setObjectName("scrollLive")
         self.scrollLive.setFrameShape(QFrame.Shape.NoFrame)
-        self.scrollLive.setWidgetResizable(True)
         self.scrollLive.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
+        self.scrollLive.setWidgetResizable(True)
         self.contentLive = QWidget()
         self.contentLive.setObjectName("contentLive")
+        self.contentLive.setGeometry(QRect(0, 0, 75, 688))
         self.contentLiveLayout = QVBoxLayout(self.contentLive)
         self.contentLiveLayout.setSpacing(6)
         self.contentLiveLayout.setObjectName("contentLiveLayout")
@@ -195,15 +202,10 @@ class Ui_MainWindow(object):
 
         self.contentLiveLayout.addWidget(self.connectionPanel)
 
-        self.readoutPanel = ReadoutPanel(self.contentLive)
-        self.readoutPanel.setObjectName("readoutPanel")
+        self.devicePanel = DevicePanel(self.contentLive)
+        self.devicePanel.setObjectName("devicePanel")
 
-        self.contentLiveLayout.addWidget(self.readoutPanel)
-
-        self.deviceStatusPanel = DeviceStatusPanel(self.contentLive)
-        self.deviceStatusPanel.setObjectName("deviceStatusPanel")
-
-        self.contentLiveLayout.addWidget(self.deviceStatusPanel)
+        self.contentLiveLayout.addWidget(self.devicePanel)
 
         self.spacerLive = QSpacerItem(
             20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
@@ -219,6 +221,7 @@ class Ui_MainWindow(object):
         MainWindow.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dockLive)
         self.dockLog = QDockWidget(MainWindow)
         self.dockLog.setObjectName("dockLog")
+        self.dockLog.setVisible(False)
         self.dockLog.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetClosable
             | QDockWidget.DockWidgetFeature.DockWidgetFloatable
@@ -227,7 +230,6 @@ class Ui_MainWindow(object):
         self.dockLog.setAllowedAreas(
             Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.TopDockWidgetArea
         )
-        self.dockLog.setVisible(False)
         self.dockLogContents = QWidget()
         self.dockLogContents.setObjectName("dockLogContents")
         self.dockLogLayout = QVBoxLayout(self.dockLogContents)
@@ -262,25 +264,25 @@ class Ui_MainWindow(object):
             QCoreApplication.translate("MainWindow", "GM-Counter", None)
         )
         self.actionToggleControls.setText(
-            QCoreApplication.translate("MainWindow", "Steuerung", None)
+            QCoreApplication.translate("MainWindow", "Messparameter", None)
         )
         # if QT_CONFIG(tooltip)
         self.actionToggleControls.setToolTip(
             QCoreApplication.translate(
                 "MainWindow",
-                "Seitenleiste mit Ger\u00e4te-, Proben- und Messungssteuerung ein- oder ausblenden",
+                "Seitenleiste mit Proben- und Messungssteuerung ein- oder ausblenden",
                 None,
             )
         )
         # endif // QT_CONFIG(tooltip)
         self.actionToggleLive.setText(
-            QCoreApplication.translate("MainWindow", "Anzeige", None)
+            QCoreApplication.translate("MainWindow", "Ger\u00e4t", None)
         )
         # if QT_CONFIG(tooltip)
         self.actionToggleLive.setToolTip(
             QCoreApplication.translate(
                 "MainWindow",
-                "Seitenleiste mit Verbindung, Z\u00e4hlergebnissen und Ger\u00e4testatus ein- oder ausblenden",
+                "Seitenleiste mit Verbindung und Ger\u00e4testeuerung ein- oder ausblenden",
                 None,
             )
         )
@@ -319,10 +321,10 @@ class Ui_MainWindow(object):
             QCoreApplication.translate("MainWindow", "Werkzeugleiste", None)
         )
         self.dockControls.setWindowTitle(
-            QCoreApplication.translate("MainWindow", "Steuerung", None)
+            QCoreApplication.translate("MainWindow", "Messparameter", None)
         )
         self.dockLive.setWindowTitle(
-            QCoreApplication.translate("MainWindow", "Anzeige", None)
+            QCoreApplication.translate("MainWindow", "Ger\u00e4t", None)
         )
         self.dockLog.setWindowTitle(
             QCoreApplication.translate("MainWindow", "Ereignisprotokoll", None)

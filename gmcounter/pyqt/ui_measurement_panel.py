@@ -57,45 +57,45 @@ class Ui_MeasurementPanel(object):
     def setupUi(self, MeasurementPanel):
         if not MeasurementPanel.objectName():
             MeasurementPanel.setObjectName("MeasurementPanel")
-        MeasurementPanel.resize(260, 200)
+        MeasurementPanel.resize(194, 125)
         self.layoutMeasurementPanel = QGridLayout(MeasurementPanel)
-        self.layoutMeasurementPanel.setSpacing(6)
+        self.layoutMeasurementPanel.setSpacing(8)
         self.layoutMeasurementPanel.setObjectName("layoutMeasurementPanel")
         self.buttonStart = QPushButton(MeasurementPanel)
         self.buttonStart.setObjectName("buttonStart")
         self.buttonStart.setEnabled(True)
-        self.buttonStart.setMinimumSize(QSize(0, 32))
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.buttonStart.sizePolicy().hasHeightForWidth())
         self.buttonStart.setSizePolicy(sizePolicy)
-        self.buttonStart.setAutoDefault(False)
+        self.buttonStart.setMinimumSize(QSize(0, 32))
         # if QT_CONFIG(shortcut)
         self.buttonStart.setShortcut("F5")
         # endif // QT_CONFIG(shortcut)
+        self.buttonStart.setAutoDefault(False)
 
         self.layoutMeasurementPanel.addWidget(self.buttonStart, 0, 0, 1, 1)
 
         self.buttonStop = QPushButton(MeasurementPanel)
         self.buttonStop.setObjectName("buttonStop")
         self.buttonStop.setEnabled(False)
-        self.buttonStop.setMinimumSize(QSize(0, 32))
         sizePolicy.setHeightForWidth(self.buttonStop.sizePolicy().hasHeightForWidth())
         self.buttonStop.setSizePolicy(sizePolicy)
-        self.buttonStop.setAutoDefault(False)
+        self.buttonStop.setMinimumSize(QSize(0, 32))
         # if QT_CONFIG(shortcut)
         self.buttonStop.setShortcut("F6")
         # endif // QT_CONFIG(shortcut)
+        self.buttonStop.setAutoDefault(False)
 
         self.layoutMeasurementPanel.addWidget(self.buttonStop, 0, 1, 1, 1)
 
         self.buttonSave = QPushButton(MeasurementPanel)
         self.buttonSave.setObjectName("buttonSave")
         self.buttonSave.setEnabled(False)
-        self.buttonSave.setMinimumSize(QSize(0, 32))
         sizePolicy.setHeightForWidth(self.buttonSave.sizePolicy().hasHeightForWidth())
         self.buttonSave.setSizePolicy(sizePolicy)
+        self.buttonSave.setMinimumSize(QSize(0, 32))
         self.buttonSave.setAutoDefault(False)
 
         self.layoutMeasurementPanel.addWidget(self.buttonSave, 1, 0, 1, 1)
@@ -103,9 +103,9 @@ class Ui_MeasurementPanel(object):
         self.buttonReset = QPushButton(MeasurementPanel)
         self.buttonReset.setObjectName("buttonReset")
         self.buttonReset.setEnabled(False)
-        self.buttonReset.setMinimumSize(QSize(0, 32))
         sizePolicy.setHeightForWidth(self.buttonReset.sizePolicy().hasHeightForWidth())
         self.buttonReset.setSizePolicy(sizePolicy)
+        self.buttonReset.setMinimumSize(QSize(0, 32))
         self.buttonReset.setAutoDefault(False)
 
         self.layoutMeasurementPanel.addWidget(self.buttonReset, 1, 1, 1, 1)
@@ -123,9 +123,9 @@ class Ui_MeasurementPanel(object):
             self.progressMeasurement.sizePolicy().hasHeightForWidth()
         )
         self.progressMeasurement.setSizePolicy(sizePolicy1)
-        self.progressMeasurement.setValue(0)
         self.progressMeasurement.setMinimum(0)
         self.progressMeasurement.setMaximum(1)
+        self.progressMeasurement.setValue(0)
         self.progressMeasurement.setTextVisible(False)
 
         self.layoutProgress.addWidget(self.progressMeasurement)
@@ -142,9 +142,6 @@ class Ui_MeasurementPanel(object):
         )
         self.valueElapsed.setSizePolicy(sizePolicy2)
         self.valueElapsed.setMinimumSize(QSize(48, 0))
-        self.valueElapsed.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
 
         self.layoutProgress.addWidget(self.valueElapsed)
 
@@ -160,16 +157,13 @@ class Ui_MeasurementPanel(object):
         MeasurementPanel.setTitle(
             QCoreApplication.translate("MeasurementPanel", "Messung", None)
         )
-        self.buttonStart.setText(
-            QCoreApplication.translate("MeasurementPanel", "Start", None)
-        )
         # if QT_CONFIG(tooltip)
         self.buttonStart.setToolTip(
             QCoreApplication.translate("MeasurementPanel", "Messung starten (F5)", None)
         )
         # endif // QT_CONFIG(tooltip)
-        self.buttonStop.setText(
-            QCoreApplication.translate("MeasurementPanel", "Stop", None)
+        self.buttonStart.setText(
+            QCoreApplication.translate("MeasurementPanel", "Start", None)
         )
         # if QT_CONFIG(tooltip)
         self.buttonStop.setToolTip(
@@ -178,8 +172,8 @@ class Ui_MeasurementPanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
-        self.buttonSave.setText(
-            QCoreApplication.translate("MeasurementPanel", "Speichern", None)
+        self.buttonStop.setText(
+            QCoreApplication.translate("MeasurementPanel", "Stop", None)
         )
         # if QT_CONFIG(tooltip)
         self.buttonSave.setToolTip(
@@ -188,8 +182,8 @@ class Ui_MeasurementPanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
-        self.buttonReset.setText(
-            QCoreApplication.translate("MeasurementPanel", "Reset", None)
+        self.buttonSave.setText(
+            QCoreApplication.translate("MeasurementPanel", "Speichern", None)
         )
         # if QT_CONFIG(tooltip)
         self.buttonReset.setToolTip(
@@ -198,6 +192,9 @@ class Ui_MeasurementPanel(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
+        self.buttonReset.setText(
+            QCoreApplication.translate("MeasurementPanel", "Reset", None)
+        )
         self.valueElapsed.setText(
             QCoreApplication.translate("MeasurementPanel", "0 s", None)
         )

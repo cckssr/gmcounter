@@ -37,11 +37,11 @@
    </layout>
   </widget>
   <widget class="QToolBar" name="toolBar">
-   <property name="movable">
-    <bool>false</bool>
-   </property>
    <property name="windowTitle">
     <string>Werkzeugleiste</string>
+   </property>
+   <property name="movable">
+    <bool>false</bool>
    </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
@@ -64,7 +64,7 @@
     <set>Qt::DockWidgetArea::LeftDockWidgetArea|Qt::DockWidgetArea::RightDockWidgetArea</set>
    </property>
    <property name="windowTitle">
-    <string>Steuerung</string>
+    <string>Messparameter</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>1</number>
@@ -88,13 +88,21 @@
        <property name="frameShape">
         <enum>QFrame::Shape::NoFrame</enum>
        </property>
-       <property name="widgetResizable">
-        <bool>true</bool>
-       </property>
        <property name="horizontalScrollBarPolicy">
         <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
        </property>
+       <property name="widgetResizable">
+        <bool>true</bool>
+       </property>
        <widget class="QWidget" name="contentControls">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>75</width>
+          <height>688</height>
+         </rect>
+        </property>
         <layout class="QVBoxLayout" name="contentControlsLayout">
          <property name="spacing">
           <number>6</number>
@@ -112,7 +120,10 @@
           <number>4</number>
          </property>
          <item>
-          <widget class="DevicePanel" name="devicePanel"/>
+          <widget class="ReadoutPanel" name="readoutPanel"/>
+         </item>
+         <item>
+          <widget class="DeviceStatusPanel" name="deviceStatusPanel"/>
          </item>
          <item>
           <widget class="SamplePanel" name="samplePanel"/>
@@ -148,7 +159,7 @@
     <set>Qt::DockWidgetArea::LeftDockWidgetArea|Qt::DockWidgetArea::RightDockWidgetArea</set>
    </property>
    <property name="windowTitle">
-    <string>Anzeige</string>
+    <string>Gerät</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>2</number>
@@ -172,13 +183,21 @@
        <property name="frameShape">
         <enum>QFrame::Shape::NoFrame</enum>
        </property>
-       <property name="widgetResizable">
-        <bool>true</bool>
-       </property>
        <property name="horizontalScrollBarPolicy">
         <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
        </property>
+       <property name="widgetResizable">
+        <bool>true</bool>
+       </property>
        <widget class="QWidget" name="contentLive">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>75</width>
+          <height>688</height>
+         </rect>
+        </property>
         <layout class="QVBoxLayout" name="contentLiveLayout">
          <property name="spacing">
           <number>6</number>
@@ -199,10 +218,7 @@
           <widget class="ConnectionPanel" name="connectionPanel"/>
          </item>
          <item>
-          <widget class="ReadoutPanel" name="readoutPanel"/>
-         </item>
-         <item>
-          <widget class="DeviceStatusPanel" name="deviceStatusPanel"/>
+          <widget class="DevicePanel" name="devicePanel"/>
          </item>
          <item>
           <spacer name="spacerLive">
@@ -225,14 +241,14 @@
    </widget>
   </widget>
   <widget class="QDockWidget" name="dockLog">
+   <property name="visible">
+    <bool>false</bool>
+   </property>
    <property name="features">
     <set>QDockWidget::DockWidgetFeature::DockWidgetClosable|QDockWidget::DockWidgetFeature::DockWidgetFloatable|QDockWidget::DockWidgetFeature::DockWidgetMovable</set>
    </property>
    <property name="allowedAreas">
     <set>Qt::DockWidgetArea::BottomDockWidgetArea|Qt::DockWidgetArea::TopDockWidgetArea</set>
-   </property>
-   <property name="visible">
-    <bool>false</bool>
    </property>
    <property name="windowTitle">
     <string>Ereignisprotokoll</string>
@@ -255,7 +271,7 @@
       <number>0</number>
      </property>
      <item>
-      <widget class="EventLogPanel" name="eventLogPanel"/>
+      <widget class="EventLogPanel" name="eventLogPanel" native="true"/>
      </item>
     </layout>
    </widget>
@@ -269,10 +285,10 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Steuerung</string>
+    <string>Messparameter</string>
    </property>
    <property name="toolTip">
-    <string>Seitenleiste mit Geräte-, Proben- und Messungssteuerung ein- oder ausblenden</string>
+    <string>Seitenleiste mit Proben- und Messungssteuerung ein- oder ausblenden</string>
    </property>
   </action>
   <action name="actionToggleLive">
@@ -283,10 +299,10 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Anzeige</string>
+    <string>Gerät</string>
    </property>
    <property name="toolTip">
-    <string>Seitenleiste mit Verbindung, Zählergebnissen und Gerätestatus ein- oder ausblenden</string>
+    <string>Seitenleiste mit Verbindung und Gerätesteuerung ein- oder ausblenden</string>
    </property>
   </action>
   <action name="actionToggleLog">
@@ -312,14 +328,14 @@
    <property name="checkable">
     <bool>true</bool>
    </property>
-   <property name="shortcut">
-    <string notr="true">F11</string>
-   </property>
    <property name="text">
     <string>Vollbild</string>
    </property>
    <property name="toolTip">
     <string>Zwischen Vollbild und Fenster wechseln (F11)</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">F11</string>
    </property>
   </action>
  </widget>

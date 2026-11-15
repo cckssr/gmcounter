@@ -76,6 +76,11 @@
          </item>
          <item>
           <widget class="QLabel" name="labelPlotPoints">
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>Max. Plotpunkte</string>
            </property>
@@ -83,6 +88,11 @@
          </item>
          <item>
           <widget class="QSpinBox" name="spinPlotPoints">
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+            </font>
+           </property>
            <property name="minimum">
             <number>10</number>
            </property>
@@ -102,11 +112,11 @@
          </item>
          <item>
           <widget class="QCheckBox" name="checkAutoScroll">
-           <property name="checked">
-            <bool>true</bool>
-           </property>
            <property name="text">
             <string>Auto-Scroll</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
            </property>
           </widget>
          </item>
@@ -120,7 +130,7 @@
         </layout>
        </item>
        <item row="1" column="0">
-        <widget class="GeneralPlot" name="timePlot">
+        <widget class="GeneralPlot" name="timePlot" native="true">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
            <horstretch>0</horstretch>
@@ -159,12 +169,6 @@
          </item>
          <item row="1" column="0">
           <widget class="QLabel" name="valueStatCount">
-           <property name="textInteractionFlags">
-            <enum>Qt::TextInteractionFlag::TextSelectableByMouse</enum>
-           </property>
-           <property name="frameShape">
-            <enum>QFrame::Shape::StyledPanel</enum>
-           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -176,6 +180,12 @@
              <width>70</width>
              <height>0</height>
             </size>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Shape::StyledPanel</enum>
+           </property>
+           <property name="textInteractionFlags">
+            <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
            </property>
           </widget>
          </item>
@@ -188,12 +198,6 @@
          </item>
          <item row="1" column="1">
           <widget class="QLabel" name="valueStatMin">
-           <property name="textInteractionFlags">
-            <enum>Qt::TextInteractionFlag::TextSelectableByMouse</enum>
-           </property>
-           <property name="frameShape">
-            <enum>QFrame::Shape::StyledPanel</enum>
-           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -205,6 +209,12 @@
              <width>70</width>
              <height>0</height>
             </size>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Shape::StyledPanel</enum>
+           </property>
+           <property name="textInteractionFlags">
+            <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
            </property>
           </widget>
          </item>
@@ -217,12 +227,6 @@
          </item>
          <item row="1" column="2">
           <widget class="QLabel" name="valueStatMax">
-           <property name="textInteractionFlags">
-            <enum>Qt::TextInteractionFlag::TextSelectableByMouse</enum>
-           </property>
-           <property name="frameShape">
-            <enum>QFrame::Shape::StyledPanel</enum>
-           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -234,6 +238,12 @@
              <width>70</width>
              <height>0</height>
             </size>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Shape::StyledPanel</enum>
+           </property>
+           <property name="textInteractionFlags">
+            <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
            </property>
           </widget>
          </item>
@@ -246,12 +256,6 @@
          </item>
          <item row="1" column="3">
           <widget class="QLabel" name="valueStatMean">
-           <property name="textInteractionFlags">
-            <enum>Qt::TextInteractionFlag::TextSelectableByMouse</enum>
-           </property>
-           <property name="frameShape">
-            <enum>QFrame::Shape::StyledPanel</enum>
-           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -263,6 +267,12 @@
              <width>70</width>
              <height>0</height>
             </size>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Shape::StyledPanel</enum>
+           </property>
+           <property name="textInteractionFlags">
+            <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
            </property>
           </widget>
          </item>
@@ -275,12 +285,6 @@
          </item>
          <item row="1" column="4">
           <widget class="QLabel" name="valueStatStd">
-           <property name="textInteractionFlags">
-            <enum>Qt::TextInteractionFlag::TextSelectableByMouse</enum>
-           </property>
-           <property name="frameShape">
-            <enum>QFrame::Shape::StyledPanel</enum>
-           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -292,6 +296,12 @@
              <width>70</width>
              <height>0</height>
             </size>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Shape::StyledPanel</enum>
+           </property>
+           <property name="textInteractionFlags">
+            <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
            </property>
           </widget>
          </item>
@@ -317,6 +327,11 @@
          </property>
          <item>
           <widget class="QLabel" name="labelBinSize">
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>Bin-Größe / µs</string>
            </property>
@@ -355,6 +370,11 @@
              <height>0</height>
             </size>
            </property>
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+            </font>
+           </property>
            <property name="frame">
             <bool>false</bool>
            </property>
@@ -383,6 +403,11 @@
          </item>
          <item>
           <widget class="QLabel" name="labelCutoff">
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+            </font>
+           </property>
            <property name="text">
             <string>Cut-Off / µs</string>
            </property>
@@ -390,6 +415,9 @@
          </item>
          <item>
           <widget class="QSlider" name="sliderCutoff">
+           <property name="toolTip">
+            <string>Obere Grenze ab welcher Daten nicht mehr im Diagramm angezeigt werden sollen</string>
+           </property>
            <property name="minimum">
             <number>1000</number>
            </property>
@@ -408,9 +436,6 @@
            <property name="tickPosition">
             <enum>QSlider::TickPosition::NoTicks</enum>
            </property>
-           <property name="toolTip">
-            <string>Obere Grenze ab welcher Daten nicht mehr im Diagramm angezeigt werden sollen</string>
-           </property>
           </widget>
          </item>
          <item>
@@ -426,6 +451,11 @@
              <width>80</width>
              <height>0</height>
             </size>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+            </font>
            </property>
            <property name="frame">
             <bool>false</bool>
@@ -456,7 +486,7 @@
         </layout>
        </item>
        <item row="2" column="0">
-        <widget class="HistogramWidget" name="histogramPlot">
+        <widget class="HistogramWidget" name="histogramPlot" native="true">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
            <horstretch>0</horstretch>
@@ -487,7 +517,7 @@
        <item row="0" column="0">
         <widget class="QTableView" name="tableEvents">
          <property name="editTriggers">
-          <enum>QAbstractItemView::EditTrigger::NoEditTriggers</enum>
+          <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
          </property>
         </widget>
        </item>
@@ -502,13 +532,11 @@
    <class>GeneralPlot</class>
    <extends>QWidget</extends>
    <header>gmcounter.ui.widgets.plot</header>
-   <container>0</container>
   </customwidget>
   <customwidget>
    <class>HistogramWidget</class>
    <extends>QWidget</extends>
    <header>gmcounter.ui.widgets.plot</header>
-   <container>0</container>
   </customwidget>
  </customwidgets>
  <resources/>

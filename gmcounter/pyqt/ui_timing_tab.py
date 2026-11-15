@@ -100,11 +100,15 @@ class Ui_TimingTab(object):
 
         self.labelPlotPoints = QLabel(self.pageTime)
         self.labelPlotPoints.setObjectName("labelPlotPoints")
+        font1 = QFont()
+        font1.setPointSize(14)
+        self.labelPlotPoints.setFont(font1)
 
         self.layoutPlotControls.addWidget(self.labelPlotPoints)
 
         self.spinPlotPoints = QSpinBox(self.pageTime)
         self.spinPlotPoints.setObjectName("spinPlotPoints")
+        self.spinPlotPoints.setFont(font1)
         self.spinPlotPoints.setMinimum(10)
         self.spinPlotPoints.setMaximum(100000)
         self.spinPlotPoints.setSingleStep(10)
@@ -151,10 +155,6 @@ class Ui_TimingTab(object):
 
         self.valueStatCount = QLabel(self.pageHistogram)
         self.valueStatCount.setObjectName("valueStatCount")
-        self.valueStatCount.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-        )
-        self.valueStatCount.setFrameShape(QFrame.Shape.StyledPanel)
         sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         sizePolicy1.setHorizontalStretch(0)
         sizePolicy1.setVerticalStretch(0)
@@ -163,6 +163,10 @@ class Ui_TimingTab(object):
         )
         self.valueStatCount.setSizePolicy(sizePolicy1)
         self.valueStatCount.setMinimumSize(QSize(70, 0))
+        self.valueStatCount.setFrameShape(QFrame.Shape.StyledPanel)
+        self.valueStatCount.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
 
         self.layoutStats.addWidget(self.valueStatCount, 1, 0, 1, 1)
 
@@ -173,15 +177,15 @@ class Ui_TimingTab(object):
 
         self.valueStatMin = QLabel(self.pageHistogram)
         self.valueStatMin.setObjectName("valueStatMin")
-        self.valueStatMin.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-        )
-        self.valueStatMin.setFrameShape(QFrame.Shape.StyledPanel)
         sizePolicy1.setHeightForWidth(
             self.valueStatMin.sizePolicy().hasHeightForWidth()
         )
         self.valueStatMin.setSizePolicy(sizePolicy1)
         self.valueStatMin.setMinimumSize(QSize(70, 0))
+        self.valueStatMin.setFrameShape(QFrame.Shape.StyledPanel)
+        self.valueStatMin.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
 
         self.layoutStats.addWidget(self.valueStatMin, 1, 1, 1, 1)
 
@@ -192,15 +196,15 @@ class Ui_TimingTab(object):
 
         self.valueStatMax = QLabel(self.pageHistogram)
         self.valueStatMax.setObjectName("valueStatMax")
-        self.valueStatMax.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-        )
-        self.valueStatMax.setFrameShape(QFrame.Shape.StyledPanel)
         sizePolicy1.setHeightForWidth(
             self.valueStatMax.sizePolicy().hasHeightForWidth()
         )
         self.valueStatMax.setSizePolicy(sizePolicy1)
         self.valueStatMax.setMinimumSize(QSize(70, 0))
+        self.valueStatMax.setFrameShape(QFrame.Shape.StyledPanel)
+        self.valueStatMax.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
 
         self.layoutStats.addWidget(self.valueStatMax, 1, 2, 1, 1)
 
@@ -211,15 +215,15 @@ class Ui_TimingTab(object):
 
         self.valueStatMean = QLabel(self.pageHistogram)
         self.valueStatMean.setObjectName("valueStatMean")
-        self.valueStatMean.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-        )
-        self.valueStatMean.setFrameShape(QFrame.Shape.StyledPanel)
         sizePolicy1.setHeightForWidth(
             self.valueStatMean.sizePolicy().hasHeightForWidth()
         )
         self.valueStatMean.setSizePolicy(sizePolicy1)
         self.valueStatMean.setMinimumSize(QSize(70, 0))
+        self.valueStatMean.setFrameShape(QFrame.Shape.StyledPanel)
+        self.valueStatMean.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
 
         self.layoutStats.addWidget(self.valueStatMean, 1, 3, 1, 1)
 
@@ -230,15 +234,15 @@ class Ui_TimingTab(object):
 
         self.valueStatStd = QLabel(self.pageHistogram)
         self.valueStatStd.setObjectName("valueStatStd")
-        self.valueStatStd.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-        )
-        self.valueStatStd.setFrameShape(QFrame.Shape.StyledPanel)
         sizePolicy1.setHeightForWidth(
             self.valueStatStd.sizePolicy().hasHeightForWidth()
         )
         self.valueStatStd.setSizePolicy(sizePolicy1)
         self.valueStatStd.setMinimumSize(QSize(70, 0))
+        self.valueStatStd.setFrameShape(QFrame.Shape.StyledPanel)
+        self.valueStatStd.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
 
         self.layoutStats.addWidget(self.valueStatStd, 1, 4, 1, 1)
 
@@ -255,6 +259,7 @@ class Ui_TimingTab(object):
         self.layoutBinning.setContentsMargins(-1, -1, -1, 0)
         self.labelBinSize = QLabel(self.pageHistogram)
         self.labelBinSize.setObjectName("labelBinSize")
+        self.labelBinSize.setFont(font1)
 
         self.layoutBinning.addWidget(self.labelBinSize)
 
@@ -276,6 +281,7 @@ class Ui_TimingTab(object):
         sizePolicy2.setHeightForWidth(self.spinBinSize.sizePolicy().hasHeightForWidth())
         self.spinBinSize.setSizePolicy(sizePolicy2)
         self.spinBinSize.setMinimumSize(QSize(80, 0))
+        self.spinBinSize.setFont(font1)
         self.spinBinSize.setFrame(False)
         self.spinBinSize.setReadOnly(True)
         self.spinBinSize.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
@@ -288,6 +294,7 @@ class Ui_TimingTab(object):
 
         self.labelCutoff = QLabel(self.pageHistogram)
         self.labelCutoff.setObjectName("labelCutoff")
+        self.labelCutoff.setFont(font1)
 
         self.layoutBinning.addWidget(self.labelCutoff)
 
@@ -307,6 +314,7 @@ class Ui_TimingTab(object):
         sizePolicy2.setHeightForWidth(self.spinCutoff.sizePolicy().hasHeightForWidth())
         self.spinCutoff.setSizePolicy(sizePolicy2)
         self.spinCutoff.setMinimumSize(QSize(80, 0))
+        self.spinCutoff.setFont(font1)
         self.spinCutoff.setFrame(False)
         self.spinCutoff.setReadOnly(True)
         self.spinCutoff.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)

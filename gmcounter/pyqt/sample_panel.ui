@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>260</width>
-    <height>200</height>
+    <width>275</width>
+    <height>212</height>
    </rect>
   </property>
   <property name="title">
@@ -38,6 +38,9 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
+     <property name="toolTip">
+      <string>Auswahl der verwendeten radioaktiven Probe (Pflichtfeld)</string>
+     </property>
      <property name="editable">
       <bool>true</bool>
      </property>
@@ -46,9 +49,6 @@
      </property>
      <property name="insertPolicy">
       <enum>QComboBox::InsertPolicy::NoInsert</enum>
-     </property>
-     <property name="toolTip">
-      <string>Auswahl der verwendeten radioaktiven Probe (Pflichtfeld)</string>
      </property>
     </widget>
    </item>
@@ -73,6 +73,9 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
+     <property name="toolTip">
+      <string>Auswahl der GP-Praktikumsgruppe (Pflichtfeld)</string>
+     </property>
      <property name="currentIndex">
       <number>-1</number>
      </property>
@@ -81,9 +84,6 @@
      </property>
      <property name="insertPolicy">
       <enum>QComboBox::InsertPolicy::NoInsert</enum>
-     </property>
-     <property name="toolTip">
-      <string>Auswahl der GP-Praktikumsgruppe (Pflichtfeld)</string>
      </property>
      <item>
       <property name="text">
@@ -228,6 +228,9 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
+     <property name="toolTip">
+      <string>Auswahl des verwendeten Detektors (Geiger-Müller-Zählrohr, Pflichtfeld)</string>
+     </property>
      <property name="editable">
       <bool>true</bool>
      </property>
@@ -236,9 +239,6 @@
      </property>
      <property name="insertPolicy">
       <enum>QComboBox::InsertPolicy::NoInsert</enum>
-     </property>
-     <property name="toolTip">
-      <string>Auswahl des verwendeten Detektors (Geiger-Müller-Zählrohr, Pflichtfeld)</string>
      </property>
     </widget>
    </item>
@@ -263,33 +263,33 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="decimals">
-      <number>1</number>
-     </property>
-     <property name="maximum">
-      <double>100.0</double>
-     </property>
-     <property name="singleStep">
-      <double>0.5</double>
+     <property name="toolTip">
+      <string>Abstand zwischen Detektoroberfläche und radioaktiver Probe in cm</string>
      </property>
      <property name="suffix">
       <string> cm</string>
      </property>
-     <property name="toolTip">
-      <string>Abstand zwischen Detektoroberfläche und radioaktiver Probe in cm</string>
+     <property name="decimals">
+      <number>1</number>
+     </property>
+     <property name="maximum">
+      <double>100.000000000000000</double>
+     </property>
+     <property name="singleStep">
+      <double>0.500000000000000</double>
      </property>
     </widget>
    </item>
    <item row="4" column="0" colspan="2">
     <widget class="QCheckBox" name="checkAutoSave">
-     <property name="checked">
-      <bool>false</bool>
+     <property name="toolTip">
+      <string>Bei Aktivierung werden die Messungen automatisch als JJJJ_MM_TT-Probe-Suffix.csv im Ordner Dokumente/Geiger-Mueller/ gespeichert</string>
      </property>
      <property name="text">
       <string>Automatische Speicherung</string>
      </property>
-     <property name="toolTip">
-      <string>Bei Aktivierung werden die Messungen automatisch als JJJJ_MM_TT-Probe-Suffix.csv im Ordner Dokumente/Geiger-Mueller/ gespeichert</string>
+     <property name="checked">
+      <bool>false</bool>
      </property>
     </widget>
    </item>
@@ -314,11 +314,11 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="maxLength">
-      <number>20</number>
-     </property>
      <property name="toolTip">
       <string>Ein benutzerdefiniertes Suffix mit maximal 20 Zeichen</string>
+     </property>
+     <property name="maxLength">
+      <number>20</number>
      </property>
     </widget>
    </item>

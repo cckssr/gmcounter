@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>260</width>
-    <height>200</height>
+    <width>221</width>
+    <height>239</height>
    </rect>
   </property>
   <property name="title">
@@ -33,7 +33,7 @@
    <item row="0" column="1">
     <layout class="QHBoxLayout" name="layoutStatus">
      <item>
-      <widget class="StatusLed" name="ledStatus"/>
+      <widget class="StatusLed" name="ledStatus" native="true"/>
      </item>
      <item>
       <widget class="QLabel" name="valueStatus">
@@ -77,14 +77,14 @@
        <height>36</height>
       </size>
      </property>
+     <property name="toolTip">
+      <string>Aktuelle GM-Spannung</string>
+     </property>
      <property name="digitCount">
       <number>3</number>
      </property>
      <property name="segmentStyle">
       <enum>QLCDNumber::SegmentStyle::Flat</enum>
-     </property>
-     <property name="toolTip">
-      <string>Aktuelle GM-Spannung</string>
      </property>
     </widget>
    </item>
@@ -115,14 +115,14 @@
        <height>36</height>
       </size>
      </property>
+     <property name="toolTip">
+      <string>Aktuell eingestellte Zähldauer; 999 für unendlich</string>
+     </property>
      <property name="digitCount">
       <number>3</number>
      </property>
      <property name="segmentStyle">
       <enum>QLCDNumber::SegmentStyle::Flat</enum>
-     </property>
-     <property name="toolTip">
-      <string>Aktuell eingestellte Zähldauer; 999 für unendlich</string>
      </property>
     </widget>
    </item>
@@ -147,11 +147,11 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="text">
-      <string>unbekannt</string>
-     </property>
      <property name="toolTip">
       <string>Aktuell eingestellter Abfragemodus der Zählergebnisse</string>
+     </property>
+     <property name="text">
+      <string>unbekannt</string>
      </property>
     </widget>
    </item>
@@ -176,11 +176,11 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="text">
-      <string>unbekannt</string>
-     </property>
      <property name="toolTip">
       <string>Aktuell eingestellter Zählmodus</string>
+     </property>
+     <property name="text">
+      <string>unbekannt</string>
      </property>
     </widget>
    </item>
@@ -205,11 +205,11 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="text">
-      <string>unbekannt</string>
-     </property>
      <property name="toolTip">
       <string>GM-Zähler-Firmware</string>
+     </property>
+     <property name="text">
+      <string>unbekannt</string>
      </property>
     </widget>
    </item>

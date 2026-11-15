@@ -61,7 +61,7 @@ class Ui_SweepTab(object):
     def setupUi(self, SweepTab):
         if not SweepTab.objectName():
             SweepTab.setObjectName("SweepTab")
-        SweepTab.resize(900, 600)
+        SweepTab.resize(790, 510)
         font = QFont()
         font.setPointSize(11)
         SweepTab.setFont(font)
@@ -72,11 +72,15 @@ class Ui_SweepTab(object):
         self.layoutSweepControls.setObjectName("layoutSweepControls")
         self.labelParam = QLabel(SweepTab)
         self.labelParam.setObjectName("labelParam")
+        font1 = QFont()
+        font1.setPointSize(14)
+        self.labelParam.setFont(font1)
 
         self.layoutSweepControls.addWidget(self.labelParam)
 
         self.spinParam = QDoubleSpinBox(SweepTab)
         self.spinParam.setObjectName("spinParam")
+        self.spinParam.setFont(font1)
         self.spinParam.setDecimals(1)
         self.spinParam.setMaximum(99999.000000000000000)
         self.spinParam.setSingleStep(0.500000000000000)
@@ -85,6 +89,7 @@ class Ui_SweepTab(object):
 
         self.labelHint = QLabel(SweepTab)
         self.labelHint.setObjectName("labelHint")
+        self.labelHint.setFont(font1)
 
         self.layoutSweepControls.addWidget(self.labelHint)
 
@@ -96,11 +101,6 @@ class Ui_SweepTab(object):
 
         self.valueStatus = QLabel(SweepTab)
         self.valueStatus.setObjectName("valueStatus")
-        self.valueStatus.setAlignment(
-            Qt.AlignmentFlag.AlignRight
-            | Qt.AlignmentFlag.AlignTrailing
-            | Qt.AlignmentFlag.AlignVCenter
-        )
 
         self.layoutSweepControls.addWidget(self.valueStatus)
 
@@ -150,7 +150,6 @@ class Ui_SweepTab(object):
         self.labelParam.setText(
             QCoreApplication.translate("SweepTab", "Probenabstand", None)
         )
-        self.spinParam.setSuffix(QCoreApplication.translate("SweepTab", " cm", None))
         # if QT_CONFIG(tooltip)
         self.spinParam.setToolTip(
             QCoreApplication.translate(
@@ -158,6 +157,7 @@ class Ui_SweepTab(object):
             )
         )
         # endif // QT_CONFIG(tooltip)
+        self.spinParam.setSuffix(QCoreApplication.translate("SweepTab", " cm", None))
         self.labelHint.setText(
             QCoreApplication.translate(
                 "SweepTab",

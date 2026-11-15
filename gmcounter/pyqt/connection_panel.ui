@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>260</width>
-    <height>160</height>
+    <width>316</width>
+    <height>179</height>
    </rect>
   </property>
   <property name="title">
@@ -27,10 +27,16 @@
    <item row="0" column="1">
     <widget class="QComboBox" name="comboPort">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>200</width>
+       <height>0</height>
+      </size>
      </property>
      <property name="toolTip">
       <string>Serieller Port des GM-Zählers (Arduino). Wird der Zähler nicht erkannt: abstecken, Liste aktualisieren, anstecken, erneut aktualisieren und den neuen Port wählen.</string>
@@ -109,7 +115,7 @@
       <number>6</number>
      </property>
      <item>
-      <widget class="StatusLed" name="ledStatus"/>
+      <widget class="StatusLed" name="ledStatus" native="true"/>
      </item>
      <item>
       <widget class="ElidedLabel" name="valueStatus">
@@ -137,14 +143,14 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>ElidedLabel</class>
-   <extends>QLabel</extends>
-   <header>gmcounter.ui.widgets.elided_label</header>
-  </customwidget>
-  <customwidget>
    <class>StatusLed</class>
    <extends>QWidget</extends>
    <header>gmcounter.ui.widgets.status_led</header>
+  </customwidget>
+  <customwidget>
+   <class>ElidedLabel</class>
+   <extends>QLabel</extends>
+   <header>gmcounter.ui.widgets.elided_label</header>
   </customwidget>
  </customwidgets>
  <resources/>

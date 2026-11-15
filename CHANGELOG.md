@@ -13,7 +13,7 @@ This is a major release: the user interface was rebuilt from the ground up. The 
 ### Added
 
 - Qt Designer forms as the only source of visual structure: the main window, every dock panel and every experiment tab has a `.ui` file in `gmcounter/pyqt/`. `pyuic.sh` regenerates the `ui_<form>.py` modules, `sync_texts` copies the configured texts into the forms, and `python -m gmcounter.pyqt.preview` shows a single form without devices.
-- Dock layout with three dockable side panels (controls, connection with live readout and device status, event log) around a central tab area. The toolbar shows or hides each panel and toggles full-screen mode.
+- Dock layout with three dockable side panels (Messparameter with the readout, device status, sample and measurement panels; Gerät with the connection and the device controls; the event log, hidden until shown) around a central tab area. The toolbar shows or hides each panel and toggles full-screen mode.
 - Connection panel that replaces the connection dialog. It lists the serial ports, preselects the last used port and baud rate, shows the states disconnected, connecting, connected, reconnecting, failed and lost, and connects in a worker thread so the window never blocks.
 - `gmcounter --simulate` runs the application on a simulated GM counter (mock device on a pseudo-terminal), so every experiment can be tried without hardware. It needs a source checkout and a Unix-like OS.
 - UI profiles `student` (Praktikum) and `expert`, selected with `gmcounter --profile <id>` or `application.profile` in `config.json`. The student profile is the default, and `gmcounter --help` says so. A profile hides tabs and widgets purely through configuration, and the toolbar switches it at run time on the same device connection.
