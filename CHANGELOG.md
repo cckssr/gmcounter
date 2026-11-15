@@ -29,6 +29,7 @@ Add every user-visible change under `## [Unreleased]` in the pull request that m
 
 ### Changed
 
+- The sample distance (sample panel and distance-law input) has two decimals, and the distance-law table shows them too, so distances such as 6.75 cm can be entered.
 - The interval plot and the histogram show the time axis with SI prefixes (µs, ms, s, chosen from the visible range) instead of the "x1e+06" factor. The data stays in µs.
 - The summary table of the sweeps shows the start as a clock time (the files keep the full stamp, the full stamp is the tooltip), and rate and duration with fixed decimals.
 - The status bar turns orange when the GM voltage is above the warning threshold, and its text is white on green, red and blue and black on orange, so it stays readable.

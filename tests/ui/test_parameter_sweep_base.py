@@ -277,3 +277,13 @@ def test_the_table_shows_clock_time_and_fixed_decimals():
     cells = [tab._table_model.item(0, c).text() for c in range(5)]
     assert cells[2:] == ["46.210", "10.50", "17:46:20"]
     assert tab._table_model.item(0, 4).toolTip() == "2026-11-15T17:46:20.841896"
+
+
+def test_the_distance_input_and_table_have_two_decimals():
+    from gmcounter.ui.tabs.distance_law_tab import DistanceLawTab
+
+    tab = _tab_with_points(6.75, tab_cls=DistanceLawTab)
+    assert tab.ui.spinParam.decimals() == 2
+    assert tab._table_model.item(0, 0).text() == "6.75"
+    assert tab.set_point_param(0, 7.126)  # rounded to the input's two decimals
+    assert tab._measurements[0]["param"] == 7.13

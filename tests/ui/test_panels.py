@@ -329,3 +329,10 @@ def test_the_timing_label_shows_the_device_time_and_the_clock_in_the_tooltip(con
 
     panel.clear_progress()
     assert panel.ui.valueElapsed.toolTip() == ""
+
+
+def test_the_sample_distance_has_two_decimals(qtbot, config) -> None:
+    panel = _build(qtbot, SamplePanel, config)
+    panel.ui.spinDistance.setValue(6.75)
+    assert panel.ui.spinDistance.decimals() == 2
+    assert panel.metadata()["distance_cm"] == 6.75

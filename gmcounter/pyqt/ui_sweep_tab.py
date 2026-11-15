@@ -80,7 +80,7 @@ class Ui_SweepTab(object):
         self.spinParam = QDoubleSpinBox(SweepTab)
         self.spinParam.setObjectName("spinParam")
         self.spinParam.setFont(font)
-        self.spinParam.setDecimals(1)
+        self.spinParam.setDecimals(2)
         self.spinParam.setMaximum(99999.000000000000000)
         self.spinParam.setSingleStep(0.500000000000000)
 

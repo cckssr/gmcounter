@@ -19,6 +19,7 @@ class DistanceLawTab(ParameterSweepTabBase):
     hides_global_distance = True  # the tab has its own distance input
 
     param_unit = "cm"
+    param_format = "{:.2f}"  # the input has two decimals
     param_metadata_key = "sample_distance_cm"
     summary_filename_hint = "abstandsgesetz"
     clear_param_input_after_stop = True
