@@ -134,7 +134,7 @@
       <string>Wie lange der Zähler misst; eine eigene Dauer in Sekunden kann eingetippt werden</string>
      </property>
      <property name="editable">
-      <bool>true</bool>
+      <bool>false</bool>
      </property>
      <property name="currentIndex">
       <number>0</number>

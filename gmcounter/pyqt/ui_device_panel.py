@@ -153,7 +153,7 @@ class Ui_DevicePanel(object):
             self.comboDuration.sizePolicy().hasHeightForWidth()
         )
         self.comboDuration.setSizePolicy(sizePolicy1)
-        self.comboDuration.setEditable(True)
+        self.comboDuration.setEditable(False)
         self.comboDuration.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
 
         self.layoutDevicePanel.addWidget(self.comboDuration, 2, 1, 1, 1)
