@@ -8,6 +8,8 @@ Add every user-visible change under `## [Unreleased]` in the pull request that m
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-11-16
+
 ### Added
 
 - The sweep plots show the count rate (1/s) with error bars of one standard deviation (sqrt(N)/T) and visible symbols, instead of raw counts, so runs of different length or aborted runs stay comparable. The distance law has a "Log-Achsen" switch for a log-log plot, where 1/r² is a straight line.

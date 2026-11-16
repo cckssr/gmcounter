@@ -3,7 +3,7 @@
 A GUI application for GM-counter control and data acquisition.
 """
 
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 __author__ = "C. Kessler"
 
 # main is NOT imported here so that core/ and infrastructure/ tests can import
