@@ -6,7 +6,7 @@ import pytest
 from gmcounter.ui.common import dialogs
 from gmcounter.ui.windows.main_window import MainWindow
 
-from .conftest import make_device_manager
+from .conftest import fill_required_sample_fields, make_device_manager
 
 
 def test_the_dock_toggle_actions_follow_the_docks_both_ways(window):
@@ -87,6 +87,7 @@ def test_a_session_locks_the_other_tabs_and_unlocks_them_again(window, monkeypat
     sweep = window.tabs["distance_law"]
     tabs.setCurrentWidget(sweep)
     window.ui.devicePanel.ui.comboDuration.setCurrentIndex(2)
+    fill_required_sample_fields(window)
     monkeypatch.setattr(window.ctrl, "start_measurement", lambda total_seconds=0: True)
     window.session.start()
     assert [tabs.isTabEnabled(i) for i in range(tabs.count())] == [
@@ -175,3 +176,29 @@ def test_the_voltage_warning_reaches_the_status_bar(window, config):
     assert window.ui.statusBar.currentMessage() == config.message(
         "voltage_warning"
     ).format(690)
+    style = window.ui.statusBar.styleSheet()
+    assert "background-color: orange;" in style
+    assert "color: black;" in style  # dark text on the bright orange
+
+
+def test_status_colours_get_a_readable_text_colour(qtbot):
+    from PySide6.QtWidgets import QStatusBar
+
+    from gmcounter.ui.common.statusbar import StatusBarManager, text_color_for
+
+    assert text_color_for("green") == "white"
+    assert text_color_for("red") == "white"
+    assert text_color_for("blue") == "white"
+    assert text_color_for("orange") == "black"
+    assert text_color_for("not-a-colour") == ""
+
+    bar = QStatusBar()
+    qtbot.addWidget(bar)
+    manager = StatusBarManager(bar)
+    manager.show_message("ok", backcolor="green")
+    manager.show_message("careful", backcolor="orange")
+    style = bar.styleSheet()
+    # The second colour replaces the first instead of piling up.
+    assert style.count("background-color") == 1 and "orange" in style
+    assert style.count("color: ") == 2  # background-color and color
+    assert "color: black;" in style and "white" not in style

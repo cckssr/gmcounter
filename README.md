@@ -2,9 +2,9 @@
 
 Desktop application for a Geiger-Müller counter on USB serial. GMCounter records the time between two detector events in microseconds, shows the data live, and saves it for analysis. It is built for random-number research and for lab courses on radioactivity and detector characterization.
 
-![GMCounter main window: parameters and live readouts on the left, the experiment tabs in the middle, connection and device control on the right](docs/20261115-Gmcounter-Haupt.png)
+![GMCounter main window during a measurement: parameters and live readouts on the left, the experiment tabs with the time series in the middle, connection and device control on the right](docs/images/Screenshot_Windows_2.png)
 
-The screenshots show the `student` profile (Praktikum), which is the default. The interface language is German.
+The screenshots were taken on Windows and show the `student` profile (Praktikum), which is the default. The interface language is German.
 
 ## Quick start
 
@@ -26,9 +26,9 @@ Each experiment is a tab in the central area. All tabs share the Start, Stop, Sa
 | **Spannungskurve** | Voltage response (Geiger plateau): count rate over the counter voltage, one point per measurement.                                                                                                                        |
 | **Intervalle**     | One continuous acquisition, binned into R equal-width time intervals with live plots.                                                                                                                                     |
 
-![The Spannungskurve tab with its plot and table](docs/20261115-Gmcounter-Spannung.png)
+![The Spannungskurve tab with the count plot and the table of a finished voltage sweep](docs/images/Screenshot_Windows_3.png)
 
-Data is saved as CSV with a sidecar `*_MD.json` file that holds the metadata (sample, detector, group, distance, settings). While a measurement runs, every data point is also appended to a crash-safe journal in `~/.gmcounter/sessions/`, so an interrupted session can be found again on the next start. If the USB link drops, the application reconnects on its own and restores the voltage, counting time and mode.
+Data is saved as CSV with a sidecar `*_MD.json` file that holds the metadata (sample, detector, group, device, the settings of the run, timing and a checksum). Every raw measurement file has the columns `Index`, `Value (µs)`, `Time` and `Duration (s)`. A measurement series (distance or voltage sweep, interval run) is saved into its own folder with a summary and one file per point. While a measurement runs, every data point is also appended to a crash-safe journal in `~/.gmcounter/sessions/`, so an interrupted session can be found again on the next start. If the USB link drops, the application reconnects on its own and restores the voltage, counting time and mode.
 
 ## Profiles
 

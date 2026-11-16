@@ -23,7 +23,7 @@ def _make_session() -> MeasurementSession:
 def test_build_gm_tab_export_columns():
     session = _make_session()
     export = build_gm_tab_export(session, tk_designation="TK08")
-    assert export.columns == ["Index", "Value (µs)", "Time"]
+    assert export.columns == ["Index", "Value (µs)", "Time", "Duration (s)"]
 
 
 def test_build_gm_tab_export_rows():
@@ -80,3 +80,92 @@ def test_tab_export_round_trip():
     for row in export.rows:
         for cell in row:
             assert isinstance(cell, str)
+
+
+def test_raw_columns_are_shared_by_every_export():
+    from gmcounter.core.export import RAW_COLUMNS, raw_rows
+
+    assert list(RAW_COLUMNS) == build_gm_tab_export(_make_session()).columns
+    assert raw_rows([(3, 1.5, "t")], 2.0) == [["3", "1.5", "t", "2.000"]]
+
+
+def test_gm_export_metadata_has_duration_count_and_statistics():
+    meta = build_gm_tab_export(_make_session()).metadata
+    assert meta["duration_s"] == 5.0
+    # Two rows are three events: the first event only sets the time reference.
+    assert meta["total_count"] == 3
+    assert meta["rate_hz"] == 0.6
+    assert meta["statistics_us"]["mean"] == 289.5
+    assert meta["columns"] == ["Index", "Value (µs)", "Time", "Duration (s)"]
+
+
+def test_merge_missing_keeps_existing_values():
+    from gmcounter.core.export import merge_missing
+
+    target = {"a": 1}
+    assert merge_missing(target, {"a": 2, "b": 3}) == {"a": 1, "b": 3}
+
+
+def test_build_run_info_snapshots_settings_and_device():
+    from gmcounter.core.export import build_run_info
+
+    info = build_run_info(
+        experiment="distance_law",
+        sample={"detector": "E1", "distance_cm": 4.0},
+        device_settings={"voltage": 500, "repeat": True, "auto_query": False},
+        voltage_readback_v=498.0,
+        target_duration_s=10,
+        device_info={"version": "1.2", "openbis": "OB-1"},
+        port="COM8",
+        baudrate=1000000,
+        gui_version="3.0.0",
+    )
+    assert info["settings"] == {
+        "gm_voltage_set_v": 500,
+        "gm_voltage_readback_v": 498.0,
+        "target_duration_s": 10,
+        "count_mode": "repeat",
+        "query_mode": "manual",
+        "sample_distance_cm": 4.0,
+    }
+    assert info["device"] == {
+        "firmware_version": "1.2",
+        "openbis_code": "OB-1",
+        "port": "COM8",
+        "baudrate": 1000000,
+    }
+    assert info["detector_code"] == "E1"
+    assert info["counter_firmware_version"] == "1.2"  # legacy flat key
+
+
+def test_every_row_carries_the_duration_of_the_run():
+    export = build_gm_tab_export(_make_session())
+    assert [row[3] for row in export.rows] == ["5.000", "5.000"]
+
+
+def test_the_device_time_replaces_the_clock_in_the_duration_column():
+    export = build_gm_tab_export(
+        _make_session(), extra_metadata={"timing": {"device_time_s": 4.25}}
+    )
+    assert {row[3] for row in export.rows} == {"4.250"}
+    assert export.metadata["duration_s"] == 4.25
+
+
+def test_apply_sample_metadata_replaces_and_removes_the_panel_values():
+    from gmcounter.core.export import apply_sample_metadata
+
+    meta = {
+        "detector_code": "E1",
+        "sample_distance_cm": 2.0,
+        "settings": {"sample_distance_cm": 2.0, "gm_voltage_set_v": 500},
+    }
+    apply_sample_metadata(meta, {"detector": "E2", "distance_cm": 5.5})
+    assert meta["detector_code"] == "E2"
+    assert meta["sample_distance_cm"] == 5.5
+    assert meta["settings"]["sample_distance_cm"] == 5.5
+
+    # An empty panel (background run) removes what was there, other settings stay.
+    apply_sample_metadata(meta, {"detector": "", "distance_cm": 0.0})
+    assert "detector_code" not in meta
+    assert "sample_distance_cm" not in meta
+    assert meta["settings"] == {"gm_voltage_set_v": 500}

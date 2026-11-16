@@ -69,3 +69,113 @@ def test_app_controller_set_active_tab():
     ctrl.set_active_tab(mock_tab)
     assert ctrl._active_tab is mock_tab
     ctrl.cleanup()
+
+
+def _measuring_controller(target_s: int, confirmed: bool = True):
+    ctrl = _make_controller()
+    ctrl.device_manager.connected = True
+    ctrl.device_manager.stop_measurement.return_value = confirmed
+    ctrl.device_manager.start_measurement.return_value = True
+    ctrl.device_manager.device = MagicMock()
+    assert ctrl.start_measurement(total_seconds=target_s)
+    return ctrl
+
+
+def test_reaching_the_target_stops_with_the_device_time_as_result():
+    ctrl = _measuring_controller(target_s=1)
+    results: list[dict] = []
+    ctrl.run_finished.connect(results.append)
+
+    ctrl._on_data_batch([(0, 600_000.0), (1, 600_000.0)])  # crosses 1 s
+
+    (result,) = results
+    assert result["stop_reason"] == "target_reached"
+    assert result["target_s"] == 1.0
+    assert result["device_time_s"] == 1.0  # the crossing event is cut off
+    assert result["wall_time_s"] >= 0.0
+    assert result["stop_confirmed"] is True
+    ctrl.cleanup()
+
+
+def test_a_manual_stop_reports_the_accumulated_device_time():
+    ctrl = _measuring_controller(target_s=0)
+    results: list[dict] = []
+    ctrl.run_finished.connect(results.append)
+
+    ctrl._on_data_batch([(0, 250_000.0), (1, 250_000.0)])
+    ctrl.stop_measurement()
+
+    assert results[0]["stop_reason"] == "manual"
+    assert results[0]["device_time_s"] == 0.5
+    ctrl.cleanup()
+
+
+def test_an_unconfirmed_stop_is_reported_to_the_user():
+    ctrl = _measuring_controller(target_s=0, confirmed=False)
+    results: list[dict] = []
+    ctrl.run_finished.connect(results.append)
+    shown: list[str] = []
+    ctrl._notify = lambda text, color="": shown.append(text)
+
+    ctrl.stop_measurement()
+
+    assert results[0]["stop_confirmed"] is False
+    assert any("nicht bestätigt" in text for text in shown)
+    ctrl.cleanup()
+
+
+def test_timing_is_published_every_tick():
+    ctrl = _measuring_controller(target_s=10)
+    ticks: list[tuple] = []
+    ctrl.timing_updated.connect(lambda *args: ticks.append(args))
+
+    ctrl._on_data_batch([(0, 2_500_000.0)])
+    ctrl._tick_progress()
+
+    device_s, wall_s, target_s = ticks[-1]
+    assert (device_s, target_s) == (2.5, 10.0)
+    assert wall_s >= 0.0
+    ctrl.cleanup()
+
+
+def _orphans() -> list:
+    from gmcounter.infrastructure.session_journal import find_orphan_journals
+
+    return find_orphan_journals()
+
+
+def _run_points(ctrl, points: int) -> None:
+    """``points`` start / data / stop cycles, as a sweep session does."""
+    for _ in range(points):
+        assert ctrl.start_measurement(total_seconds=0)
+        ctrl._on_data_batch([(0, 1000.0)])
+        ctrl.stop_measurement()
+
+
+def test_saving_a_sweep_leaves_no_orphan_journal_for_any_point():
+    ctrl = _measuring_controller(target_s=0)
+    ctrl.stop_measurement()
+    _run_points(ctrl, 3)
+    assert len(_orphans()) == 3  # unsaved: every point with data would be recovered
+
+    ctrl.finalize_journal()  # the series was saved
+    assert _orphans() == []
+    ctrl.cleanup()
+
+
+def test_a_deliberate_discard_is_no_orphan():
+    ctrl = _measuring_controller(target_s=0)
+    ctrl._on_data_batch([(0, 1000.0)])
+    ctrl.stop_measurement()
+    assert len(_orphans()) == 1
+
+    ctrl.discard_journals()
+    assert _orphans() == []
+    ctrl.cleanup()
+
+
+def test_an_unsaved_run_stays_reportable_after_closing():
+    ctrl = _measuring_controller(target_s=0)
+    ctrl._on_data_batch([(0, 1000.0)])
+    ctrl.cleanup()  # closing without saving or discarding
+    assert len(_orphans()) == 1

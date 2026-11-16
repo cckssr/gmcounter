@@ -16,8 +16,9 @@ from PySide6.QtCore import QObject, Signal
 
 import gmcounter
 
+from ...core.export import apply_sample_metadata, build_run_info, merge_missing
 from ...infrastructure.config import AppConfig
-from ...infrastructure.save_service import write_export
+from ...infrastructure.save_service import update_metadata, write_export
 
 if TYPE_CHECKING:
     from ..common.prompt import Prompt
@@ -65,6 +66,8 @@ class SessionController(QObject):
         duration_s: Callable[[], int],
         sample_metadata: Callable[[], dict],
         apply_settings: Callable[[], None],
+        device_settings: Optional[Callable[[], dict]] = None,
+        voltage_readback: Optional[Callable[[], float]] = None,
         dialog_parent: Any = None,
         parent: Optional[QObject] = None,
     ) -> None:
@@ -79,6 +82,8 @@ class SessionController(QObject):
         self._duration_s = duration_s
         self._sample_metadata = sample_metadata
         self._apply_settings = apply_settings
+        self._device_settings = device_settings or dict
+        self._voltage_readback = voltage_readback or (lambda: 0.0)
         self._dialog_parent = dialog_parent
 
         self._tab: Optional["PlotTabBase"] = (
@@ -87,6 +92,7 @@ class SessionController(QObject):
         self._buttons = [True, False, False, False]  # start, stop, reset, save
         self._connected = True  # Start needs a connected device; see set_connected()
         self._device_info: dict = {}
+        self._interval_run_info: dict = {}  # settings snapshot of the interval session
 
     # ------------------------------------------------------------------
     # State
@@ -135,7 +141,10 @@ class SessionController(QObject):
         """``True`` if the window may close (no unsaved data, or the user discards it)."""
         if not self.has_unsaved():
             return True
-        return self._prompt.ask(self._m("unsaved_data_end"), self._m("title_warning"))
+        if self._prompt.ask(self._m("unsaved_data_end"), self._m("title_warning")):
+            self._ctrl.discard_journals()  # a deliberate discard is no crash to report
+            return True
+        return False
 
     # ------------------------------------------------------------------
     # Frame routing
@@ -157,6 +166,9 @@ class SessionController(QObject):
     # Button intents
 
     def start(self) -> None:
+        if not self._sample_info_complete():
+            self._warn("missing_sample_info")
+            return
         tab = self._current_tab()
         kind = tab.session_kind
         if kind == "interval":
@@ -168,6 +180,13 @@ class SessionController(QObject):
 
     def stop(self) -> None:
         self._ctrl.stop_measurement()
+
+    def _sample_info_complete(self) -> bool:
+        """Sample, group and detector are marked as required in the sample panel."""
+        meta = self._sample_metadata()
+        return all(
+            str(meta.get(key, "")).strip() for key in ("sample", "group", "detector")
+        )
 
     def save(self) -> None:
         tab = self._tab
@@ -193,6 +212,7 @@ class SessionController(QObject):
         if tab is None or not tab.receives_frames:
             self._timing.on_reset()
         self._save_service.mark_saved()
+        self._ctrl.discard_journals()
         self._set_buttons(start=True, save=False)
         self._set_status("status_ready", "green")
 
@@ -240,7 +260,7 @@ class SessionController(QObject):
         if self._save_service.has_unsaved():
             self._warn("save_or_discard_first")
             return
-        self._set_metadata()
+        self._set_metadata("gm_timing")
         self._ctrl.start_measurement(total_seconds=self._duration_s())
 
     def _start_sweep(self, tab: "PlotTabBase") -> None:
@@ -260,22 +280,44 @@ class SessionController(QObject):
         # Tabs that sweep the device voltage push the setpoint so the read-back is current.
         if getattr(tab, "applies_device_voltage_on_start", False):
             self._apply_settings()
-        self._set_metadata()
+        self._set_metadata(tab.tab_id)
         if not self._ctrl.start_measurement(total_seconds=total) and new_session:
             self._end_session()
 
     def _start_interval(self, tab: "PlotTabBase") -> None:
         total = int(tab.width_s * tab.repeat_count)  # type: ignore[attr-defined]
+        self._interval_run_info = self._run_info(tab.tab_id, target_duration_s=total)
         self._begin_session(tab)
         if not self._ctrl.start_measurement(total_seconds=total):
             self._end_session()
 
-    def _set_metadata(self) -> None:
+    def _set_metadata(self, experiment: str) -> None:
+        """Hand the sample data and the settings snapshot of this run to the timing tab."""
         meta = self._sample_metadata()
         self._timing.set_measurement_metadata(
             rad_sample=meta.get("sample", ""),
             group=meta.get("group", ""),
             subterm=meta.get("suffix", ""),
+        )
+        self._timing.set_run_info(self._run_info(experiment))
+
+    def _run_info(
+        self, experiment: str, target_duration_s: Optional[int] = None
+    ) -> dict:
+        """Everything that defines a run, as it is right now (sample, device, settings)."""
+        manager = getattr(self._ctrl, "device_manager", None)
+        return build_run_info(
+            experiment=experiment,
+            sample=self._sample_metadata(),
+            device_settings=self._device_settings(),
+            voltage_readback_v=self._voltage_readback(),
+            target_duration_s=(
+                self._duration_s() if target_duration_s is None else target_duration_s
+            ),
+            device_info=self._device_info,
+            port=str(getattr(manager, "port", "") or ""),
+            baudrate=int(getattr(manager, "baudrate", 0) or 0),
+            gui_version=gmcounter.__version__,
         )
 
     def _begin_session(self, tab: "PlotTabBase") -> None:
@@ -301,27 +343,34 @@ class SessionController(QObject):
             return
 
         meta = self._sample_metadata()
-        extra: dict = {}
-        if meta.get("detector"):
-            extra["detector_code"] = meta["detector"]
-        if kind == "sweep" and meta.get("distance_cm", 0.0) > 0.0:
-            extra["sample_distance_cm"] = meta["distance_cm"]
-        summary.metadata.update(extra)
+        # Sweep points carry their own settings; the summary lists them per point.
+        extra = self._run_info(tab.tab_id)
+        if kind == "sweep":
+            extra.pop("settings", None)
+        elif kind == "interval":
+            merge_missing(summary.metadata, self._interval_run_info)
+        merge_missing(summary.metadata, extra)
 
-        saved = self._save_dialog(summary, meta)
+        saved = self._save_dialog(summary, meta, into_folder=True)
         if not saved or not saved.exists():
             return
 
         details = tab.session_exports()
         ok_count = 0
+        names: list[Optional[str]] = []
         for i, export in enumerate(details):
-            export.metadata.update(extra)
+            if kind == "interval":
+                merge_missing(export.metadata, self._interval_run_info)
+            merge_missing(export.metadata, extra)
             name = f"{saved.stem}_{tab.session_file_name(export, i)}.csv"
             try:
                 write_export(export, saved.parent / name)
                 ok_count += 1
+                names.append(name)
             except Exception as exc:  # pylint: disable=broad-except
                 _log.warning("Could not write session export %s: %s", name, exc)
+                names.append(None)
+        self._link_detail_files(saved, summary, names)
 
         tab.mark_saved()
         tab.reset_session()
@@ -342,26 +391,23 @@ class SessionController(QObject):
         if not self._save_service.has_unsaved():
             self._info("no_unsaved_data")
             return
+        # The sample panel as it is now decides: no new run can start while this one is
+        # unsaved, so an edit between Stop and Save belongs to this run. The file name
+        # already follows the panel; this keeps the sidecar consistent with it.
+        meta = self._sample_metadata()
+        self._timing.set_measurement_metadata(
+            rad_sample=meta.get("sample", ""),
+            group=meta.get("group", ""),
+            subterm=meta.get("suffix", ""),
+        )
         export = self._timing.export()
         if not export:
             self._error("no_export_data")
             return
 
-        meta = self._sample_metadata()
-        extra: dict = {"gui_version": gmcounter.__version__}
-        openbis = self._device_info.get("openbis", "")
-        if openbis and openbis != "unknown":
-            extra["counter_openbis_code"] = openbis
-        firmware = self._device_info.get("version", "")
-        if firmware and firmware != "unknown":
-            extra["counter_firmware_version"] = firmware
-        if export.rows:
-            extra["total_count"] = len(export.rows)
-        if meta.get("detector"):
-            extra["detector_code"] = meta["detector"]
-        if meta.get("distance_cm", 0.0) > 0.0:
-            extra["sample_distance_cm"] = meta["distance_cm"]
-        export.metadata.update(extra)
+        extra = self._run_info("gm_timing")
+        merge_missing(export.metadata, extra)
+        apply_sample_metadata(export.metadata, meta)
 
         saved = self._save_dialog(export, meta)
         if saved and saved.exists():
@@ -372,13 +418,34 @@ class SessionController(QObject):
         else:
             self._error("save_failed")
 
-    def _save_dialog(self, export: Any, meta: dict) -> Any:
+    @staticmethod
+    def _link_detail_files(
+        saved: Any, summary: Any, names: "list[Optional[str]]"
+    ) -> None:
+        """Record in the summary sidecar which file holds which measurement."""
+        fields: dict = {"detail_files": names}
+        measurements = summary.metadata.get("measurements")
+        if measurements:
+            fields["measurements"] = [
+                {**m, "file": names[i] if i < len(names) else None}
+                for i, m in enumerate(measurements)
+            ]
+        try:
+            update_metadata(saved, fields)
+        except (OSError, ValueError) as exc:
+            _log.warning("Could not link detail files in %s: %s", saved, exc)
+
+    def _save_dialog(
+        self, export: Any, meta: dict, *, into_folder: bool = False
+    ) -> Any:
+        """Ask where to save; ``into_folder`` puts a measurement series into its own folder."""
         return self._file_dialogs.manual_save_export(
             self._dialog_parent,
             export,
             meta.get("sample", ""),
             meta.get("group", ""),
             meta.get("suffix", ""),
+            into_folder=into_folder,
         )
 
     # ------------------------------------------------------------------

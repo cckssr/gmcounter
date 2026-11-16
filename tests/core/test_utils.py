@@ -69,3 +69,12 @@ def test_dropbox_foldername_with_empty_group_is_not_logged_as_an_error(caplog):
     with caplog.at_level("ERROR"):
         assert create_dropbox_foldername("", "TK47") == ""
     assert not caplog.records
+
+
+def test_format_rate_keeps_about_three_significant_digits():
+    from gmcounter.core.utils import format_rate
+
+    assert format_rate(0.251) == "0.25"  # a background run must not read 0.3
+    assert format_rate(9.994) == "9.99"
+    assert format_rate(36.6) == "36.6"
+    assert format_rate(250.4) == "250"

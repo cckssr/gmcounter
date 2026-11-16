@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QGroupBox, QWidget
 
+from gmcounter.core.utils import format_rate
 from gmcounter.infrastructure.config import AppConfig
 from gmcounter.pyqt.ui_readout_panel import Ui_ReadoutPanel
 from gmcounter.ui.i18n import apply_strings
@@ -31,7 +32,7 @@ class ReadoutPanel(QGroupBox):
         self.ui.lcdCount.display(count)
 
     def set_rate(self, hz: float) -> None:
-        self.ui.lcdRate.display(hz)
+        self.ui.lcdRate.display(format_rate(hz))
 
     def set_last_count(self, count: int) -> None:
         self.ui.lcdLastCount.display(count)

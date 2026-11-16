@@ -193,6 +193,8 @@ class MainWindow(QMainWindow):
             duration_s=ui.devicePanel.duration_s,
             sample_metadata=ui.samplePanel.metadata,
             apply_settings=self._apply_settings,
+            device_settings=ui.devicePanel.settings,
+            voltage_readback=ui.deviceStatusPanel.voltage,
             dialog_parent=self,
             parent=self,
         )
@@ -229,6 +231,9 @@ class MainWindow(QMainWindow):
         ctrl, ui = self.ctrl, self.ui
         ctrl.device_state_updated.connect(self._on_device_state)
         ctrl.progress_updated.connect(ui.measurementPanel.set_progress)
+        ctrl.timing_updated.connect(ui.measurementPanel.set_timing)
+        # Before measurement_stopped, so the tabs see the result when they snapshot the run.
+        ctrl.run_finished.connect(self.context.timing.set_run_result)
 
     def _setup_connection(self) -> None:
         """Wire the connection panel and publish the initial link state."""
@@ -322,6 +327,7 @@ class MainWindow(QMainWindow):
     def _on_voltage_warning(self, volts: int) -> None:
         self._status_bar.show_message(
             self.config.message("voltage_warning").format(volts),
+            backcolor=self.config.get("colors.orange", "orange"),
             duration=VOLTAGE_WARNING_MS,
         )
 

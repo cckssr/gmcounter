@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import queue
 import threading
@@ -112,6 +113,8 @@ class GMTimingTab(PlotTabBase):
         # Measurement session tracking for export
         self._session_start: Optional[datetime] = None
         self._session_end: Optional[datetime] = None
+        self._run_info: dict = {}
+        self._run_result: dict = {}
         self._rad_sample: str = ""
         self._group: str = ""
         self._subterm: str = ""
@@ -129,6 +132,9 @@ class GMTimingTab(PlotTabBase):
         self._plot.reconfigure("ylabel", self.text("plot_y_label"))
         self._histogram.reconfigure("xlabel", self.text("histogram_x_label"))
         self._histogram.reconfigure("ylabel", self.text("histogram_y_label"))
+        # Intervals are stored in µs; the axes show them with SI prefixes (µs, ms, s).
+        self._plot.set_axis_si("left", "s", 1e-6)
+        self._histogram.set_axis_si("bottom", "s", 1e-6)
 
         headers = self.config.get(f"ui.{self.form_name}.table_events_headers", [])
         self._table_model = QStandardItemModel(0, len(headers), ui.tableEvents)
@@ -278,6 +284,15 @@ class GMTimingTab(PlotTabBase):
         self._group = group
         self._subterm = subterm
 
+    def set_run_info(self, info: dict) -> None:
+        """Settings snapshot of the run about to start; it goes into the export metadata."""
+        self._run_info = dict(info)
+        self._run_result = {}
+
+    def set_run_result(self, result: dict) -> None:
+        """Timing result of the finished run (target, device and wall time, stop reason)."""
+        self._run_result = dict(result)
+
     def set_high_speed_autoswitch(self, enabled: bool) -> None:
         """Enable or disable the automatic switch to the Histogramm view on high-speed.
 
@@ -382,6 +397,10 @@ class GMTimingTab(PlotTabBase):
         return build_gm_tab_export(
             session,
             tk_designation=self.config.get("save.tk_designation", "TK00"),
+            extra_metadata={
+                **copy.deepcopy(self._run_info),
+                **({"timing": dict(self._run_result)} if self._run_result else {}),
+            },
         )
 
     def get_statistics(self) -> dict:
@@ -407,7 +426,7 @@ class GMTimingTab(PlotTabBase):
     def _rate_hz(self) -> float:
         if self._cum_us <= 0 or not self._data_points:
             return 0.0
-        return round(self._event_count() / (self._cum_us / 1e6), 1)
+        return round(self._event_count() / (self._cum_us / 1e6), 3)
 
     def _publish_readout(self, count: Optional[int] = None) -> None:
         self.readout_changed.emit(

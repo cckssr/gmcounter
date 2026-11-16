@@ -12,15 +12,18 @@
 from __future__ import annotations
 
 import logging
+import math
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
-from PySide6.QtGui import QStandardItem, QStandardItemModel
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QHeaderView, QWidget  # pylint: disable=no-name-in-module
 
 from gmcounter.pyqt.ui_sweep_tab import Ui_SweepTab
 
 from ...core.export import TabExport
+from ..common.prompt import MessageBoxPrompt, Prompt
 from ..i18n import apply_strings
 from .base import PlotTabBase
 
@@ -52,6 +55,7 @@ class ParameterSweepTabBase(PlotTabBase):
         applies_device_voltage_on_start True: the session controller sends the device settings
                                         before each Start
         clear_param_input_after_stop    Select the input after each point
+        supports_log_axes               Offer the log-log switch of the plot (power laws)
     """
 
     form_name = "sweep_tab"
@@ -66,6 +70,7 @@ class ParameterSweepTabBase(PlotTabBase):
     uses_param_input: bool = True
     applies_device_voltage_on_start: bool = False
     clear_param_input_after_stop: bool = False
+    supports_log_axes: bool = False
 
     def __init__(self, context: "AppContext", parent: Optional[QWidget] = None) -> None:
         super().__init__(context, parent)
@@ -82,6 +87,10 @@ class ParameterSweepTabBase(PlotTabBase):
         self._individual_exports: List[TabExport] = []
         self._session_start: Optional[datetime] = None
         self._has_unsaved = False
+        self._updating_table = False
+        # Set by tests; otherwise a prompt is created on use (a stored one would hold the
+        # tab as its parent, a reference cycle that frees the Qt tree at a random moment).
+        self._prompt: Optional[Prompt] = None
 
     # ------------------------------------------------------------------
     # Texts
@@ -109,6 +118,7 @@ class ParameterSweepTabBase(PlotTabBase):
         ui.labelHint.setVisible(bool(hint))
         ui.labelParam.setVisible(self.uses_param_input)
         ui.spinParam.setVisible(self.uses_param_input)
+        ui.checkLogAxes.setVisible(self.supports_log_axes)
 
     # ------------------------------------------------------------------
     # PlotTabBase lifecycle
@@ -133,6 +143,9 @@ class ParameterSweepTabBase(PlotTabBase):
         self.ui.tableSummary.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch
         )
+        self._table_model.itemChanged.connect(self._on_table_item_changed)
+        self.ui.checkLogAxes.toggled.connect(self._on_log_axes_toggled)
+        self._add_delete_action()
         self._update_status()
 
     def on_measurement_started(self) -> None:
@@ -148,8 +161,18 @@ class ParameterSweepTabBase(PlotTabBase):
 
         # Snapshot the individual timing export before the timing tab is reset next run.
         indiv_export = gm_tab.export()
+        run_settings: dict = {}
+        run_timing: dict = {}
         if indiv_export:
             indiv_export.metadata[self.param_metadata_key] = self.current_param()
+            indiv_export.metadata["sweep_parameter"] = self._sweep_parameter()
+            indiv_export.metadata["measurement_index"] = len(self._measurements) + 1
+            run_settings = dict(indiv_export.metadata.get("settings", {}))
+            # The device time is what the run was cut by; the clock only as a fallback.
+            device_time = indiv_export.metadata.get("timing", {}).get("device_time_s")
+            if device_time:
+                duration_s = device_time
+            run_timing = dict(indiv_export.metadata.get("timing", {}))
             self._individual_exports.append(indiv_export)
 
         count = int(gm_tab.get_statistics().get("count", 0))
@@ -159,6 +182,9 @@ class ParameterSweepTabBase(PlotTabBase):
             "duration_s": round(duration_s, 2),
             "rate_hz": round(count / duration_s, 3),
             "start": self._session_start.isoformat(),
+            "end": end.isoformat(),
+            "settings": run_settings,
+            "timing": run_timing,
         }
         self._measurements.append(entry)
         self._session_start = None
@@ -235,7 +261,13 @@ class ParameterSweepTabBase(PlotTabBase):
         metadata = {
             "dc:date": datetime.now().strftime("%Y-%m-%d"),
             "dc:title": self.summary_title,
+            "experiment": self.tab_id,
             "n_measurements": len(self._measurements),
+            "sweep_parameter": self._sweep_parameter(),
+            # One entry per point, in file order: the settings of every single run.
+            "measurements": [
+                {"index": i, **m} for i, m in enumerate(self._measurements, start=1)
+            ],
         }
         return TabExport(
             filename_hint=self.summary_filename_hint,
@@ -250,32 +282,165 @@ class ParameterSweepTabBase(PlotTabBase):
     # ------------------------------------------------------------------
     # Private helpers
 
+    def _sweep_parameter(self) -> dict:
+        """Which quantity is swept, for the metadata."""
+        return {
+            "name": self.param_metadata_key,
+            "label": self.param_label,
+            "unit": self.param_unit,
+        }
+
     def _focus_param_input(self) -> None:
         """Select all text in the param input and give it keyboard focus."""
         if self.uses_param_input:
             self.ui.spinParam.selectAll()
             self.ui.spinParam.setFocus()
 
+    @staticmethod
+    def _format_time(iso: str) -> str:
+        """Clock time of a start stamp for the table (the files keep the full stamp)."""
+        try:
+            return datetime.fromisoformat(iso).strftime("%H:%M:%S")
+        except ValueError:
+            return iso
+
     def _append_table_row(self, entry: dict) -> None:
         if self._table_model is None:
             return
-        self._table_model.appendRow(
-            [
-                QStandardItem(self.param_format.format(entry["param"])),
-                QStandardItem(str(entry["count"])),
-                QStandardItem(str(entry["rate_hz"])),
-                QStandardItem(str(entry["duration_s"])),
-                QStandardItem(entry["start"]),
-            ]
-        )
+        items = [
+            QStandardItem(self.param_format.format(entry["param"])),
+            QStandardItem(str(entry["count"])),
+            QStandardItem(f"{entry['rate_hz']:.3f}"),
+            QStandardItem(f"{entry['duration_s']:.2f}"),
+            QStandardItem(self._format_time(entry["start"])),
+        ]
+        items[4].setToolTip(str(entry["start"]))
+        for item in items:
+            item.setEditable(False)
+        if self.uses_param_input:
+            # Only a value the user typed can be wrong; a read-back voltage cannot.
+            items[0].setEditable(True)
+            items[0].setToolTip(self.text("text_param_edit_hint"))
+        self._table_model.appendRow(items)
         self.ui.tableSummary.scrollToBottom()
+
+    def remove_point(self, index: int) -> bool:
+        """Delete a recorded point (e.g. an aborted run) before the session is saved.
+
+        The last remaining point stays: an empty series is ended with Reset. Returns False
+        if nothing was removed.
+        """
+        if len(self._measurements) <= 1 or not 0 <= index < len(self._measurements):
+            return False
+        in_step = len(self._individual_exports) == len(self._measurements)
+        del self._measurements[index]
+        if in_step:
+            del self._individual_exports[index]
+            for i, export in enumerate(self._individual_exports, start=1):
+                export.metadata["measurement_index"] = i  # file names follow the order
+        if self._table_model is not None:
+            self._table_model.removeRow(index)
+        self._has_unsaved = True
+        self._refresh_plot()
+        self._update_status()
+        return True
+
+    def _add_delete_action(self) -> None:
+        """Delete key and context menu entry of the summary table."""
+        table = self.ui.tableSummary
+        action = QAction(self.text("text_delete_point"), table)
+        action.setShortcut(Qt.Key.Key_Delete)
+        action.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)
+        action.triggered.connect(self._delete_selected_point)
+        table.addAction(action)
+        table.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+
+    def _on_log_axes_toggled(self, _checked: bool) -> None:
+        self._refresh_plot()
+
+    def _delete_selected_point(self) -> None:
+        row = self.ui.tableSummary.currentIndex().row()
+        if not 0 <= row < len(self._measurements):
+            return
+        title = self.text("text_delete_title")
+        prompt = self._prompt or MessageBoxPrompt(self)
+        if len(self._measurements) <= 1:
+            prompt.info(self.text("text_delete_last_point"), title)
+            return
+        if prompt.ask(self.text("text_delete_point_confirm", n=row + 1), title):
+            self.remove_point(row)
+
+    def set_point_param(self, index: int, value: float) -> bool:
+        """Correct the parameter of an already recorded point (before the session is saved).
+
+        Updates the summary entry, the point's own export (metadata and therefore the file
+        name), the table and the plot. Returns False if there is no such point or the value
+        is not a valid parameter.
+        """
+        if not 0 <= index < len(self._measurements):
+            return False
+        spin = self.ui.spinParam
+        if not math.isfinite(value) or not spin.minimum() <= value <= spin.maximum():
+            return False
+        value = round(value, spin.decimals())
+
+        entry = self._measurements[index]
+        entry["param"] = value
+        # The point's own settings snapshot may hold the same quantity; keep them in step.
+        for holder in (entry, entry.get("settings")):
+            if isinstance(holder, dict) and self.param_metadata_key in holder:
+                holder[self.param_metadata_key] = value
+        if len(self._individual_exports) == len(self._measurements):
+            metadata = self._individual_exports[index].metadata
+            metadata[self.param_metadata_key] = value
+            settings = metadata.get("settings")
+            if isinstance(settings, dict) and self.param_metadata_key in settings:
+                settings[self.param_metadata_key] = value
+
+        if self._table_model is not None:
+            item = self._table_model.item(index, 0)
+            if item is not None:
+                self._set_item_text(item, self.param_format.format(value))
+        self._has_unsaved = True
+        self._refresh_plot()
+        self._update_status()
+        return True
+
+    def _set_item_text(self, item: QStandardItem, text: str) -> None:
+        """Set a cell text without triggering the edit handler."""
+        self._updating_table = True
+        try:
+            item.setText(text)
+        finally:
+            self._updating_table = False
+
+    def _on_table_item_changed(self, item: QStandardItem) -> None:
+        """A parameter cell was edited: apply it, or put the old value back."""
+        if self._updating_table or item.column() != 0:
+            return
+        row = item.row()
+        try:
+            value = float(item.text().strip().replace(",", "."))
+        except ValueError:
+            value = float("nan")
+        if not self.set_point_param(row, value):
+            if 0 <= row < len(self._measurements):
+                self._set_item_text(
+                    item, self.param_format.format(self._measurements[row]["param"])
+                )
+            self.ui.valueStatus.setText(self.text("text_param_invalid"))
 
     def _refresh_plot(self) -> None:
         if not self._measurements:
             return
-        # Sorted by parameter value for the connecting line
-        pts = sorted((m["param"], m["count"]) for m in self._measurements)
-        self._plot.set_summary_points(pts)
+        # Rates, not counts: runs of different length (or aborted ones) stay comparable.
+        points = [(m["param"], m["rate_hz"]) for m in self._measurements]
+        errors = [
+            math.sqrt(max(m["count"], 0)) / m["duration_s"] if m["duration_s"] else 0.0
+            for m in self._measurements
+        ]
+        log = self.supports_log_axes and self.ui.checkLogAxes.isChecked()
+        self._plot.set_summary_points(points, errors=errors, log=log)
 
     def _update_status(self) -> None:
         n = len(self._measurements)

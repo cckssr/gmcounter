@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QWidget, QFileDialog
 
 from ...core.services import SaveState
 from ...core.export import TabExport
-from ...infrastructure.save_service import write_export
+from ...infrastructure.save_service import session_folder_path, write_export
 from ...infrastructure.logging import Debug
 from . import dialogs as MessageHelper
 from .messages import message
@@ -29,10 +29,14 @@ class FileDialogManager:
         rad_sample: str,
         group_letter: str,
         subterm: str = "",
+        *,
+        into_folder: bool = False,
     ) -> Optional[Path]:
         """Open a save dialog and write a TabExport to CSV + sidecar.
 
-        Returns the saved path, or None if the user cancelled.
+        With ``into_folder`` the file goes into a new folder named after it, so the other
+        files of a measurement series can be written beside it. Returns the saved path,
+        or None if the user cancelled.
         """
         if not export or not export.rows:
             MessageHelper.show_warning(parent, message("no_export_data"))
@@ -59,8 +63,11 @@ class FileDialogManager:
         if not file_path.lower().endswith(".csv"):
             file_path += ".csv"
 
+        target = Path(file_path)
+        if into_folder:
+            target = session_folder_path(target)
         try:
-            csv_path = write_export(export, Path(file_path))
+            csv_path = write_export(export, target)
             Debug.info(f"Export saved via file dialog: {csv_path}")
             return csv_path
         except Exception as exc:

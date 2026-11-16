@@ -73,15 +73,13 @@ class Ui_IntervalTab(object):
         self.layoutIntervalControls.setObjectName("layoutIntervalControls")
         self.labelWidth = QLabel(IntervalTab)
         self.labelWidth.setObjectName("labelWidth")
-        font1 = QFont()
-        font1.setPointSize(14)
-        self.labelWidth.setFont(font1)
+        self.labelWidth.setFont(font)
 
         self.layoutIntervalControls.addWidget(self.labelWidth)
 
         self.spinWidth = QDoubleSpinBox(IntervalTab)
         self.spinWidth.setObjectName("spinWidth")
-        self.spinWidth.setFont(font1)
+        self.spinWidth.setFont(font)
         self.spinWidth.setMinimum(0.100000000000000)
         self.spinWidth.setMaximum(3600.000000000000000)
         self.spinWidth.setSingleStep(1.000000000000000)
@@ -91,13 +89,13 @@ class Ui_IntervalTab(object):
 
         self.labelRepeats = QLabel(IntervalTab)
         self.labelRepeats.setObjectName("labelRepeats")
-        self.labelRepeats.setFont(font1)
+        self.labelRepeats.setFont(font)
 
         self.layoutIntervalControls.addWidget(self.labelRepeats)
 
         self.spinRepeats = QSpinBox(IntervalTab)
         self.spinRepeats.setObjectName("spinRepeats")
-        self.spinRepeats.setFont(font1)
+        self.spinRepeats.setFont(font)
         self.spinRepeats.setMinimum(1)
         self.spinRepeats.setMaximum(10000)
         self.spinRepeats.setValue(10)

@@ -48,6 +48,9 @@ class AppController(QObject):
     measurement_stopped()
     high_speed_mode_changed(bool) — from active tab
     progress_updated(int, int)    — (elapsed_s, total_s; total=0 → indeterminate)
+    timing_updated(float, float, float) — (device_s, wall_s, target_s) every second
+    run_finished(dict)            — timing result of the run: target, device and wall time,
+                                    stop reason, whether the device confirmed the stop
     status_message(str, str)      — (text, color)
     retry_connecting(int, float)  — (attempt_no, delay_ms)
     reconnect_succeeded()
@@ -65,6 +68,10 @@ class AppController(QObject):
     measurement_stopped = Signal()
     high_speed_mode_changed = Signal(bool)
     progress_updated = Signal(int, int)
+    timing_updated = Signal(float, float, float)  # device_s, wall_s, target_s
+    run_finished = Signal(
+        dict
+    )  # timing result, emitted just before measurement_stopped
     status_message = Signal(str, str)
     retry_connecting = Signal(int, float)
     reconnect_succeeded = Signal()
@@ -104,6 +111,7 @@ class AppController(QObject):
         # Delta-based duration: device-time accumulator and target (in µs)
         self._accum_us: float = 0.0
         self._target_us: float = 0.0
+        self.last_run: dict = {}  # timing result of the last finished run
 
         # Reconnect state machine; a window may be built on an already connected device
         # (profile switch), otherwise the user connects through the connection panel.
@@ -116,6 +124,9 @@ class AppController(QObject):
 
         # Journal
         self._journal: Optional[SessionJournal] = None
+        # Every journal since the last save / discard: a sweep opens one per point and all
+        # of them are settled together, otherwise the earlier ones stay behind as orphans.
+        self._pending_journals: list[SessionJournal] = []
 
         # Acquisition thread
         self._acquire_thread: Optional[DataAcquisitionThread] = None
@@ -204,6 +215,7 @@ class AppController(QObject):
 
             # Open journal
             self._journal = SessionJournal()
+            self._pending_journals.append(self._journal)
 
             self._progress_timer.start(1000)
             self.measurement_started.emit()
@@ -217,21 +229,68 @@ class AppController(QObject):
         self._state_poller.resume()
         return False
 
-    def stop_measurement(self) -> None:
+    def stop_measurement(self, reason: str = "manual") -> None:
+        """Stop the run. ``reason``: manual, target_reached, device_end or wall_clock."""
+        was_measuring = self._is_measuring
+        result = self._timing_result(reason) if was_measuring else {}
         self._is_measuring = False
         self._progress_timer.stop()
-        self.device_manager.stop_measurement()
+        confirmed = self.device_manager.stop_measurement()
         self._state_poller.resume()
+        if self._journal:
+            self._journal.close()  # the run is over; saving or discarding settles it later
+        if was_measuring:
+            result["stop_confirmed"] = bool(confirmed)
+            self.last_run = result
+            self.run_finished.emit(result)
         self.measurement_stopped.emit()
-        self._notify(
-            message("measurement_stopped"),
-            CONFIG.get("colors", {}).get("green", "green"),
-        )
+        green = CONFIG.get("colors", {}).get("green", "green")
+        if was_measuring:
+            self._notify(
+                message(
+                    "measurement_stopped_detail",
+                    reason=message(f"stop_reason_{reason}"),
+                    device=result["device_time_s"],
+                    wall=result["wall_time_s"],
+                ),
+                green,
+            )
+            if not confirmed and self.device_manager.connected:
+                _log.error("Stop was not confirmed by the device")
+                self._notify(
+                    message("stop_unconfirmed"),
+                    CONFIG.get("colors", {}).get("red", "red"),
+                )
+        else:
+            self._notify(message("measurement_stopped"), green)
+
+    def _timing_result(self, reason: str) -> dict:
+        """Which time a run covered: the device time decides, the wall clock is reference."""
+        target_s = self._target_us / 1e6
+        device_s = self._accum_us / 1e6
+        if target_s > 0:
+            device_s = min(device_s, target_s)  # the crossing event is cut off
+        wall_s = 0.0
+        if self._measurement_start:
+            wall_s = (datetime.now() - self._measurement_start).total_seconds()
+        return {
+            "target_s": target_s,
+            "device_time_s": round(device_s, 6),
+            "wall_time_s": round(wall_s, 3),
+            "stop_reason": reason,
+        }
 
     def finalize_journal(self) -> None:
-        """Mark the current session journal as cleanly saved."""
-        if self._journal:
-            self._journal.finalize()
+        """The data was saved: settle every journal since the last save as finalized."""
+        for journal in self._pending_journals:
+            journal.finalize()
+        self._pending_journals.clear()
+
+    def discard_journals(self) -> None:
+        """The data was thrown away on purpose: its journals are no orphans to report."""
+        for journal in self._pending_journals:
+            journal.discard()
+        self._pending_journals.clear()
 
     @property
     def is_measuring(self) -> bool:
@@ -457,7 +516,7 @@ class AppController(QObject):
             "(accumulated %.2f µs)",
             self._accum_us,
         )
-        self.stop_measurement()
+        self.stop_measurement("device_end")
 
     # ------------------------------------------------------------------
     # Data batch handler
@@ -487,7 +546,7 @@ class AppController(QObject):
             self.frames_ready.emit(frames)
 
         if reached:
-            self.stop_measurement()
+            self.stop_measurement("target_reached")
 
     # ------------------------------------------------------------------
     # Timers
@@ -506,6 +565,10 @@ class AppController(QObject):
         elapsed = int(self._accum_us / 1e6)
         total = int(self._target_us / 1e6)
         self.progress_updated.emit(elapsed, total)
+        wall_s = 0.0
+        if self._measurement_start:
+            wall_s = (datetime.now() - self._measurement_start).total_seconds()
+        self.timing_updated.emit(self._accum_us / 1e6, wall_s, self._target_us / 1e6)
 
         # Wall-clock fallback for finite-time measurements.
         # The device stops its internal counter when the counting time expires
@@ -521,7 +584,7 @@ class AppController(QObject):
                     wall_s,
                     target_s,
                 )
-                self.stop_measurement()
+                self.stop_measurement("wall_clock")
 
     # ------------------------------------------------------------------
     # Reconnect state machine (§5 B1–B7)

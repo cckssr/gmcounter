@@ -23,6 +23,8 @@ class DeviceManager:
 
     STOP_SEQUENCE_DELAY_S = 0.2
     CLEAR_REGISTER_DELAY_S = 0.2
+    STOP_QUIET_CHECK_S = 0.1  # how long the line must stay silent to count as stopped
+    STOP_ATTEMPTS = 3  # ABOR is repeated until the stream is silent
 
     def __init__(
         self,
@@ -236,25 +238,56 @@ class DeviceManager:
             return False
 
     def stop_measurement(self) -> bool:
+        """Stop the device and check that it really stopped streaming.
+
+        ``ABOR`` is a plain command without an answer, so it can get lost while the board
+        floods the port. After every attempt the input buffer is cleared and the line must
+        stay silent for ``STOP_QUIET_CHECK_S``; otherwise ``ABOR`` is sent again, up to
+        ``STOP_ATTEMPTS`` times. Returns ``True`` only when silence was confirmed. A source
+        so weak that no event arrives within the check window cannot be told apart from a
+        stopped device; that case counts as confirmed.
+        """
         self.measurement_state.stop_measurement()
         if not (self.device and self.connected):
             _log.warning("Stop called but device not connected")
             return False
         try:
-            self.device.set_counting(False)
-            time.sleep(self.STOP_SEQUENCE_DELAY_S)
-            self.device.clear_register()
-            time.sleep(self.CLEAR_REGISTER_DELAY_S)
-            if self.device.serial and self.device.serial.is_open:
-                try:
-                    self.device.serial.reset_input_buffer()
-                except OSError:
-                    pass
-            _log.info("Measurement stopped")
-            return True
+            for attempt in range(1, self.STOP_ATTEMPTS + 1):
+                self.device.set_counting(False)
+                time.sleep(self.STOP_SEQUENCE_DELAY_S)
+                self.device.clear_register()
+                time.sleep(self.CLEAR_REGISTER_DELAY_S)
+                self._flush_input()
+                time.sleep(self.STOP_QUIET_CHECK_S)
+                if self._input_is_quiet():
+                    _log.info("Measurement stopped (attempt %d)", attempt)
+                    return True
+                _log.warning(
+                    "Device still streams after ABOR (attempt %d of %d)",
+                    attempt,
+                    self.STOP_ATTEMPTS,
+                )
+            _log.error("Stop not confirmed: the device keeps streaming")
+            self._flush_input()
+            return False
         except (serial.SerialException, OSError) as exc:
             _log.error("Error stopping measurement: %s", exc)
             return False
+
+    def _flush_input(self) -> None:
+        port = getattr(self.device, "serial", None)
+        if port is not None and port.is_open:
+            try:
+                port.reset_input_buffer()
+            except OSError:
+                pass
+
+    def _input_is_quiet(self) -> bool:
+        port = getattr(self.device, "serial", None)
+        if port is None or not port.is_open:
+            return True
+        waiting = port.in_waiting
+        return not isinstance(waiting, int) or waiting == 0
 
     # ------------------------------------------------------------------
     # Connection-loss handler (called by AppController from the Qt signal)

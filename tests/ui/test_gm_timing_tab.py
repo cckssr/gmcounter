@@ -6,6 +6,8 @@ import pytest
 
 from gmcounter.core.models import Frame
 
+from .conftest import fill_required_sample_fields
+
 QUEUE_SIZE = 10_000
 
 
@@ -74,7 +76,8 @@ def test_count_and_rate_keep_updating_in_high_speed(window, timing):
 
     events = len(timing.export().rows) + 1
     assert readout.lcdCount.value() == events
-    expected_rate = round(events / (timing._cum_us / 1e6), 1)
+    # The LCD shows about three significant digits (format_rate), here whole hertz.
+    expected_rate = round(events / (timing._cum_us / 1e6))
     assert readout.lcdRate.value() == pytest.approx(expected_rate)
     assert readout.lcdRate.value() > 0
     assert readout.lcdCount.value() != 100.0  # not the last delta any more
@@ -101,6 +104,7 @@ def test_the_view_does_not_switch_during_a_sweep_session(window, timing, monkeyp
     sweep_tab = window.tabs["distance_law"]
     window.ui.tabWidget.setCurrentWidget(sweep_tab)
     window.ui.devicePanel.ui.comboDuration.setCurrentIndex(2)  # finite: no question
+    fill_required_sample_fields(window)
     monkeypatch.setattr(window.ctrl, "start_measurement", lambda total_seconds=0: True)
     window.session.start()
     assert window.session.session_tab is sweep_tab
@@ -223,6 +227,7 @@ def test_a_measurement_on_the_mock_device_runs_through_the_window(
 
     panel = win.ui.measurementPanel
     win.ui.devicePanel.ui.comboDuration.setCurrentIndex(1)  # 1 s of device time
+    fill_required_sample_fields(win)
     with qtbot.waitSignal(win.ctrl.measurement_started, timeout=5000):
         panel.ui.buttonStart.click()
     assert panel.ui.buttonStop.isEnabled() and not panel.ui.buttonStart.isEnabled()

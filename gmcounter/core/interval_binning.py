@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 
 
@@ -19,6 +19,7 @@ class IntervalBins:
     counts: List[int]  # len == repeats; true events per bin (bin 0 seeded +1)
     deltas: List[List[float]]  # per-bin deltas (terminating-event assignment)
     cum_us: float  # device-time of last processed event
+    indices: List[List[int]] = field(default_factory=list)  # event index per delta
 
 
 class IntervalBinner:
@@ -38,6 +39,7 @@ class IntervalBinner:
         self.repeats = int(repeats)
         self._counts: List[int] = [0] * self.repeats
         self._deltas: List[List[float]] = [[] for _ in range(self.repeats)]
+        self._indices: List[List[int]] = [[] for _ in range(self.repeats)]
         self._cum_us: float = 0.0
         self._first_feed_done: bool = False
 
@@ -59,12 +61,13 @@ class IntervalBinner:
             if 0 not in touched:
                 touched.append(0)
 
-        for _, value in points:
+        for index, value in points:
             self._cum_us += value
             bin_idx = int(math.floor(self._cum_us / self.width_us))
             if bin_idx < self.repeats:
                 self._counts[bin_idx] += 1
                 self._deltas[bin_idx].append(float(value))
+                self._indices[bin_idx].append(int(index))
                 if bin_idx not in touched:
                     touched.append(bin_idx)
 
@@ -83,4 +86,5 @@ class IntervalBinner:
             counts=list(self._counts),
             deltas=[list(d) for d in self._deltas],
             cum_us=self._cum_us,
+            indices=[list(i) for i in self._indices],
         )

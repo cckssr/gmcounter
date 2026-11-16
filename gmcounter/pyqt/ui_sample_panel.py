@@ -163,7 +163,7 @@ class Ui_SamplePanel(object):
             self.spinDistance.sizePolicy().hasHeightForWidth()
         )
         self.spinDistance.setSizePolicy(sizePolicy1)
-        self.spinDistance.setDecimals(1)
+        self.spinDistance.setDecimals(2)
         self.spinDistance.setMaximum(100.000000000000000)
         self.spinDistance.setSingleStep(0.500000000000000)
 

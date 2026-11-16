@@ -61,19 +61,14 @@ class DevicePanel(QGroupBox):
         }
 
     def duration_s(self) -> int:
-        """Count duration in seconds; 0 means unlimited (also for invalid input).
+        """Count duration in seconds of the selected preset; 0 means unlimited.
 
-        A preset item maps through ``combo_duration_seconds``; a custom value typed into the
-        editable combo box is parsed as a number and rounded.
+        The presets come from ``combo_duration_seconds``; the combo box is not editable.
         """
-        combo = self.ui.comboDuration
-        index = combo.currentIndex()
+        index = self.ui.comboDuration.currentIndex()
         if 0 <= index < len(self._duration_presets_s):
             return self._duration_presets_s[index]
-        try:
-            return max(0, int(round(float(combo.currentText().replace(",", ".")))))
-        except ValueError:
-            return 0
+        return 0
 
     def set_voltage(self, volts: int) -> None:
         """Show ``volts`` in the spin box and the dial."""

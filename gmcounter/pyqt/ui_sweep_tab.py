@@ -43,6 +43,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
+    QCheckBox,
     QDoubleSpinBox,
     QGridLayout,
     QHBoxLayout,
@@ -72,16 +73,14 @@ class Ui_SweepTab(object):
         self.layoutSweepControls.setObjectName("layoutSweepControls")
         self.labelParam = QLabel(SweepTab)
         self.labelParam.setObjectName("labelParam")
-        font1 = QFont()
-        font1.setPointSize(14)
-        self.labelParam.setFont(font1)
+        self.labelParam.setFont(font)
 
         self.layoutSweepControls.addWidget(self.labelParam)
 
         self.spinParam = QDoubleSpinBox(SweepTab)
         self.spinParam.setObjectName("spinParam")
-        self.spinParam.setFont(font1)
-        self.spinParam.setDecimals(1)
+        self.spinParam.setFont(font)
+        self.spinParam.setDecimals(2)
         self.spinParam.setMaximum(99999.000000000000000)
         self.spinParam.setSingleStep(0.500000000000000)
 
@@ -89,10 +88,17 @@ class Ui_SweepTab(object):
 
         self.labelHint = QLabel(SweepTab)
         self.labelHint.setObjectName("labelHint")
-        self.labelHint.setFont(font1)
-        self.labelHint.setWordWrap(True)
+        self.labelHint.setFont(font)
+        self.labelHint.setTextFormat(Qt.TextFormat.PlainText)
+        self.labelHint.setWordWrap(False)
 
         self.layoutSweepControls.addWidget(self.labelHint)
+
+        self.checkLogAxes = QCheckBox(SweepTab)
+        self.checkLogAxes.setObjectName("checkLogAxes")
+        self.checkLogAxes.setFont(font)
+
+        self.layoutSweepControls.addWidget(self.checkLogAxes)
 
         self.spacerSweep = QSpacerItem(
             40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
@@ -132,7 +138,10 @@ class Ui_SweepTab(object):
         )
         self.tableSummary.setSizePolicy(sizePolicy1)
         self.tableSummary.setMaximumSize(QSize(16777215, 200))
-        self.tableSummary.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tableSummary.setEditTriggers(
+            QAbstractItemView.EditTrigger.DoubleClicked
+            | QAbstractItemView.EditTrigger.EditKeyPressed
+        )
         self.tableSummary.setAlternatingRowColors(True)
         self.tableSummary.setSelectionMode(
             QAbstractItemView.SelectionMode.SingleSelection
@@ -167,6 +176,18 @@ class Ui_SweepTab(object):
                 None,
             )
         )
+        self.checkLogAxes.setText(
+            QCoreApplication.translate("SweepTab", "Log-Achsen", None)
+        )
+        # if QT_CONFIG(tooltip)
+        self.checkLogAxes.setToolTip(
+            QCoreApplication.translate(
+                "SweepTab",
+                "Beide Achsen logarithmisch darstellen (Potenzgesetz wird zur Geraden)",
+                None,
+            )
+        )
+        # endif // QT_CONFIG(tooltip)
         pass
 
     # retranslateUi

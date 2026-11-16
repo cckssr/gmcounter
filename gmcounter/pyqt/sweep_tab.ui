@@ -34,7 +34,7 @@
       <widget class="QLabel" name="labelParam">
        <property name="font">
         <font>
-         <pointsize>14</pointsize>
+         <pointsize>11</pointsize>
         </font>
        </property>
        <property name="text">
@@ -46,7 +46,7 @@
       <widget class="QDoubleSpinBox" name="spinParam">
        <property name="font">
         <font>
-         <pointsize>14</pointsize>
+         <pointsize>11</pointsize>
         </font>
        </property>
        <property name="toolTip">
@@ -56,7 +56,7 @@
         <string> cm</string>
        </property>
        <property name="decimals">
-        <number>1</number>
+        <number>2</number>
        </property>
        <property name="maximum">
         <double>99999.000000000000000</double>
@@ -70,14 +70,32 @@
       <widget class="QLabel" name="labelHint">
        <property name="font">
         <font>
-         <pointsize>14</pointsize>
+         <pointsize>11</pointsize>
         </font>
-       </property>
-       <property name="wordWrap">
-        <bool>true</bool>
        </property>
        <property name="text">
         <string>Spannung wird in der Gerätesteuerung eingestellt.</string>
+       </property>
+       <property name="textFormat">
+        <enum>Qt::TextFormat::PlainText</enum>
+       </property>
+       <property name="wordWrap">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="checkLogAxes">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Log-Achsen</string>
+       </property>
+       <property name="toolTip">
+        <string>Beide Achsen logarithmisch darstellen (Potenzgesetz wird zur Geraden)</string>
        </property>
       </widget>
      </item>
@@ -128,7 +146,7 @@
       </size>
      </property>
      <property name="editTriggers">
-      <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+      <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
      </property>
      <property name="alternatingRowColors">
       <bool>true</bool>

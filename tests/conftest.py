@@ -14,6 +14,20 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
+@pytest.fixture(autouse=True)
+def _isolated_journal_dir(tmp_path_factory, monkeypatch):
+    """Journals of a test go to a temp folder, never to ``~/.gmcounter/sessions``.
+
+    Otherwise every test run leaves unfinalized journals behind that the application
+    reports as orphans on its next start.
+    """
+    from gmcounter.infrastructure import session_journal
+
+    monkeypatch.setattr(
+        session_journal, "JOURNAL_DIR", tmp_path_factory.mktemp("journals")
+    )
+
+
 def pytest_addoption(parser):
     parser.addoption(
         "--port",

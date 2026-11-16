@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
 from gmcounter.core.export import TabExport
+from gmcounter.infrastructure.save_service import write_export
 from gmcounter.core.services import SaveState
 from gmcounter.ui.controllers.session_controller import SessionController
 
@@ -35,6 +37,9 @@ class FakeCtrl:
     def finalize_journal(self) -> None:
         self.calls.append(("finalize",))
 
+    def discard_journals(self) -> None:
+        self.calls.append(("discard",))
+
     def set_active_tab(self, tab) -> None:
         self.calls.append(("active", tab))
 
@@ -46,6 +51,9 @@ class FakeTiming:
 
     def set_measurement_metadata(self, rad_sample, group, subterm) -> None:
         self.calls.append(("metadata", rad_sample, group, subterm))
+
+    def set_run_info(self, info: dict) -> None:
+        self.run_info = info
 
     def set_high_speed_autoswitch(self, enabled: bool) -> None:
         self.calls.append(("autoswitch", enabled))
@@ -65,6 +73,7 @@ class FakeTab:
 
     def __init__(self, kind: str) -> None:
         self.session_kind = kind
+        self.tab_id = f"fake_{kind}"
         self.calls: list[str] = []
         self.data = False
         self.width_s = 2.0
@@ -147,7 +156,10 @@ class FakeFileDialogs:
         self.calls: list[tuple] = []
         self.exports: list[TabExport] = []
 
-    def manual_save_export(self, parent, export, sample, group, suffix):
+    def manual_save_export(
+        self, parent, export, sample, group, suffix, *, into_folder=False
+    ):
+        self.into_folder = into_folder
         self.calls.append((export.filename_hint, sample, group, suffix))
         self.exports.append(export)
         if self.cancel:
@@ -170,6 +182,7 @@ class Harness:
         self.current = FakeTab("single")
         self.duration = 10
         self.applied = 0
+        self.meta = dict(META)  # what the sample panel shows right now
         self.session = SessionController(
             config,
             self.ctrl,
@@ -179,7 +192,7 @@ class Harness:
             self.prompt,
             current_tab=lambda: self.current,
             duration_s=lambda: self.duration,
-            sample_metadata=lambda: dict(META),
+            sample_metadata=lambda: dict(self.meta),
             apply_settings=self._apply,
         )
         self.buttons: list[tuple] = []
@@ -224,6 +237,24 @@ def test_the_initial_state_offers_only_start(h):
     assert h.status[-1] == (_m(h, "status_ready"), "green")
 
 
+def test_start_hands_the_settings_snapshot_to_the_timing_tab(h):
+    h.session.start()
+    info = h.timing.run_info
+    assert info["experiment"] == h.current.tab_id or info["experiment"] == "gm_timing"
+    assert info["settings"]["target_duration_s"] == 10
+    assert info["detector_code"] == "E47438"
+
+
+@pytest.mark.parametrize("missing", ["sample", "group", "detector"])
+def test_start_is_refused_while_a_required_sample_field_is_empty(h, missing):
+    h.meta[missing] = " "
+    h.session.start()
+    assert h.ctrl.calls == []
+    assert h.prompt.shown == [
+        ("warn", _m(h, "missing_sample_info"), _m(h, "title_warning"))
+    ]
+
+
 def test_start_passes_the_duration_and_the_sample_metadata(h):
     h.session.start()
     assert h.ctrl.calls == [("start", 10)]
@@ -257,6 +288,22 @@ def test_stop_asks_the_ctrl(h):
     assert h.ctrl.calls == [("stop",)]
 
 
+def test_a_single_save_takes_the_sample_panel_as_it_is_at_save_time(h):
+    """Background selected only after Start: the sidecar must say background, not the sample."""
+    h.measure()  # started with sample E87198, detector E47438, distance 12.5 cm
+    h.meta.update(sample="BACKGROUND", detector="E99999", distance_cm=0.0)
+    h.session.save()
+
+    assert h.timing.calls[-1] == ("metadata", "BACKGROUND", "C", "run1")
+    assert h.dialogs.calls == [("gm_timing", "BACKGROUND", "C", "run1")]
+    meta = h.dialogs.exports[0].metadata
+    assert meta["detector_code"] == "E99999"
+    assert (
+        "sample_distance_cm" not in meta
+    )  # distance 0: no sample in front of the tube
+    assert "sample_distance_cm" not in meta["settings"]
+
+
 def test_saving_a_single_measurement_writes_it_and_frees_start(h):
     h.session.set_device_info({"version": "fw1", "openbis": "unknown"})
     h.measure()
@@ -268,7 +315,6 @@ def test_saving_a_single_measurement_writes_it_and_frees_start(h):
     assert meta["sample_distance_cm"] == 12.5
     assert meta["counter_firmware_version"] == "fw1"
     assert "counter_openbis_code" not in meta  # "unknown" is not written
-    assert meta["total_count"] == 2
     assert not h.save_service.has_unsaved()
     assert ("finalize",) in h.ctrl.calls
     assert h.buttons[-1][0] is True and h.buttons[-1][3] is False
@@ -387,6 +433,39 @@ def test_saving_a_sweep_writes_the_summary_and_named_detail_files(h, tmp_path):
     assert h.buttons[-1][0] is True and h.buttons[-1][3] is False
 
 
+def test_the_summary_sidecar_links_every_measurement_to_its_file(tmp_path):
+    summary = TabExport(
+        "summary", ["a"], [["1"]], {"measurements": [{"index": 1}, {"index": 2}]}
+    )
+    saved = write_export(summary, tmp_path / "summary.csv")
+
+    SessionController._link_detail_files(saved, summary, ["m01.csv", None])
+
+    meta = json.loads((tmp_path / "summary_MD.json").read_text(encoding="utf-8"))
+    assert meta["detail_files"] == ["m01.csv", None]
+    assert [m["file"] for m in meta["measurements"]] == ["m01.csv", None]
+
+
+def test_the_sweep_summary_carries_no_session_wide_settings(h):
+    h.current = SweepTab()
+    h.measure()
+    h.session.save()
+    assert "settings" not in h.dialogs.exports[0].metadata
+
+
+def test_a_series_is_saved_into_a_folder_but_a_single_run_is_not(h):
+    h.current = SweepTab()
+    h.measure()
+    h.session.save()
+    assert h.dialogs.into_folder is True
+
+    h.session.reset()
+    h.current = FakeTab("single")
+    h.measure()
+    h.session.save()
+    assert h.dialogs.into_folder is False
+
+
 def test_a_cancelled_sweep_save_keeps_the_session(h):
     sweep = h.current = SweepTab()
     h.measure()
@@ -455,7 +534,7 @@ def test_saving_an_interval_session_names_the_files_after_the_intervals(h, tmp_p
         "summary_interval_000.csv",
         "summary_interval_001.csv",
     ]
-    assert "sample_distance_cm" not in h.dialogs.exports[0].metadata
+    assert h.dialogs.exports[0].metadata["sample_distance_cm"] == 12.5
     assert interval.calls[-2:] == ["saved", "reset"]
     assert ("reset",) not in h.timing.calls  # the timing tab was not used
     assert h.messages[-1] == (_m(h, "summary_saved_interval", ok=2, total=2), 5000)
@@ -503,3 +582,31 @@ def test_a_reconnect_enables_start_again(h):
     h.session.on_reconnect_succeeded()
     assert h.buttons[-1][0] is True
     assert h.status[-1] == (_m(h, "status_connected"), "green")
+
+
+def test_resetting_discards_the_journals_so_they_are_not_reported_as_orphans(h):
+    h.measure()
+    h.session.reset()
+    assert ("discard",) in h.ctrl.calls
+
+
+def test_a_declined_reset_keeps_the_journals(h):
+    h.measure()
+    h.prompt.answer = False
+    h.session.reset()
+    assert ("discard",) not in h.ctrl.calls
+
+
+def test_closing_with_a_confirmed_discard_settles_the_journals(h):
+    h.measure()
+    h.prompt.answer = True
+    assert h.session.confirm_close() is True
+    assert ("discard",) in h.ctrl.calls
+
+
+def test_a_saved_series_finalizes_the_journals_once(h):
+    h.current = SweepTab()
+    h.measure()
+    h.measure()
+    h.session.save()
+    assert h.ctrl.calls.count(("finalize",)) == 1

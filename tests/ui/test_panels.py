@@ -59,17 +59,15 @@ def test_a_preset_duration_maps_to_its_seconds(qtbot, config, index, seconds) ->
     assert panel.duration_s() == seconds
 
 
-@pytest.mark.parametrize(
-    ("text", "seconds"),
-    [("45", 45), ("2,6", 3), ("-5", 0), ("abc", 0), ("", 0)],
-)
-def test_a_custom_duration_is_parsed_or_falls_back_to_unlimited(
-    qtbot, config, text, seconds
-) -> None:
+def test_without_a_selection_the_duration_is_unlimited(qtbot, config) -> None:
     panel = _build(qtbot, DevicePanel, config)
     panel.ui.comboDuration.setCurrentIndex(-1)
-    panel.ui.comboDuration.setEditText(text)
-    assert panel.duration_s() == seconds
+    assert panel.duration_s() == 0
+
+
+def test_the_duration_combo_only_offers_the_presets(qtbot, config) -> None:
+    panel = _build(qtbot, DevicePanel, config)
+    assert not panel.ui.comboDuration.isEditable()
 
 
 def test_device_settings_reflect_the_controls(qtbot, config) -> None:
@@ -314,3 +312,27 @@ def test_the_event_log_appends_timestamped_lines_and_clears(qtbot, config) -> No
     assert lines[1].endswith("<b>no html</b>")
     panel.ui.buttonClear.click()
     assert panel.ui.editLog.toPlainText() == ""
+
+
+def test_the_timing_label_shows_the_device_time_and_the_clock_in_the_tooltip(config):
+    from gmcounter.ui.panels.measurement_panel import MeasurementPanel
+
+    panel = MeasurementPanel()
+    panel.apply_config(config)
+
+    panel.set_timing(9.84, 10.3, 10.0)
+    assert panel.ui.valueElapsed.text() == "9.8 / 10 s"
+    assert "10.3" in panel.ui.valueElapsed.toolTip()
+
+    panel.set_timing(3.0, 3.4, 0.0)  # unlimited: no target
+    assert panel.ui.valueElapsed.text() == "3.0 s"
+
+    panel.clear_progress()
+    assert panel.ui.valueElapsed.toolTip() == ""
+
+
+def test_the_sample_distance_has_two_decimals(qtbot, config) -> None:
+    panel = _build(qtbot, SamplePanel, config)
+    panel.ui.spinDistance.setValue(6.75)
+    assert panel.ui.spinDistance.decimals() == 2
+    assert panel.metadata()["distance_cm"] == 6.75

@@ -153,7 +153,7 @@ class Ui_DevicePanel(object):
             self.comboDuration.sizePolicy().hasHeightForWidth()
         )
         self.comboDuration.setSizePolicy(sizePolicy1)
-        self.comboDuration.setEditable(True)
+        self.comboDuration.setEditable(False)
         self.comboDuration.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
 
         self.layoutDevicePanel.addWidget(self.comboDuration, 2, 1, 1, 1)
@@ -296,7 +296,7 @@ class Ui_DevicePanel(object):
         self.comboDuration.setToolTip(
             QCoreApplication.translate(
                 "DevicePanel",
-                "Wie lange der Z\u00e4hler misst; eine eigene Dauer in Sekunden kann eingetippt werden",
+                "Wie lange der Z\u00e4hler misst; die Software beendet die Messung nach dieser Ger\u00e4tezeit",
                 None,
             )
         )
