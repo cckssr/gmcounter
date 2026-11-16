@@ -3,7 +3,7 @@
     "description": "Zentrale Konfigurationsdatei für die GMCounter-Anwendung. Stellt Konstanten und Standardwerte für die gesamte Anwendung bereit.",
     "application": {
       "name": "GM-Counter_GUI",
-      "version": "3.1.0",
+      "version": "3.2.0",
       "author": "C. Kessler, H. Celik",
       "window_mode": "maximized",
       "profile": "student"
